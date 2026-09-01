@@ -98,6 +98,25 @@ class SettingsDialog(Adw.PreferencesWindow):
         self._split_row.connect("notify::value", self._on_deck_split)
         group.add(self._split_row)
 
+        # Chart-Panel. Eigene Gruppe, weil die Erklaerung nicht in eine
+        # EntryRow passt (AdwEntryRow hat keinen Untertitel).
+        chart_grp = Adw.PreferencesGroup(
+            title="Chart",
+            description="Leer = eingebettetes TradingView-Widget (anonym, BTC/USDT). "
+                        "Eine URL wie https://www.tradingview.com/chart/AbCdEf12/ laedt "
+                        "die echte Seite mit dem eigenen Layout — Login einmalig ueber "
+                        "scripts/tradingview-login.py, das traegt die URL auch selbst hier ein.",
+        )
+        page.add(chart_grp)
+
+        # show-apply-button: erst der Haken (oder Enter) uebernimmt. Ohne das
+        # wuerde das Panel bei jedem einzelnen Tastendruck neu laden.
+        self._chart_row = Adw.EntryRow(title="TradingView chart URL")
+        self._chart_row.set_show_apply_button(True)
+        self._chart_row.set_text(self._settings.get("chart_url", "") or "")
+        self._chart_row.connect("apply", self._on_chart_url)
+        chart_grp.add(self._chart_row)
+
         self.add(page)
 
     @staticmethod
@@ -131,6 +150,17 @@ class SettingsDialog(Adw.PreferencesWindow):
     def _on_isolate_launches(self, row, _pspec) -> None:
         self._settings["isolate_launches"] = bool(row.get_active())
         config_store.save_settings(self._settings)
+
+    def _on_chart_url(self, row) -> None:
+        """Uebernommene URL speichern und das Panel sofort neu aufbauen.
+
+        Frueher galt hier "wirkt erst nach Neustart" — genau das laesst einen
+        im Unklaren, ob die Einstellung angekommen ist. Der on_apply-Callback
+        haengt das Chart-Panel neu auf, das Ergebnis ist sofort zu sehen.
+        """
+        self._settings["chart_url"] = row.get_text().strip()
+        config_store.save_settings(self._settings)
+        self._on_apply_cb()
 
     # ----- Apps / Macros tabs -----
 

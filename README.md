@@ -252,8 +252,11 @@ nach jedem Neustart weg.
 
 Zu beachten:
 
-- **Neustart noetig.** `chart_url` wird beim Fensterbau gelesen, das
-  Settings-Modal aendert daran nichts.
+- **Kein Neustart noetig.** Das Feld *TradingView chart URL* im Settings-Modal
+  (General-Tab) uebernimmt die URL mit dem Haken bzw. Enter und haengt das
+  Panel sofort neu auf. Getippt wird das ueblicherweise nicht am Streifen —
+  `scripts/tradingview-login.py` traegt die URL selbst ein, das Feld ist zum
+  Nachsehen, Umschalten und Leeren da.
 - **Der erste Aufbau dauert.** Das Panel bleibt einige Sekunden leer, bis
   Layout und Indikatoren geladen sind — beim anonymen Widget steht der Chart
   fast sofort. Das ist kein Fehler, sondern der Preis des eigenen Layouts.
@@ -324,7 +327,8 @@ Popen-Verhalten zurück.
 
 ## Tastatur / Bedienung
 
-- Zahnrad-Button: Settings (Apps/Macros bearbeiten, Pfade per Browse-Picker)
+- Zahnrad-Button: Settings (Apps/Macros bearbeiten, Pfade per Browse-Picker,
+  Chart-URL umschalten)
 - `FS`: Vollbild umschalten
 - `X`: Beenden
 - Macros mit `confirm: true`: Button gedrückt halten (1 s) bis er rot aufleuchtet

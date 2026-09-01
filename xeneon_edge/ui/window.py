@@ -178,11 +178,14 @@ class MainWindow(Adw.ApplicationWindow):
         # Col 1: Chart — flexes to take all remaining horizontal space.
         # chart_url leer = eingebettetes Widget; eine URL laedt die echte
         # TradingView-Seite mit der gespeicherten Session (Login siehe
-        # scripts/tradingview-login.py). Aenderung wirkt erst nach Neustart.
-        chart = make_chart_widget(config_store.load_settings().get("chart_url", ""))
-        chart.set_hexpand(True)
-        chart.set_vexpand(True)
-        grid.attach(chart, 1, 0, 1, 1)
+        # scripts/tradingview-login.py). Der Halter bleibt in der Grid-Zelle
+        # stehen, damit set_chart_url() nur sein Kind tauschen muss.
+        self._chart_url = config_store.load_settings().get("chart_url", "") or ""
+        self.chart_holder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.chart_holder.set_hexpand(True)
+        self.chart_holder.set_vexpand(True)
+        self.chart_holder.append(make_chart_widget(self._chart_url))
+        grid.attach(self.chart_holder, 1, 0, 1, 1)
 
         # Col 2: Top processes (stretches) + Audio (fixed at bottom)
         right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -326,3 +329,21 @@ class MainWindow(Adw.ApplicationWindow):
             f"Next match: {('home' if is_home else 'away')} vs {opponent} ({comp})\n"
             f"{local.strftime('%a %d %b %Y, %H:%M %Z')}"
         )
+
+    def set_chart_url(self, url: str) -> None:
+        """Chart-Panel auf eine neue URL umhaengen (Settings -> General).
+
+        Neu bauen statt ``load_uri``: der Widget-Modus laedt HTML aus einem
+        String, der Account-Modus braucht eine persistente ``NetworkSession``
+        — das ist nicht dieselbe WebView, also wird sie ersetzt. Unveraenderte
+        URL bleibt unangetastet, sonst wuerde jedes Anwenden im
+        Settings-Dialog den Chart neu laden.
+        """
+        url = (url or "").strip()
+        if url == self._chart_url:
+            return
+        self._chart_url = url
+        old = self.chart_holder.get_first_child()
+        if old is not None:
+            self.chart_holder.remove(old)
+        self.chart_holder.append(make_chart_widget(url))

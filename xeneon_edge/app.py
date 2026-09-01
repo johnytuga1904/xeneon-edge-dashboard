@@ -86,6 +86,8 @@ class XeneonEdgeApp(Adw.Application):
     def _on_settings_apply(self) -> None:
         self._refresh_deck()
         self._target_monitor()
+        if self._window is not None:
+            self._window.set_chart_url(config_store.load_settings().get("chart_url", ""))
 
     def _target_monitor(self) -> None:
         """Move/fullscreen the window onto the configured (or auto-detected) Xeneon Edge."""
