@@ -10,7 +10,8 @@ Linux-Port des Windows-Desktop-Dashboards — native GTK4-Oberfläche, Sensoren 
 - Top-Prozesse (psutil) — `×` gedrückt halten beendet den Prozess (SIGTERM)
 - Audio: PipeWire-Lautstärke + Mute + Default-Device-Auswahl (`pactl` / `wpctl`)
 - Wetter (open-meteo, Wohlen CH)
-- TradingView BTC/USDT-Chart (eingebettet via WebKitGTK)
+- TradingView-Chart (WebKitGTK) — wahlweise das anonyme Widget oder die
+  echte Chart-Seite mit dem eigenen Account und gespeichertem Layout
 - 3×6 Launch-Deck (18 Buttons) mit frei einstellbarer Aufteilung Apps/Macros,
   Hold-to-confirm für `poweroff`/`reboot`/etc.
 - Auto-Start via `~/.config/autostart`
@@ -179,7 +180,8 @@ Entweder über das Settings-Modal (Zahnrad oben rechts → „Start with desktop
 - `config/apps.json` — Default-Apps und -Macros (im Repo, dient als Vorlage)
 - `~/.config/xeneon-edge/apps.json` — User-Override (Settings-Dialog schreibt hierhin)
 - `~/.config/xeneon-edge/settings.json` — `auto_start`, `hold_to_confirm`,
-  `isolate_launches`, `deck_app_slots`, `target_monitor`, `fullscreen_on_target`
+  `isolate_launches`, `deck_app_slots`, `target_monitor`, `fullscreen_on_target`,
+  `chart_url`
 
 ### Deck-Aufteilung
 
@@ -212,6 +214,52 @@ Beschriftungen brechen auf zwei Zeilen um (11px, minimale Sperrung). Gemessen
 mit Pango bei der realen Buttonbreite passt damit alles bis
 `g1_gemma-4-e4b_128k` vollständig auf den Button; vorher wurde schon
 „qwen 96k vision" gekürzt.
+
+### TradingView mit eigenem Account
+
+Das Chart-Panel kennt zwei Betriebsarten, umgeschaltet ueber `chart_url` in
+`~/.config/xeneon-edge/settings.json`:
+
+| `chart_url`                                       | Was laeuft                                     |
+|---------------------------------------------------|------------------------------------------------|
+| `""` (Default)                                    | *Advanced Chart*-Widget, anonym, BTC/USDT       |
+| `https://www.tradingview.com/chart/AbCdEf12/`     | die echte Chart-Seite mit deinem Layout         |
+
+Das eingebettete Widget kann gespeicherte Layouts **nicht** laden — es ist
+account-los und nimmt nur Parameter (Symbol, Intervall, `studies`). Wer seine
+Indikatoren, Zeichnungen und Templates sehen will, muss die richtige Seite
+laden und dort angemeldet sein.
+
+Angemeldet wird einmalig:
+
+```bash
+./scripts/tradingview-login.py
+```
+
+Das oeffnet dieselbe Browser-Session in einem normalen 1400x900-Fenster auf dem
+Hauptmonitor — am 2560x720-Streifen haengt ueblicherweise keine Tastatur. Dort
+anmelden, den gewuenschten gespeicherten Chart oeffnen, *Als Chart uebernehmen*
+druecken: das schreibt die aktuelle URL nach `chart_url` und beendet das
+Fenster. Login ueber Google/Apple oeffnet ein Popup — das Skript faengt es ab
+und zeigt es in einem eigenen Fenster (ohne diesen Handler passiert beim Klick
+gar nichts).
+
+Das Profil liegt in `~/.local/share/xeneon-edge/webkit/` (Cookies als
+`cookies.sqlite`, dazu LocalStorage). Persistent ist es nur, weil die
+`NetworkSession` explizit mit diesem Verzeichnis gebaut wird — eine
+Default-`WebKit.WebView()` haelt ihren Cookie-Jar im Speicher, der Login waere
+nach jedem Neustart weg.
+
+Zu beachten:
+
+- **Neustart noetig.** `chart_url` wird beim Fensterbau gelesen, das
+  Settings-Modal aendert daran nichts.
+- **Die volle Seite kostet mehr** als das Widget — eigener Web-Prozess, mehr
+  RAM, mehr CPU. Bei einem Panel, das durchlaeuft, merkbar.
+- **Die Session kann ablaufen.** Dann steht im Panel die Login-Wand statt eines
+  Charts; `./scripts/tradingview-login.py` erneut aufrufen.
+- Automatisiertes Einloggen waere gegen die TradingView-ToS — deshalb ein
+  Fenster zum Selbst-Anmelden und kein Skript, das Zugangsdaten eintippt.
 
 ### Icons
 
@@ -312,6 +360,7 @@ linux/
   scripts/install-debian.sh    # Debian-13-Setup: Pakete, Verify, Settings, Autostart
   scripts/install-arch.sh      # Arch/Omarchy-Setup: + Deck-Vorlage, Hyprland-Regeln
   scripts/verify-install.py    # Abhaengigkeits-Check, von beiden Installern benutzt
+  scripts/tradingview-login.py # Einmal-Login fuer das Chart-Panel (eigene Session)
   xeneon_edge/
     app.py             # Adw.Application + CSS + Aggregator-Wiring
     config_store.py    # settings.json + apps.json + autostart .desktop

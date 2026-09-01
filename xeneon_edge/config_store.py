@@ -16,6 +16,11 @@ _DEFAULT_SETTINGS = {
     # Deck-Eintraege ueber `systemd-run --user` in eigene transiente Units
     # starten statt als Kindprozess des Dashboards. Siehe launcher.py.
     "isolate_launches": True,
+    # Leer = eingebettetes TradingView-Widget (kein Login, kein Account).
+    # Eine URL wie "https://www.tradingview.com/chart/AbCdEf12/" laedt
+    # stattdessen die echte Chart-Seite mit der gespeicherten Session, also mit
+    # deinem Layout. Login einmalig ueber scripts/tradingview-login.py.
+    "chart_url": "",
     # Wie viele der DECK_SLOTS Plaetze an Apps gehen; der Rest geht an Macros.
     # 0 = alles Macros, DECK_SLOTS = alles Apps.
     "deck_app_slots": 9,

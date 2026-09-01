@@ -11,6 +11,7 @@ from .audio_panel import AudioPanel
 from .deck import LaunchDeck
 from .chart import make_chart_widget
 from .layout import FixedWidth
+from .. import config_store
 
 # Column widths in px. These are hard, not minimums: FixedWidth reports them as
 # both minimum and natural, so no value inside a column can ever move it.
@@ -174,8 +175,11 @@ class MainWindow(Adw.ApplicationWindow):
         sensors_col.append(self.fan_panel)
         grid.attach(FixedWidth(sensors_col, COL_SENSORS_W), 0, 0, 1, 1)
 
-        # Col 1: Chart — flexes to take all remaining horizontal space
-        chart = make_chart_widget()
+        # Col 1: Chart — flexes to take all remaining horizontal space.
+        # chart_url leer = eingebettetes Widget; eine URL laedt die echte
+        # TradingView-Seite mit der gespeicherten Session (Login siehe
+        # scripts/tradingview-login.py). Aenderung wirkt erst nach Neustart.
+        chart = make_chart_widget(config_store.load_settings().get("chart_url", ""))
         chart.set_hexpand(True)
         chart.set_vexpand(True)
         grid.attach(chart, 1, 0, 1, 1)
