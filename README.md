@@ -254,6 +254,12 @@ Zu beachten:
 
 - **Neustart noetig.** `chart_url` wird beim Fensterbau gelesen, das
   Settings-Modal aendert daran nichts.
+- **Der erste Aufbau dauert.** Das Panel bleibt einige Sekunden leer, bis
+  Layout und Indikatoren geladen sind — beim anonymen Widget steht der Chart
+  fast sofort. Das ist kein Fehler, sondern der Preis des eigenen Layouts.
+- **Telemetrie-Requests scheitern** (`telemetry.tradingview.com`, `TypeError:
+  Load failed`), wenn ein Adblocker oder DNS-Filter aktiv ist. Ohne Folgen —
+  der Chart laedt vollstaendig.
 - **Die volle Seite kostet mehr** als das Widget — eigener Web-Prozess, mehr
   RAM, mehr CPU. Bei einem Panel, das durchlaeuft, merkbar.
 - **Die Session kann ablaufen.** Dann steht im Panel die Login-Wand statt eines
