@@ -1,0 +1,300 @@
+/* Xeneon Edge — GTK4 theme (port of renderer/styles.css) */
+
+@define-color bg #000000;
+@define-color panel #050505;
+@define-color panel_line #161616;
+@define-color line #1a1a1a;
+@define-color text #ffffff;
+@define-color muted #5a5a5a;
+@define-color label_color #6e6e6e;
+@define-color accent #ff0033;
+@define-color accent_dim alpha(@accent, 0.18);
+@define-color accent_glow alpha(@accent, 0.55);
+@define-color gauge_track #0c0c0c;
+@define-color gauge_track_edge #181818;
+
+window, .background, .shell {
+  background-color: @bg;
+  color: @text;
+  font-family: "Inter", "JetBrains Mono", "Segoe UI", system-ui, sans-serif;
+  font-feature-settings: "tnum" 1;
+}
+
+label { color: @text; }
+label.muted { color: @muted; font-size: 11px; letter-spacing: 0.06em; }
+label.brand { font-size: 16px; font-weight: 900; letter-spacing: 0.18em; }
+label.brand-accent { color: @accent; font-weight: 900; }
+label.brand-sub { color: @label_color; font-size: 9px; letter-spacing: 0.28em; }
+
+label.clock-time { font-size: 22px; font-weight: 900; letter-spacing: 0.04em; }
+label.clock-date { color: @muted; font-size: 10px; letter-spacing: 0.18em; }
+
+label.weather-symbol { font-size: 22px; }
+label.weather-temp { font-size: 18px; font-weight: 900; }
+label.weather-temp-strong { color: @accent; font-weight: 900; }
+
+/* Topbar pills (weather, match) — give them consistent height + padding */
+box.topbar-pill {
+  padding: 4px 10px;
+  border: 1px solid @accent_dim;
+  border-top: 2px solid @accent;
+}
+
+/* SLB match widget */
+box.match-widget { min-width: 180px; }
+label.match-team {
+  color: @accent;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.16em;
+  text-shadow: 0 0 8px @accent_glow;
+}
+label.match-opponent {
+  font-size: 12px;
+  font-weight: 800;
+  color: @text;
+  letter-spacing: 0.04em;
+}
+label.match-when {
+  font-size: 10px;
+  color: @muted;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+label.panel-label {
+  color: @label_color;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  font-weight: 800;
+}
+label.panel-sublabel {
+  color: @muted;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+
+box.panel {
+  background-color: @panel;
+  border: 1px solid @accent_dim;
+  border-top: 2px solid @accent;
+  padding: 6px 8px;
+  border-radius: 0;
+}
+
+box.panel-header {
+  margin-bottom: 2px;
+  border-bottom: 1px solid @accent_dim;
+  padding-bottom: 3px;
+}
+
+/* Sensor-column panels get a slightly bolder rail since the column is wider */
+box.col-sensors box.panel {
+  border-top-width: 2px;
+  border-color: @accent_dim;
+}
+
+/* compact column variant — used by procs+audio (narrow) and the wider
+   sensors column. Sensor column gets its own override below. */
+box.col-compact box.panel {
+  padding: 5px 7px;
+}
+box.col-compact label.panel-label {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+}
+box.col-compact label.panel-sublabel { font-size: 10px; }
+box.col-compact label.metric-name { font-size: 10px; letter-spacing: 0.16em; }
+box.col-compact label.metric-value { font-size: 14px; }
+box.col-compact box.gauge { min-height: 5px; }
+box.col-compact box.gauge > box.gauge-fill { min-height: 5px; }
+
+/* Sensors column has plenty of width (460px) — push fonts bigger */
+box.col-sensors box.panel { padding: 7px 10px; }
+box.col-sensors label.panel-label {
+  font-size: 13px;
+  letter-spacing: 0.20em;
+  font-weight: 800;
+}
+box.col-sensors label.panel-sublabel { font-size: 11px; letter-spacing: 0.10em; }
+box.col-sensors label.metric-name {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+}
+box.col-sensors label.metric-value { font-size: 18px; font-weight: 800; }
+box.col-sensors box.gauge { min-height: 6px; }
+box.col-sensors box.gauge > box.gauge-fill { min-height: 6px; }
+box.col-sensors label.proc-name { font-size: 13px; }
+box.col-sensors label.proc-ram  { font-size: 13px; }
+
+label.metric-name {
+  color: @muted;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  font-weight: 800;
+}
+label.metric-value {
+  color: @text;
+  font-size: 16px;
+  font-weight: 800;
+  font-feature-settings: "tnum" 1;
+}
+label.metric-value-accent {
+  color: @accent;
+}
+label.metric-unit {
+  color: @muted;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+/* horizontal bar gauge — implemented with a Box containing fill child */
+box.gauge {
+  background-color: @gauge_track;
+  border: 1px solid @gauge_track_edge;
+  min-height: 6px;
+}
+box.gauge > box.gauge-fill {
+  background-color: @accent;
+  min-height: 6px;
+}
+box.gauge.warm > box.gauge-fill { background-color: #ff8a00; }
+box.gauge.hot  > box.gauge-fill { background-color: @accent; }
+
+/* deck buttons */
+button.deck-btn {
+  background-color: #0a0a0a;
+  border: 1px solid @accent_dim;
+  color: @text;
+  border-radius: 0;
+  padding: 2px 4px;
+  min-height: 0;
+  min-width: 0;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  transition: border-color 90ms ease-out, background-color 90ms ease-out;
+}
+button.deck-btn:hover {
+  border-color: @accent;
+  background-color: alpha(@accent, 0.08);
+  box-shadow: inset 0 0 0 1px @accent_glow;
+}
+button.deck-btn.macro {
+  border-color: alpha(@accent, 0.30);
+}
+button.deck-btn.macro:hover {
+  border-color: @accent;
+  background-color: alpha(@accent, 0.10);
+}
+button.deck-btn.danger {
+  border-color: alpha(@accent, 0.40);
+  border-top: 2px solid @accent;
+}
+button.deck-btn.danger:hover {
+  border-color: @accent;
+  background-color: alpha(@accent, 0.12);
+}
+label.deck-label {
+  /* 11px statt 13px und weniger Sperrung: bringt pro Zeile rund ein Drittel
+     mehr Zeichen unter, ohne dass die Schrift auf 720px unleserlich wird.
+     Zusammen mit dem zweizeiligen Umbruch passen Namen wie
+     "qwen 96k vision" jetzt vollstaendig auf den Button. */
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+/* topbar action buttons */
+button.ico {
+  background-color: transparent;
+  border: 1px solid @accent_dim;
+  color: @muted;
+  min-height: 30px;
+  min-width: 30px;
+  border-radius: 0;
+  padding: 0 8px;
+  transition: border-color 90ms ease-out, color 90ms ease-out;
+}
+button.ico:hover {
+  color: @accent;
+  border-color: @accent;
+  box-shadow: 0 0 8px @accent_glow;
+}
+button.ico.danger:hover {
+  color: white;
+  background-color: @accent;
+  border-color: @accent;
+}
+
+/* status pills (sensor source, network) */
+box.pill {
+  background-color: #0a0a0a;
+  border: 1px solid @accent_dim;
+  border-top: 2px solid @accent;
+  padding: 4px 10px;
+}
+label.pill-text { font-size: 10px; letter-spacing: 0.16em; color: @muted; }
+label.pill-strong { font-size: 11px; font-weight: 900; color: @text; }
+label.arrow { color: @accent; font-weight: 900; }
+
+/* process row */
+box.proc-row { padding: 3px 0; }
+label.proc-name { font-weight: 700; font-size: 13px; }
+label.proc-ram  { color: @accent; font-size: 13px; font-weight: 800; }
+label.proc-cpu  { color: @muted; font-size: 11px; font-weight: 700; }
+
+/* the procs column is 420px wide now — the rows can carry a bit more weight */
+box.col-compact label.proc-name { font-size: 14px; }
+box.col-compact label.proc-ram  { font-size: 14px; }
+box.col-compact label.proc-cpu  { font-size: 12px; }
+
+/* hold-to-kill button on each process row */
+button.proc-kill {
+  background-color: transparent;
+  border: 1px solid @accent_dim;
+  color: @muted;
+  border-radius: 0;
+  padding: 0 4px;
+  min-height: 20px;
+  min-width: 22px;
+  font-size: 13px;
+  font-weight: 900;
+  /* fast snap-back when a hold is aborted; the fill-up below is slow */
+  transition: background-color 120ms ease-out, color 120ms ease-out,
+              border-color 120ms ease-out;
+}
+button.proc-kill:hover { color: @accent; border-color: @accent; }
+button.proc-kill:disabled { opacity: 0.20; }
+/* held down: fades to solid red over the ~800ms confirm window */
+button.proc-kill.arming {
+  background-color: @accent;
+  border-color: @accent;
+  color: #ffffff;
+  transition: background-color 800ms linear, color 800ms linear;
+}
+button.proc-kill.killed {
+  background-color: @accent;
+  border-color: @accent;
+  color: #ffffff;
+  box-shadow: 0 0 8px @accent_glow;
+}
+button.proc-kill.fail {
+  background-color: #ff8a00;
+  border-color: #ff8a00;
+  color: #000000;
+}
+
+/* audio panel */
+scale trough { background-color: @gauge_track; }
+scale highlight { background-color: @accent; }
+scale > trough > slider { background-color: @text; }
+dropdown {
+  background-color: #0a0a0a;
+  color: @text;
+  border: 1px solid @line;
+}
+
+/* settings dialog */
+.settings .row-toggle { padding: 8px 0; }

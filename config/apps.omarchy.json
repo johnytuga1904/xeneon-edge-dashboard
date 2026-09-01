@@ -1,0 +1,25 @@
+{
+  "_comment": "Deck-Vorlage fuer Omarchy (Arch + Hyprland). Wird von scripts/install-arch.sh nach ~/.config/xeneon-edge/apps.json kopiert, wenn dort noch nichts liegt. Kommandos siehe omarchy default/hypr/bindings.",
+  "apps": [
+    { "id": "terminal", "label": "Terminal", "command": "xdg-terminal-exec",      "accent": "#ff0033", "kind": "app" },
+    { "id": "browser",  "label": "Browser",  "command": "omarchy-launch-browser", "accent": "#ff0033", "kind": "app" },
+    { "id": "editor",   "label": "Editor",   "command": "omarchy-launch-editor",  "accent": "#ff0033", "kind": "app" },
+    { "id": "files",    "label": "Files",    "command": "nautilus", "args": "--new-window", "accent": "#ff0033", "kind": "app" },
+    { "id": "walker",   "label": "Launcher", "command": "omarchy-launch-walker",  "accent": "#ff0033", "kind": "app" },
+    { "id": "btop",     "label": "btop",     "command": "omarchy-launch-tui", "args": "btop", "accent": "#ff0033", "kind": "app" },
+    { "id": "spotify",  "label": "Spotify",  "command": "omarchy-launch-or-focus", "args": "spotify", "accent": "#ff0033", "kind": "app" },
+    { "id": "steam",    "label": "Steam",    "command": "steam",   "accent": "#ff0033", "kind": "app" },
+    { "id": "chatgpt",  "label": "ChatGPT",  "command": "omarchy-launch-webapp", "args": "https://chatgpt.com", "accent": "#ff0033", "kind": "app" }
+  ],
+  "macros": [
+    { "id": "omenu",    "label": "Omarchy Menu", "command": "omarchy-menu",             "accent": "#ff0033", "kind": "macro" },
+    { "id": "audio",    "label": "Audio",         "command": "omarchy-launch-audio",     "accent": "#ff0033", "kind": "macro" },
+    { "id": "waybar",   "label": "Top Bar",       "command": "omarchy-toggle-waybar",    "accent": "#ff0033", "kind": "macro" },
+    { "id": "shot",     "label": "Screenshot",    "command": "omarchy-capture-screenshot", "accent": "#ff0033", "kind": "macro" },
+    { "id": "hyprload", "label": "Reload Hypr",  "command": "hyprctl", "args": "reload", "accent": "#ff0033", "kind": "macro" },
+    { "id": "lock",     "label": "Lock",          "command": "loginctl", "args": "lock-session", "accent": "#ff0033", "kind": "macro" },
+    { "id": "sleep",    "label": "Sleep",         "command": "systemctl", "args": "suspend", "accent": "#ff0033", "kind": "macro", "confirm": true },
+    { "id": "restart",  "label": "Restart",       "command": "systemctl", "args": "reboot",  "accent": "#ff0033", "kind": "macro", "confirm": true },
+    { "id": "shutdown", "label": "Shutdown",      "command": "systemctl", "args": "poweroff","accent": "#ff0033", "kind": "macro", "confirm": true }
+  ]
+}

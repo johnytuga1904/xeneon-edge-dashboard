@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Nur gefuellte Formen, keine Konturen — siehe llm-start-symbolic.svg -->
+  <!-- Chip-Rahmen: gemeinsame Klammer der drei LLM-Icons -->
+  <path fill-rule="evenodd" d="M3 3h10v10H3V3Zm1.1 1.1v7.8h7.8V4.1H4.1Z"/>
+  <rect x="5.4" y="1.4" width="1.2" height="1.6"/>
+  <rect x="9.4" y="1.4" width="1.2" height="1.6"/>
+  <rect x="5.4" y="13" width="1.2" height="1.6"/>
+  <rect x="9.4" y="13" width="1.2" height="1.6"/>
+  <rect x="1.4" y="5.4" width="1.6" height="1.2"/>
+  <rect x="1.4" y="9.4" width="1.6" height="1.2"/>
+  <rect x="13" y="5.4" width="1.6" height="1.2"/>
+  <rect x="13" y="9.4" width="1.6" height="1.2"/>
+  <!-- Auge als Ring (aussen minus innen), Pupille separat: multimodales Modell -->
+  <!-- Kontrollpunkt doppelt so weit aussen wie die gewuenschte Hoehe: eine
+       quadratische Bezier erreicht nur die Haelfte des Kontrollpunktabstands. -->
+  <path fill-rule="evenodd"
+        d="M4.7 8Q8 3.6 11.3 8Q8 12.4 4.7 8ZM6.0 8Q8 5.4 10.0 8Q8 10.6 6.0 8Z"/>
+  <circle cx="8" cy="8" r="0.95"/>
+</svg>

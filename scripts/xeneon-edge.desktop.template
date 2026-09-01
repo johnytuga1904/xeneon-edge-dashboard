@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Xeneon Edge Dashboard
+Exec="__EXEC__"
+X-GNOME-Autostart-enabled=true
+Terminal=false
+Categories=Utility;System;

@@ -1,0 +1,22 @@
+{
+  "apps": [
+    { "id": "code",     "label": "Code",     "command": "code",                "accent": "#ff0033", "kind": "app" },
+    { "id": "firefox",  "label": "Firefox",  "command": "firefox",             "accent": "#ff0033", "kind": "app" },
+    { "id": "brave",    "label": "Brave",    "command": "brave-browser",       "accent": "#ff0033", "kind": "app" },
+    { "id": "terminal", "label": "Terminal", "command": "konsole",             "accent": "#ff0033", "kind": "app" },
+    { "id": "files",    "label": "Files",    "command": "dolphin",             "accent": "#ff0033", "kind": "app" },
+    { "id": "spotify",  "label": "Spotify",  "command": "spotify",             "accent": "#ff0033", "kind": "app" },
+    { "id": "discord",  "label": "Discord",  "command": "discord",             "accent": "#ff0033", "kind": "app" },
+    { "id": "steam",    "label": "Steam",    "command": "steam",               "accent": "#ff0033", "kind": "app" }
+  ],
+  "macros": [
+    { "id": "shutdown",  "label": "Shutdown", "command": "systemctl",  "args": "poweroff", "accent": "#ff0033", "kind": "macro", "confirm": true },
+    { "id": "restart",   "label": "Restart",  "command": "systemctl",  "args": "reboot",   "accent": "#ff0033", "kind": "macro", "confirm": true },
+    { "id": "sleep",     "label": "Sleep",    "command": "systemctl",  "args": "suspend",  "accent": "#ff0033", "kind": "macro", "confirm": true },
+    { "id": "lock",      "label": "Lock",     "command": "loginctl",   "args": "lock-session", "accent": "#ff0033", "kind": "macro" },
+    { "id": "ksysguard", "label": "Sys Mon",  "command": "plasma-systemmonitor", "accent": "#ff0033", "kind": "macro" },
+    { "id": "ramflush",  "label": "Drop Cache","command": "sh", "args": "-c 'sync && pkexec sh -c \"echo 3 > /proc/sys/vm/drop_caches\"'", "accent": "#ff0033", "kind": "macro", "confirm": true },
+    { "id": "kquitapp",  "label": "Restart UI","command": "sh", "args": "-c 'kquitapp6 plasmashell && kstart plasmashell'", "accent": "#ff0033", "kind": "macro", "confirm": true },
+    { "id": "hibernate", "label": "Hibernate","command": "systemctl", "args": "hibernate", "accent": "#ff0033", "kind": "macro", "confirm": true }
+  ]
+}
