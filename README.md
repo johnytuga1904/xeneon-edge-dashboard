@@ -230,7 +230,8 @@ account-los und nimmt nur Parameter (Symbol, Intervall, `studies`). Wer seine
 Indikatoren, Zeichnungen und Templates sehen will, muss die richtige Seite
 laden und dort angemeldet sein.
 
-Angemeldet wird einmalig:
+Angemeldet wird ueber den Settings-Dialog: Zahnrad → *General* → *Chart* →
+**Anmelden / Chart waehlen**. Der Button startet dasselbe Skript auch von Hand:
 
 ```bash
 ./scripts/tradingview-login.py
@@ -252,11 +253,11 @@ nach jedem Neustart weg.
 
 Zu beachten:
 
-- **Kein Neustart noetig.** Das Feld *TradingView chart URL* im Settings-Modal
-  (General-Tab) uebernimmt die URL mit dem Haken bzw. Enter und haengt das
-  Panel sofort neu auf. Getippt wird das ueblicherweise nicht am Streifen —
-  `scripts/tradingview-login.py` traegt die URL selbst ein, das Feld ist zum
-  Nachsehen, Umschalten und Leeren da.
+- **Kein Neustart noetig.** Der Settings-Dialog zeigt die aktive URL als
+  Untertitel und wartet auf das Ende des Login-Fensters; danach haengt sich das
+  Panel selbst um. Der Button *Widget* daneben schaltet zurueck auf das anonyme
+  BTC/USDT-Widget. Ein Eingabefeld gibt es bewusst nicht — am Streifen haengt
+  keine Tastatur.
 - **Der erste Aufbau dauert.** Das Panel bleibt einige Sekunden leer, bis
   Layout und Indikatoren geladen sind — beim anonymen Widget steht der Chart
   fast sofort. Das ist kein Fehler, sondern der Preis des eigenen Layouts.
@@ -328,7 +329,7 @@ Popen-Verhalten zurück.
 ## Tastatur / Bedienung
 
 - Zahnrad-Button: Settings (Apps/Macros bearbeiten, Pfade per Browse-Picker,
-  Chart-URL umschalten)
+  Chart per Login-Fenster waehlen)
 - `FS`: Vollbild umschalten
 - `X`: Beenden
 - Macros mit `confirm: true`: Button gedrückt halten (1 s) bis er rot aufleuchtet

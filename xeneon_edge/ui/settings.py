@@ -7,11 +7,12 @@ immediately because they're idempotent.
 """
 from __future__ import annotations
 import copy
+import sys
 from pathlib import Path
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw, Gio  # noqa: E402
+from gi.repository import Gtk, Adw, Gio, GLib  # noqa: E402
 
 from .. import config_store
 from ..paths import ROOT
@@ -102,19 +103,33 @@ class SettingsDialog(Adw.PreferencesWindow):
         # EntryRow passt (AdwEntryRow hat keinen Untertitel).
         chart_grp = Adw.PreferencesGroup(
             title="Chart",
-            description="Leer = eingebettetes TradingView-Widget (anonym, BTC/USDT). "
-                        "Eine URL wie https://www.tradingview.com/chart/AbCdEf12/ laedt "
-                        "die echte Seite mit dem eigenen Layout — Login einmalig ueber "
-                        "scripts/tradingview-login.py, das traegt die URL auch selbst hier ein.",
+            description="Das eingebettete Widget ist anonym und kennt keine "
+                        "gespeicherten Layouts. „Anmelden / Chart waehlen“ oeffnet ein "
+                        "Browser-Fenster auf dem Hauptmonitor: dort anmelden, den "
+                        "gewuenschten Chart oeffnen und „Als Chart uebernehmen“ druecken. "
+                        "Das Panel haengt sich danach selbst um.",
         )
         page.add(chart_grp)
 
-        # show-apply-button: erst der Haken (oder Enter) uebernimmt. Ohne das
-        # wuerde das Panel bei jedem einzelnen Tastendruck neu laden.
-        self._chart_row = Adw.EntryRow(title="TradingView chart URL")
-        self._chart_row.set_show_apply_button(True)
-        self._chart_row.set_text(self._settings.get("chart_url", "") or "")
-        self._chart_row.connect("apply", self._on_chart_url)
+        # Kein Eingabefeld: am 2560x720-Streifen haengt ueblicherweise keine
+        # Tastatur, eine URL waere dort nicht eintippbar. Der Button oeffnet
+        # stattdessen das Login-Fenster, das die URL selbst eintraegt.
+        self._chart_row = Adw.ActionRow(title="TradingView chart")
+        self._chart_row.set_subtitle(self._chart_subtitle())
+
+        self._chart_reset_btn = Gtk.Button(label="Widget")
+        self._chart_reset_btn.set_valign(Gtk.Align.CENTER)
+        self._chart_reset_btn.set_tooltip_text(
+            "Zurueck auf das anonyme BTC/USDT-Widget")
+        self._chart_reset_btn.connect("clicked", self._on_chart_reset)
+        self._chart_row.add_suffix(self._chart_reset_btn)
+
+        self._chart_login_btn = Gtk.Button(label="Anmelden / Chart waehlen…")
+        self._chart_login_btn.set_valign(Gtk.Align.CENTER)
+        self._chart_login_btn.add_css_class("suggested-action")
+        self._chart_login_btn.connect("clicked", self._on_open_login)
+        self._chart_row.add_suffix(self._chart_login_btn)
+
         chart_grp.add(self._chart_row)
 
         self.add(page)
@@ -151,15 +166,49 @@ class SettingsDialog(Adw.PreferencesWindow):
         self._settings["isolate_launches"] = bool(row.get_active())
         config_store.save_settings(self._settings)
 
-    def _on_chart_url(self, row) -> None:
-        """Uebernommene URL speichern und das Panel sofort neu aufbauen.
+    def _chart_subtitle(self) -> str:
+        url = (self._settings.get("chart_url") or "").strip()
+        return url or "Widget (anonym, BTC/USDT) — kein Login"
 
-        Frueher galt hier "wirkt erst nach Neustart" — genau das laesst einen
-        im Unklaren, ob die Einstellung angekommen ist. Der on_apply-Callback
-        haengt das Chart-Panel neu auf, das Ergebnis ist sofort zu sehen.
+    def _on_open_login(self, _btn) -> None:
+        """scripts/tradingview-login.py starten und auf sein Ende warten.
+
+        Das Fenster laeuft als eigener Prozess auf dem Hauptmonitor, wo
+        Tastatur und Maus sind: anmelden, Chart oeffnen, "Als Chart
+        uebernehmen" — das schreibt chart_url. Wenn es sich beendet, lesen wir
+        die Settings neu und haengen das Panel um, ohne dass hier noch jemand
+        etwas anklicken muss.
         """
-        self._settings["chart_url"] = row.get_text().strip()
+        script = ROOT / "scripts" / "tradingview-login.py"
+        if not script.exists():
+            self._chart_row.set_subtitle(f"Skript fehlt: {script}")
+            return
+        try:
+            proc = Gio.Subprocess.new([sys.executable, str(script)],
+                                      Gio.SubprocessFlags.NONE)
+        except GLib.Error as e:
+            self._chart_row.set_subtitle(f"Start fehlgeschlagen: {e.message}")
+            return
+        self._chart_login_btn.set_sensitive(False)
+        self._chart_row.set_subtitle("Login-Fenster offen — dort den Chart waehlen…")
+        proc.wait_async(None, self._on_login_done)
+
+    def _on_login_done(self, proc, result) -> None:
+        try:
+            proc.wait_finish(result)
+        except GLib.Error:
+            pass
+        self._chart_login_btn.set_sensitive(True)
+        # Das Login-Fenster schreibt direkt in die settings.json, also die
+        # Arbeitskopie hier verwerfen statt sie drueberzuschreiben.
+        self._settings = config_store.load_settings()
+        self._chart_row.set_subtitle(self._chart_subtitle())
+        self._on_apply_cb()
+
+    def _on_chart_reset(self, _btn) -> None:
+        self._settings["chart_url"] = ""
         config_store.save_settings(self._settings)
+        self._chart_row.set_subtitle(self._chart_subtitle())
         self._on_apply_cb()
 
     # ----- Apps / Macros tabs -----
