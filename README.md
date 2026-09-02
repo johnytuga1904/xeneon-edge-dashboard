@@ -155,6 +155,51 @@ Die mitgelieferte `config/apps.json` ist KDE-lastig (`konsole`, `dolphin`,
 `omarchy-launch-audio`, `hyprctl reload`, `omarchy-toggle-waybar`. Das Skript
 kopiert sie nur, wenn `~/.config/xeneon-edge/apps.json` noch nicht existiert.
 
+### Notifications
+
+Omarchy legt seine Toasts auf *jeden* Output (`Variants { model:
+Quickshell.screens }`), also auch auf den Streifen — dort direkt ueber den
+Deck-Buttons, und weggeklickt bekommt man sie da ohnehin schlecht. Separates
+Skript, weil es die Notifications der ganzen Session umbaut und nicht als
+stiller Nebeneffekt einer Dashboard-Installation passieren soll:
+
+```bash
+./scripts/install-omarchy-notifications.py --only DP-4
+```
+
+Es macht zwei Dinge:
+
+- **Toasts vom Dashboard-Monitor fernhalten.** Welcher das ist, kommt aus
+  `target_monitor` in `settings.json` (`--monitor` ueberschreibt). Ohne
+  `--only` gehen sie auf alle uebrigen Outputs, mit `--only DP-4` fest auf
+  diesen einen — dann aber mit Rueckfallebene: haengt DP-4 nicht dran, gehen
+  sie auf alles ausser dem Streifen, statt ganz auszubleiben.
+- **Ein Schliess-`x` oben rechts auf die Karte.** Das Signal dahinter
+  (`closeRequested` -> `dismissPopup`) ist in Omarchy schon verdrahtet, es gab
+  nur keinen sichtbaren Knopf — geschlossen wurde per Rechtsklick. Der Knopf
+  wird nach `mainColumn` deklariert und liegt damit ueber der kartenweiten
+  `MouseArea`; sonst faellt der Klick durch auf `onCardClicked` und loest die
+  Default-Aktion der Notification aus, statt sie zu schliessen.
+
+Gearbeitet wird auf einem Klon des Plugins in
+`~/.config/omarchy/plugins/<user>.notifications/` (`omarchy plugin clone`), das
+Original unter `/usr/share/omarchy` bleibt unangetastet. `--check` zeigt nur,
+was passieren wuerde, `--revert` nimmt alles zurueck.
+
+Der Klon friert allerdings den Omarchy-Stand ein, aus dem er geklont wurde —
+Bugfixes am Notification-Plugin kommen nicht mehr an. Nach einem groesseren
+Omarchy-Update also `--revert` und das Skript neu laufen lassen. Passt dann ein
+Anker nicht mehr, bricht es mit genau dieser Stelle ab statt still etwas
+Halbes zu hinterlassen.
+
+Nicht geklont werden darf uebrigens `omarchy.bar` — schon der unveraenderte
+Klon laesst die Bar auf allen Monitoren verschwinden. `omarchy plugin clone`
+traegt fuer `service`- und `bar-widget`-Plugins, fuer das `bar`-Plugin selbst
+nicht. Noetig ist es auch nicht: Hyprland ueberspringt `top`-Layer auf einem
+Workspace mit Vollbildfenster, die Bar ist auf dem Streifen also unsichtbar.
+Nur nach einem `omarchy restart shell` legt sie sich ueber den Header, bis das
+Dashboard einmal neu startet.
+
 ## Starten
 
 ```bash
