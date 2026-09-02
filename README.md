@@ -283,7 +283,19 @@ Angemeldet wird ueber den Settings-Dialog: Zahnrad → *General* → *Chart* →
 ```
 
 Das oeffnet dieselbe Browser-Session in einem normalen 1400x900-Fenster auf dem
-Hauptmonitor — am 2560x720-Streifen haengt ueblicherweise keine Tastatur. Dort
+Hauptmonitor — am 2560x720-Streifen haengt ueblicherweise keine Tastatur.
+
+Von allein landet es dort nicht: Hyprland legt neue Fenster auf den
+fokussierten Workspace, und der ist genau dann der Streifen, wenn das Login per
+Touch aus dem Dashboard heraus gestartet wurde. Dann ging es hinter dem
+Vollbild-Dashboard auf und war weder sichtbar noch bedienbar. Deshalb sucht
+sich das Fenster seinen Monitor selbst (`find_login_monitor` in
+`ui/monitors.py`, groesster Ausgang ausser `target_monitor`). GTK4 kann ein
+Fenster auf Wayland nicht positionieren — `fullscreen_on_monitor()` ist die
+einzige API, die ueberhaupt einen Monitor annimmt. Also einmal dort Vollbild
+anmelden und im naechsten Frame wieder verlassen; der Compositor hat das
+Fenster dann schon auf dem richtigen Ausgang. Dass es dort schwebt statt zu
+kacheln, macht die Regel aus `install-arch.sh`. Dort
 anmelden, den gewuenschten gespeicherten Chart oeffnen, *Als Chart uebernehmen*
 druecken: das schreibt die aktuelle URL nach `chart_url` und beendet das
 Fenster. Login ueber Google/Apple oeffnet ein Popup — das Skript faengt es ab

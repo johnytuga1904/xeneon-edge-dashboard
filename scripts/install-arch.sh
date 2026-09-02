@@ -294,6 +294,16 @@ o.window("^(ch\\.xeneon\\.edge)$", {
 -- Optional: Connector hart pinnen, falls der Vollbild-Wunsch der App mal nicht
 -- auf dem richtigen Monitor landet.
 -- o.window("^(ch\\.xeneon\\.edge)$", { monitor = "DP-2" })
+
+-- Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf
+-- den richtigen Monitor legt sich das Fenster selbst (find_login_monitor in
+-- ui/monitors.py); hier steht nur, dass es schweben soll statt sich in den
+-- Workspace zu kacheln.
+o.window("^(ch\\.xeneon\\.edge\\.login)$", {
+  float = true,
+  size = "1400 900",
+  center = true,
+})
 LUA
   else
     SNIP="$HYPR/xeneon-edge.conf"
@@ -318,6 +328,14 @@ windowrule = no_dim on,            match:class ^(ch\.xeneon\.edge)$
 # Optional: Connector hart pinnen, falls der Vollbild-Wunsch der App mal nicht
 # auf dem richtigen Monitor landet.
 # windowrule = monitor DP-2, match:class ^(ch\.xeneon\.edge)$
+
+# Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf den
+# richtigen Monitor legt sich das Fenster selbst (find_login_monitor in
+# ui/monitors.py); hier steht nur, dass es schweben soll statt sich in den
+# Workspace zu kacheln.
+windowrule = float,             match:class ^(ch\.xeneon\.edge\.login)$
+windowrule = size 1400 900,     match:class ^(ch\.xeneon\.edge\.login)$
+windowrule = center,            match:class ^(ch\.xeneon\.edge\.login)$
 CONF
   fi
   ok "$SNIP"

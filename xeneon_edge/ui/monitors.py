@@ -53,6 +53,26 @@ def find_target_monitor(display: Gdk.Display, preferred_connector: str = "") -> 
     return None
 
 
+def find_login_monitor(display: Gdk.Display, dashboard_connector: str = "") -> Gdk.Monitor | None:
+    """Der groesste Monitor, der *nicht* der Dashboard-Streifen ist.
+
+    Fuer Fenster, die Tastatur brauchen — bislang nur das TradingView-Login.
+    Am 2560x720-Streifen haengt keine, und das Dashboard liegt dort im Vollbild
+    davor: ein Fenster, das da aufgeht, ist weder sichtbar noch bedienbar.
+    Hyprland legt neue Fenster aber auf den fokussierten Workspace, und der ist
+    genau dann der Streifen, wenn das Login per Touch aus dem Dashboard heraus
+    gestartet wurde.
+
+    Faellt auf None zurueck, wenn nur der Streifen angeschlossen ist — dann
+    bleibt es beim Standardverhalten des Compositors.
+    """
+    dashboard = dashboard_connector or ""
+    others = [m for m in _all_monitors(display) if _connector_name(m) != dashboard]
+    if not others:
+        return None
+    return max(others, key=lambda m: m.get_geometry().width * m.get_geometry().height)
+
+
 def list_monitors_for_settings(display: Gdk.Display) -> list[tuple[str, str]]:
     """Returns [(connector_name, label)] for the settings dropdown."""
     out: list[tuple[str, str]] = []

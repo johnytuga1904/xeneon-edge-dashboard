@@ -31,6 +31,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib  # noqa: E402
 
 from xeneon_edge import config_store  # noqa: E402
+from xeneon_edge.ui import monitors  # noqa: E402
 from xeneon_edge.ui.chart import import_webkit, make_session  # noqa: E402
 
 START_URL = "https://www.tradingview.com/chart/"
@@ -93,6 +94,33 @@ class LoginWindow(Gtk.ApplicationWindow):
         self.close()
 
 
+def _move_off_dashboard(win: Gtk.Window) -> None:
+    """Das Fenster auf einen Monitor mit Tastatur legen.
+
+    GTK4 kann ein normales Fenster auf Wayland nicht positionieren —
+    fullscreen_on_monitor() ist die einzige API, die ueberhaupt einen Monitor
+    entgegennimmt. Also einmal dort Vollbild anmelden und im naechsten
+    Frame wieder verlassen: der Compositor hat das Fenster dann bereits auf
+    diesem Ausgang, und es bleibt dort als normales Fenster stehen.
+
+    Bewusst best effort. Verlass ist die Hyprland-Regel aus
+    scripts/install-arch.sh; das hier ist der Fallback fuer alles andere.
+    """
+    display = win.get_display()
+    if display is None:
+        return
+    dashboard = str(config_store.load_settings().get("target_monitor", "") or "")
+    monitor = monitors.find_login_monitor(display, dashboard)
+    if monitor is None:
+        return
+    try:
+        win.fullscreen_on_monitor(monitor)
+    except Exception as e:
+        print(f"[xeneon-edge] Login-Fenster konnte nicht umgehaengt werden: {e}")
+        return
+    GLib.timeout_add(150, lambda: (win.unfullscreen(), False)[1])
+
+
 def main() -> int:
     WebKit = import_webkit()
     if WebKit is None:
@@ -109,7 +137,9 @@ def main() -> int:
     session = make_session(WebKit)
 
     def on_activate(a):
-        LoginWindow(a, WebKit, session, url).present()
+        win = LoginWindow(a, WebKit, session, url)
+        win.present()
+        _move_off_dashboard(win)
 
     app.connect("activate", on_activate)
     return app.run([])
