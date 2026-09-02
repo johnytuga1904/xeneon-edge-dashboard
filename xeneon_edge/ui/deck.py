@@ -45,7 +45,13 @@ class DeckButton(Gtk.Button):
             self.add_css_class("danger")
 
         body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        body.set_halign(Gtk.Align.CENTER)
+        # Horizontal FILL, nicht CENTER: bei CENTER bekommt der Kasten nur
+        # seine natural width, und die eines umbrechenden Labels mit
+        # set_lines(2) ist die Breite fuer *zwei* Zeilen — also rund die
+        # Haelfte. "Editor" wurden so 33px zugeteilt, obwohl der Button 130
+        # breit ist, und der Name brach mitten im Wort um. Vertikal bleibt es
+        # zentriert, und Icon wie Label zentrieren sich weiterhin selbst.
+        body.set_halign(Gtk.Align.FILL)
         body.set_valign(Gtk.Align.CENTER)
 
         # Skip empty slots: keep the button visible but no icon/label clutter
@@ -65,15 +71,22 @@ class DeckButton(Gtk.Button):
         lbl.set_justify(Gtk.Justification.CENTER)
         # Zweizeilig umbrechen statt nach einer Zeile abzuschneiden — "qwen 96k
         # vision" passte sonst nie. WORD_CHAR bricht lange Script-Namen ohne
-        # Leerzeichen notfalls mitten im Wort. Ellipsize bleibt gesetzt: es
-        # kappt erst, was auch in zwei Zeilen nicht passt, und haelt zugleich
-        # die Mindestbreite des Labels klein, damit ein langer Name die
-        # Deck-Spalten nicht auseinanderdrueckt.
-        lbl.set_ellipsize(Pango.EllipsizeMode.END)
+        # Leerzeichen notfalls mitten im Wort.
+        #
+        # Kein set_ellipsize dazu: GTK4 stuetzt die Kombination aus Wrap und
+        # Ellipsize nicht, die Breitenverhandlung wird dann unvorhersehbar. Auf
+        # dem Deck brach das kurze Namen mitten im Wort um ("Edito-r",
+        # "File-s", "Screensho-t"), waehrend laengere daneben einzeilig blieben.
+        # Die Mindestbreite bleibt auch ohne Ellipsize klein, weil WORD_CHAR
+        # notfalls nach jedem Zeichen umbrechen darf — die Deck-Spalten werden
+        # also weiterhin nicht auseinandergedrueckt.
         lbl.set_wrap(True)
         lbl.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
         lbl.set_lines(2)
         lbl.set_max_width_chars(16)
+        # Die volle Buttonbreite nutzen statt der natural width (siehe body).
+        lbl.set_halign(Gtk.Align.FILL)
+        lbl.set_hexpand(True)
         lbl.add_css_class("deck-label")
         # Hold-to-confirm is signalled by the .danger CSS class on the button
         # (red border) — no extra "hold" sub-label, that pushes the deck taller
