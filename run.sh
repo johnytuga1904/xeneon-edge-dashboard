@@ -9,4 +9,12 @@ cd "$(dirname "$0")"
 # Prozess also 1x, ueberschreibbar mit XENEON_GDK_SCALE.
 export GDK_SCALE="${XENEON_GDK_SCALE:-1}"
 
+# WebKitGTK reicht seinen DMABUF-Buffer auf manchen Multi-GPU-Systemen
+# (AMD-Ausgabe + NVIDIA daneben) nicht durch: der WebProcess laeuft, die Seite
+# laedt, sichtbar bleibt eine schwarze Chart-Spalte. Der Fallback-Renderer
+# kostet bei einem Chart nichts. Mit XENEON_WEBKIT_DMABUF=1 wieder aktivierbar.
+if [[ "${XENEON_WEBKIT_DMABUF:-0}" != "1" ]]; then
+  export WEBKIT_DISABLE_DMABUF_RENDERER=1
+fi
+
 exec python3 -m xeneon_edge "$@"
