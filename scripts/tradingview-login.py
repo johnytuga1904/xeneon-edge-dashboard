@@ -42,7 +42,6 @@ class LoginWindow(Gtk.ApplicationWindow):
         super().__init__(application=app, title="TradingView — Login fuer das Chart-Panel")
         self.set_default_size(1400, 900)
         self._WebKit = WebKit
-        self._session = session
         self._popups: list[Gtk.Window] = []
 
         self.view = WebKit.WebView(network_session=session)
@@ -71,8 +70,22 @@ class LoginWindow(Gtk.ApplicationWindow):
 
     def _on_create(self, view, navigation_action):
         """Login ueber Google/Apple oeffnet ein Popup — ohne diesen Handler
-        passiert beim Klick schlicht nichts."""
-        popup_view = self._WebKit.WebView(network_session=self._session)
+        passiert beim Klick schlicht nichts.
+
+        Die zurueckgegebene View MUSS ueber related_view mit der Opener-View
+        verwandt sein; die API-Doku des create-Signals verlangt das. Eine
+        unverwandte View (network_session= statt related_view=) laeuft in
+        WebKit auf ein leeres std::optional<WebCore::WindowFeatures>, und weil
+        Arch libstdc++ mit _GLIBCXX_ASSERTIONS baut, endet das im Abort:
+
+          optional:1244: std::optional<WebCore::WindowFeatures>::operator*():
+          Assertion 'this->_M_is_engaged()' failed.
+
+        related_view vererbt Web-Prozess *und* Netzwerk-Session, das Popup
+        schreibt seine Cookies also weiterhin in dieselbe Session — ein
+        eigenes network_session= waere ohnehin falsch gewesen.
+        """
+        popup_view = self._WebKit.WebView(related_view=view)
         win = Gtk.Window(title="TradingView — Login", transient_for=self, modal=False)
         win.set_default_size(560, 720)
         win.set_child(popup_view)
