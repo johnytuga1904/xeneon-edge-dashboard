@@ -8,6 +8,7 @@ Pflicht-Abhaengigkeit fehlt; Optionales gibt nur eine Warnung.
 from __future__ import annotations
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -49,6 +50,25 @@ for mod, hard in (("psutil", True), ("requests", False)):
         (bad if hard else warn)(f"{mod}: {e}")
         if hard:
             rc = 1
+
+# WebKitGTK baut fuer jedes <audio>/AudioContext eine GStreamer-Pipeline und
+# verlangt darin autoaudiosink namentlich. Fehlt das Element, bekommt WebKit
+# NULL zurueck, haengt trotzdem einen Signal-Handler daran und bricht ab —
+# der WebKitWebProcess stirbt mit SIGABRT, sobald TradingView Ton anfasst.
+# autoaudiosink kommt aus gst-plugins-good, das bei webkitgtk nur eine
+# *optionale* Abhaengigkeit ist und deshalb gerne fehlt.
+if shutil.which("gst-inspect-1.0"):
+    found = subprocess.run(["gst-inspect-1.0", "autoaudiosink"],
+                           capture_output=True).returncode == 0
+    if found:
+        ok("autoaudiosink — GStreamer-Audiosenke fuer WebKit")
+    else:
+        warn("autoaudiosink fehlt — WebKit stirbt beim TradingView-Login")
+        warn("  → Arch:   sudo pacman -S gst-plugins-good")
+        warn("  → Debian: sudo apt install gstreamer1.0-plugins-good")
+        warn("  → Fedora: sudo dnf install gstreamer1-plugins-good")
+else:
+    warn("gst-inspect-1.0 nicht da — autoaudiosink nicht pruefbar")
 
 for tool, what in (("pactl", "Audio-Lautstaerke/Default-Device"),
                    ("wpctl", "PipeWire-Fallback"),

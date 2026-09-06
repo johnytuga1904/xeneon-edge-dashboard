@@ -106,6 +106,7 @@ PKGS=(
   lm_sensors            # hwmon-Labels
   libpulse              # pactl (Lautstaerke, Default-Device)
   wireplumber           # wpctl (PipeWire-Fallback)
+  gst-plugins-good      # autoaudiosink — sonst bricht WebKit beim Login ab
   pciutils              # lspci (GPU-Erkennung)
   adwaita-icon-theme    # Icon-Fallbacks im Deck
   xdg-desktop-portal-gtk # Datei-Picker im Settings-Dialog unter Wayland

@@ -24,6 +24,7 @@ System-Pakete (auf Nobara 43 ist das meiste schon da):
 sudo dnf install gtk4 libadwaita python3-gobject \
                  lm_sensors pipewire-utils \
                  webkitgtk6.0          # für das TradingView-Chart
+sudo dnf install gstreamer1-plugins-good   # autoaudiosink — sonst Absturz beim Login
 sudo dnf install nvidia-smi             # nur falls NVIDIA-GPU genutzt wird
 ```
 
@@ -51,7 +52,8 @@ Von Hand entspricht das:
 ```bash
 sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
                  gir1.2-webkit-6.0 python3-psutil python3-requests \
-                 lm-sensors pulseaudio-utils wireplumber
+                 lm-sensors pulseaudio-utils wireplumber \
+                 gstreamer1.0-plugins-good
 sudo apt install nvidia-smi          # nur bei NVIDIA; liegt in 'non-free'
 ```
 
@@ -91,7 +93,8 @@ Von Hand entspricht das:
 sudo pacman -S --needed python-gobject python-cairo gtk4 libadwaita \
                         webkitgtk-6.0 python-psutil python-requests \
                         lm_sensors libpulse wireplumber pciutils \
-                        adwaita-icon-theme xdg-desktop-portal-gtk
+                        adwaita-icon-theme xdg-desktop-portal-gtk \
+                        gst-plugins-good
 ```
 
 Alles liegt in `[core]`/`[extra]`, ein AUR-Helper ist nicht noetig.
@@ -102,6 +105,14 @@ selbst, sondern meldet nur, wenn eine NVIDIA-Karte ohne `nvidia-smi` steckt
 
 Arch-spezifisch zu beachten:
 
+- **`gst-plugins-good`.** WebKitGTK baut fuer jedes `<audio>` und jeden
+  AudioContext eine GStreamer-Pipeline und verlangt darin `autoaudiosink`
+  namentlich. Bei `webkitgtk-6.0` ist das Paket nur eine *optionale*
+  Abhaengigkeit, fehlt also auf einer frischen Installation. WebKit bekommt
+  dann `NULL` zurueck, haengt trotzdem einen Signal-Handler daran und bricht ab
+  — der `WebKitWebProcess` stirbt reproduzierbar mit SIGABRT, sobald
+  TradingView Ton anfasst. Ein vorhandenes `pipewiresink` hilft nicht, der Name
+  wird hart gesucht.
 - **Kein `pip install --user`** — wie Debian markiert Arch sein Python als
   *externally managed* (PEP 668). `psutil` und `requests` kommen aus pacman,
   `requirements.txt` bleibt fuer venv-Setups liegen.

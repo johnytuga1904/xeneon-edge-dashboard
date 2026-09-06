@@ -90,6 +90,7 @@ PKGS=(
   lm-sensors            # hwmon fan/temp labels
   pulseaudio-utils      # pactl (volume, default device)
   wireplumber           # wpctl (PipeWire fallback path)
+  gstreamer1.0-plugins-good  # autoaudiosink — WebKit aborts on login without it
 )
 # nvidia-smi liegt in der non-free-Komponente
 if (( HAS_NVIDIA )); then PKGS+=(nvidia-smi); fi
