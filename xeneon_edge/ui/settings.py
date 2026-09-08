@@ -16,7 +16,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, Gio, GLib  # noqa: E402
 
-from .. import config_store, theme as theme_mod
+from .. import config_store, layout_store, theme as theme_mod
 from ..paths import ROOT
 
 
@@ -152,7 +152,73 @@ class SettingsDialog(Adw.PreferencesWindow):
 
         chart_grp.add(self._chart_row)
 
+        # ----- Layout -----
+        layout_grp = Adw.PreferencesGroup(
+            title="Layout",
+            description="Welche Module wo stehen und wie breit sie sind. Der "
+                        "Editor oeffnet auf dem Hauptmonitor, weil am Streifen "
+                        "keine Tastatur haengt; das Dashboard uebernimmt das "
+                        "Ergebnis ohne Neustart.",
+        )
+        page.add(layout_grp)
+
+        self._layout_row = Adw.ActionRow(title="Module anordnen")
+        self._layout_row.set_subtitle(self._layout_subtitle())
+        self._layout_btn = Gtk.Button(label="Layout bearbeiten…")
+        self._layout_btn.set_valign(Gtk.Align.CENTER)
+        self._layout_btn.add_css_class("suggested-action")
+        self._layout_btn.connect("clicked", self._on_open_layout_editor)
+        self._layout_row.add_suffix(self._layout_btn)
+        layout_grp.add(self._layout_row)
+
         self.add(page)
+
+    @staticmethod
+    def _layout_subtitle() -> str:
+        data = layout_store.load()
+        profile = layout_store.active_profile(data)
+        modules_count = sum(len(c["modules"]) for c in profile["columns"])
+        profiles_count = len(data["profiles"])
+        text = (f"{profile.get('label') or data['active_profile']} — "
+                f"{len(profile['columns'])} Spalten, {modules_count} Module")
+        if profiles_count > 1:
+            text += f" · {profiles_count} Profile"
+        return text
+
+    def _on_open_layout_editor(self, _btn) -> None:
+        """scripts/layout-editor.py starten.
+
+        Anders als beim Login muss hier nichts nachgeladen werden: der Editor
+        schreibt layout.json, und das Dashboard haengt mit einem FileMonitor
+        daran (app.py). Der Knopf bleibt nur gesperrt, solange das Fenster
+        offen ist, damit nicht zwei Editoren dieselbe Datei schreiben.
+        """
+        script = ROOT / "scripts" / "layout-editor.py"
+        if not script.exists():
+            self._layout_row.set_subtitle(f"Skript fehlt: {script}")
+            return
+        argv = [sys.executable, str(script)]
+        # Eigene cgroup, gleiche Begruendung wie beim Login-Fenster: der
+        # WebKit-Stapel des Editors soll nicht in der Dashboard-Unit haengen.
+        if shutil.which("systemd-run"):
+            argv = ["systemd-run", "--user", "--scope", "--quiet", "--collect",
+                    f"--unit=xeneon-layout-{os.getpid()}", "--"] + argv
+        try:
+            proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE)
+        except GLib.Error as e:
+            self._layout_row.set_subtitle(f"Start fehlgeschlagen: {e.message}")
+            return
+        self._layout_btn.set_sensitive(False)
+        self._layout_row.set_subtitle("Editor offen — auf dem Hauptmonitor…")
+        proc.wait_async(None, self._on_layout_editor_done)
+
+    def _on_layout_editor_done(self, proc, result) -> None:
+        try:
+            proc.wait_finish(result)
+        except GLib.Error:
+            pass
+        self._layout_btn.set_sensitive(True)
+        self._layout_row.set_subtitle(self._layout_subtitle())
 
     @staticmethod
     def _split_subtitle(app_slots: int, macro_slots: int) -> str:

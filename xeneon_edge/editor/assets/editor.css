@@ -1,0 +1,264 @@
+/* Farben kommen aus der aktiven Palette (theme.py) und werden von editor.js
+   als CSS-Variablen auf :root gesetzt — der Editor sieht damit aus wie das
+   Dashboard, das er bearbeitet. Hier stehen nur Fallbacks fuer den Fall, dass
+   die Nutzlast fehlt. */
+:root {
+  --bg: #000; --panel: #050505; --raised: #0a0a0a; --line: #1a1a1a;
+  --text: #fff; --muted: #5a5a5a; --label: #6e6e6e;
+  --accent: #ff0033; --warm: #ff8a00; --hot: #ff0033; --on-accent: #fff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---------- Kopfleiste ---------- */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+
+.brand { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-name { font-weight: 900; letter-spacing: 0.18em; font-size: 13px; }
+.brand-slash { color: var(--accent); }
+.brand-sub { font-size: 9px; letter-spacing: 0.22em; color: var(--label); }
+
+.profiles { display: flex; align-items: center; gap: 6px; }
+.profiles label { font-size: 10px; letter-spacing: 0.16em; color: var(--label); }
+
+.actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.status { font-size: 11px; color: var(--muted); min-width: 16ch; text-align: right; }
+.status.ok   { color: var(--text); }
+.status.bad  { color: var(--accent); }
+
+select, input {
+  /* Ohne appearance:none malt WebKit den Systemknopf — hell, mitten im
+     dunklen Editor. */
+  appearance: none;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 4px 6px;
+  font: inherit;
+}
+
+button {
+  font: inherit;
+  border-radius: 3px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--text);
+}
+button:hover { border-color: var(--muted); }
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+button.ghost { padding: 4px 8px; }
+button.danger:hover { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.4; cursor: default; }
+
+/* ---------- Hauptbereich ---------- */
+
+main { flex: 1; display: flex; min-height: 0; }
+
+.stage-wrap {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  /* Mittig: die Buehne haelt ihr Seitenverhaeltnis und ist damit meist
+     deutlich flacher als das Fenster. Oben angeschlagen bliebe darunter eine
+     grosse tote Flaeche. */
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.stage-meta {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--label);
+  letter-spacing: 0.1em;
+}
+.warning { color: var(--accent); letter-spacing: 0; }
+
+/* Die Buehne haelt das Seitenverhaeltnis des Zielmonitors. Wird von editor.js
+   per aspect-ratio gesetzt, damit Proportionen echt sind — der ganze Zweck
+   der schematischen Darstellung. */
+.stage {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 4px;
+  width: 100%;
+  max-height: 60vh;
+}
+
+.hint { margin: 0; font-size: 11px; color: var(--muted); }
+
+/* ---------- Spalten ---------- */
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  position: relative;
+}
+
+.column-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--label);
+  letter-spacing: 0.1em;
+  flex: none;
+}
+.column-width {
+  background: none;
+  border: none;
+  color: var(--label);
+  font: inherit;
+  cursor: pointer;
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+.column-width:hover { color: var(--text); background: var(--raised); }
+.column-width.is-flex { color: var(--accent); }
+
+/* Greifkante zwischen zwei Spalten. Liegt im Zwischenraum und ist bewusst
+   breiter als die sichtbare Linie — 4px trifft man mit der Maus schlecht. */
+.grip {
+  flex: none;
+  width: 9px;
+  margin: 0 -3px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+}
+.grip::after {
+  content: "";
+  position: absolute;
+  inset: 18px 4px 0 4px;
+  background: var(--line);
+}
+.grip:hover::after, .grip.active::after { background: var(--accent); }
+
+/* ---------- Modulkaesten ---------- */
+
+.module {
+  flex: 1;
+  min-height: 26px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: grab;
+  user-select: none;
+  overflow: hidden;
+  padding: 4px;
+}
+.module:hover { border-color: var(--muted); border-top-color: var(--accent); }
+.module.selected { border-color: var(--accent); background: var(--raised); }
+.module.dragging { opacity: 0.35; cursor: grabbing; }
+
+.module-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.module-sub {
+  font-size: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Einfuegemarke beim Ziehen */
+.drop-line {
+  flex: none;
+  height: 3px;
+  background: var(--accent);
+  margin: -1px 0;
+}
+.column.drop-target { outline: 1px dashed var(--accent); outline-offset: 2px; }
+
+/* Leere Spalte wird beim Speichern verworfen — vorher sichtbar markieren. */
+.column-empty {
+  flex: 1;
+  border: 1px dashed var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ---------- Seitenleiste ---------- */
+
+.side {
+  width: 280px;
+  flex: none;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.side h2 {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--label);
+  font-weight: 700;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+.side h2:not(:first-child) { margin-top: 20px; }
+
+.catalogue { display: flex; flex-wrap: wrap; gap: 6px; }
+.catalogue button { font-size: 11px; }
+
+.inspector { display: flex; flex-direction: column; gap: 8px; }
+.inspector .row { display: flex; align-items: center; gap: 8px; }
+.inspector .row label { font-size: 10px; letter-spacing: 0.1em; color: var(--label); min-width: 7ch; }
+.inspector input[type="text"] { flex: 1; min-width: 0; }
+.muted { color: var(--muted); font-size: 11px; margin: 0; }

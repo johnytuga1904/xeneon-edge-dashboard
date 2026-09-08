@@ -309,6 +309,18 @@ o.window("^(ch\\.xeneon\\.edge\\.login)$", {
   size = "1400 900",
   center = true,
 })
+
+-- Der Layout-Editor braucht ebenfalls eine Tastatur und liegt aus demselben
+-- Grund auf dem Hauptmonitor. Ohne eigene Regel bekaeme er Omarchys
+-- Standard-Transparenz — durch einen Editor auf den Desktop zu schauen macht
+-- das Beurteilen von Farben unmoeglich.
+o.window("^(ch\\.xeneon\\.edge\\.layout)$", {
+  tag = "-default-opacity",
+  opacity = "1 1",
+  float = true,
+  size = "1500 950",
+  center = true,
+})
 LUA
   else
     SNIP="$HYPR/xeneon-edge.conf"
@@ -341,6 +353,14 @@ windowrule = no_dim on,            match:class ^(ch\.xeneon\.edge)$
 windowrule = float,             match:class ^(ch\.xeneon\.edge\.login)$
 windowrule = size 1400 900,     match:class ^(ch\.xeneon\.edge\.login)$
 windowrule = center,            match:class ^(ch\.xeneon\.edge\.login)$
+
+# Der Layout-Editor braucht ebenfalls eine Tastatur. Ohne eigene Regel bekaeme
+# er die Standard-Transparenz — durch einen Editor auf den Desktop zu schauen
+# macht das Beurteilen von Farben unmoeglich.
+windowrule = opacity 1 1,       match:class ^(ch\.xeneon\.edge\.layout)$
+windowrule = float,             match:class ^(ch\.xeneon\.edge\.layout)$
+windowrule = size 1500 950,     match:class ^(ch\.xeneon\.edge\.layout)$
+windowrule = center,            match:class ^(ch\.xeneon\.edge\.layout)$
 CONF
   fi
   ok "$SNIP"

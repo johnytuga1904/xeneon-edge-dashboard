@@ -2,7 +2,8 @@
 from __future__ import annotations
 import gi
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk  # noqa: E402
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gdk, Gtk, GLib  # noqa: E402
 
 
 XENEON_EDGE_W = 2560
@@ -79,3 +80,33 @@ def list_monitors_for_settings(display: Gdk.Display) -> list[tuple[str, str]]:
     for m in _all_monitors(display):
         out.append((_connector_name(m), describe(m)))
     return out
+
+
+def move_off_dashboard(win: Gtk.Window, dashboard_connector: str = "") -> None:
+    """Ein Fenster auf einen Monitor mit Tastatur legen.
+
+    Fuer alles, was Eingaben braucht — das TradingView-Login und der
+    Layout-Editor. Am Streifen haengt keine Tastatur, und das Dashboard liegt
+    dort im Vollbild davor.
+
+    GTK4 kann ein normales Fenster auf Wayland nicht positionieren;
+    fullscreen_on_monitor() ist die einzige API, die ueberhaupt einen Monitor
+    entgegennimmt. Also einmal dort Vollbild anmelden und im naechsten Frame
+    wieder verlassen: der Compositor hat das Fenster dann bereits auf diesem
+    Ausgang, und es bleibt dort als normales Fenster stehen.
+
+    Bewusst best effort. Verlass ist die Hyprland-Regel aus
+    scripts/install-arch.sh; das hier ist der Fallback fuer alles andere.
+    """
+    display = win.get_display()
+    if display is None:
+        return
+    monitor = find_login_monitor(display, dashboard_connector)
+    if monitor is None:
+        return
+    try:
+        win.fullscreen_on_monitor(monitor)
+    except Exception as e:
+        print(f"[xeneon-edge] Fenster konnte nicht umgehaengt werden: {e}")
+        return
+    GLib.timeout_add(150, lambda: (win.unfullscreen(), False)[1])

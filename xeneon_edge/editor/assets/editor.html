@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Xeneon Edge — Layout</title>
+<style>/*CSS*/</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <span class="brand-name">XENEON<span class="brand-slash">//</span>EDGE</span>
+    <span class="brand-sub">LAYOUT</span>
+  </div>
+
+  <div class="profiles">
+    <label for="profile">Profil</label>
+    <select id="profile"></select>
+    <!-- Namenseingabe statt prompt(): WebKitGTK zeigt Skript-Dialoge je nach
+         Version gar nicht an, dann passiert beim Klick einfach nichts. -->
+    <input id="profile-name" type="text" hidden size="14" placeholder="Name">
+    <button id="profile-new"    class="ghost" title="Neues Profil">+</button>
+    <button id="profile-rename" class="ghost" title="Umbenennen">Aa</button>
+    <button id="profile-delete" class="ghost danger" title="Profil loeschen">&times;</button>
+  </div>
+
+  <div class="actions">
+    <span id="status" class="status"></span>
+    <button id="revert" class="ghost">Verwerfen</button>
+    <button id="save" class="primary">Speichern</button>
+  </div>
+</header>
+
+<main>
+  <section class="stage-wrap">
+    <div class="stage-meta">
+      <span id="stage-label"></span>
+      <span id="stage-warning" class="warning" hidden></span>
+    </div>
+    <!-- Buehne: der Streifen in echter Proportion. Spalten liegen als
+         Flexbox darin, Breiten in Prozent der Monitorbreite. -->
+    <div id="stage" class="stage"></div>
+    <p class="hint">
+      Modul ziehen zum Verschieben &middot; Spaltenkante ziehen fuer die Breite
+      &middot; Klick auf ein Modul waehlt es aus
+    </p>
+  </section>
+
+  <aside class="side">
+    <h2>Modul hinzufuegen</h2>
+    <div id="catalogue" class="catalogue"></div>
+
+    <h2>Auswahl</h2>
+    <div id="inspector" class="inspector">
+      <p class="muted">Nichts ausgewaehlt.</p>
+    </div>
+  </aside>
+</main>
+
+<script>/*PAYLOAD*/</script>
+<script>/*JS*/</script>
+</body>
+</html>

@@ -8,6 +8,10 @@ APPS_FILE = CONFIG_DIR / "apps.json"
 STYLE_CSS = Path(__file__).resolve().parent / "style.css"
 # Mitgelieferte Farbpaletten, eine TOML pro Theme (siehe theme.py)
 THEMES_DIR = Path(__file__).resolve().parent / "themes"
+# HTML/CSS/JS des Layout-Editors. Werden beim Oeffnen in *eine* Seite
+# eingebettet, statt sie per file:// nachzuladen — WebKit behandelt lokale
+# Unterressourcen je nach Version unterschiedlich streng.
+EDITOR_ASSETS_DIR = Path(__file__).resolve().parent / "editor" / "assets"
 # Mitgelieferte Icons, im Feld "icon" per Dateiname ansprechbar (z.B. "llm-start")
 ICONS_DIR = Path(__file__).resolve().parent / "icons"
 
