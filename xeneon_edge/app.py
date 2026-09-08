@@ -4,14 +4,14 @@ import sys
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Gdk, Adw, GLib  # noqa: E402
+from gi.repository import Gtk, Gdk, Gio, Adw, GLib  # noqa: E402
 
 from .paths import STYLE_CSS
 from .sensors import Aggregator
 from .ui.window import MainWindow
 from .ui.settings import SettingsDialog
 from .ui.monitors import find_target_monitor, describe
-from . import config_store
+from . import config_store, layout_store
 
 
 class XeneonEdgeApp(Adw.Application):
@@ -19,6 +19,8 @@ class XeneonEdgeApp(Adw.Application):
         super().__init__(application_id="ch.xeneon.edge")
         self._aggregator: Aggregator | None = None
         self._window: MainWindow | None = None
+        self._layout_monitor: Gio.FileMonitor | None = None
+        self._layout_reload_id: int | None = None
 
     def do_startup(self):  # type: ignore[override]
         Adw.Application.do_startup(self)
@@ -30,8 +32,14 @@ class XeneonEdgeApp(Adw.Application):
         if self._window is not None:
             self._window.present()
             return
+        # Bestehende Installationen haben noch keine layout.json — aus den
+        # Settings eine bauen, damit das Dashboard nach dem Update unveraendert
+        # aussieht (chart_url wandert ins Web-Modul).
+        layout_store.migrate_from_settings(config_store.load_settings())
+
         self._window = MainWindow(self, on_open_settings=self._open_settings)
         self._refresh_deck()
+        self._watch_layout()
         self._window.present()
         self._target_monitor()
 
@@ -45,7 +53,54 @@ class XeneonEdgeApp(Adw.Application):
     def do_shutdown(self):  # type: ignore[override]
         if self._aggregator is not None:
             self._aggregator.stop()
+        if self._layout_reload_id is not None:
+            GLib.source_remove(self._layout_reload_id)
+        if self._layout_monitor is not None:
+            self._layout_monitor.cancel()
         Adw.Application.do_shutdown(self)
+
+    # --------
+
+    def _watch_layout(self) -> None:
+        """layout.json beobachten und das Gitter bei Aenderung neu bauen.
+
+        Auf die Datei zu horchen statt auf den Editor zu warten heisst: jeder
+        Weg wirkt gleich — der Editor, ein Texteditor, ein Konfig-Werkzeug.
+        """
+        try:
+            gfile = Gio.File.new_for_path(str(layout_store.LAYOUT_FILE))
+            monitor = gfile.monitor_file(Gio.FileMonitorFlags.NONE, None)
+        except Exception as e:
+            print(f"[xeneon-edge] layout.json wird nicht beobachtet: {e}")
+            return
+        monitor.connect("changed", self._on_layout_changed)
+        self._layout_monitor = monitor
+
+    def _on_layout_changed(self, _monitor, _f, _other, event_type) -> None:
+        """Ein Speichervorgang meldet sich mehrfach — zu einem Rebuild buendeln.
+
+        layout_store.save() schreibt in eine Temp-Datei und benennt sie um.
+        Der Monitor sieht dadurch pro Speichern *zwei* Ereignisse (CREATED,
+        dann CHANGES_DONE_HINT); ungebremst wuerde das Gitter zweimal
+        hintereinander neu gebaut und sichtbar flackern.
+        """
+        if event_type not in (Gio.FileMonitorEvent.CHANGES_DONE_HINT,
+                              Gio.FileMonitorEvent.MOVED_IN,
+                              Gio.FileMonitorEvent.CREATED):
+            return
+        if self._layout_reload_id is not None:
+            GLib.source_remove(self._layout_reload_id)
+        self._layout_reload_id = GLib.timeout_add(250, self._reload_layout)
+
+    def _reload_layout(self) -> bool:
+        self._layout_reload_id = None
+        if self._window is None:
+            return False
+        print("[xeneon-edge] layout.json geaendert — Gitter wird neu gebaut")
+        self._window.apply_layout(layout_store.load())
+        # Das Deck ist frisch gebaut und damit leer.
+        self._refresh_deck()
+        return False
 
     # --------
 

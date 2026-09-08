@@ -237,6 +237,8 @@ box.pill {
 }
 label.pill-text { font-size: 10px; letter-spacing: 0.16em; color: @muted; }
 label.pill-strong { font-size: 11px; font-weight: 900; color: @text; }
+/* Sensordaten sind veraltet — der Aggregator liefert nichts mehr. */
+label.status-stale { color: @accent; font-weight: 900; }
 label.arrow { color: @accent; font-weight: 900; }
 
 /* process row */

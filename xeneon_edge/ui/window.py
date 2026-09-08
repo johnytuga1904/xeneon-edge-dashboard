@@ -1,25 +1,23 @@
 """Main window: topbar + 3-column grid (sensor stack, chart, right stack) + deck."""
 from __future__ import annotations
 from datetime import datetime, timezone
+import time
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib  # noqa: E402
 
-from .panels import CpuPanel, GpuPanel, RamPanel, ProcessPanel, FanPanel
-from .audio_panel import AudioPanel
-from .deck import LaunchDeck
-from .chart import make_chart_widget
 from .layout import FixedWidth
-from .. import config_store
+from .. import config_store, layout_store, modules
 
-# Column widths in px. These are hard, not minimums: FixedWidth reports them as
-# both minimum and natural, so no value inside a column can ever move it.
-# The chart column carries no fixed width — it absorbs whatever is left over,
-# which is the only thing that adapts the layout to a different screen.
-COL_SENSORS_W = 460
-COL_PROCS_W = 420
-COL_DECK_W = 430
+# Spaltenbreiten stehen in layout.json, nicht mehr hier. FixedWidth meldet sie
+# als Minimum *und* Natural, damit kein Wert im Inneren die Spalte verschieben
+# kann; genau eine Spalte ist "flex" und nimmt den Rest.
+#
+# Alter der Sensordaten, ab dem die Statuspille nicht mehr LIVE zeigt. Der
+# Aggregator tickt mit 1 Hz, drei verpasste Ticks sind also kein Jitter mehr,
+# sondern ein haengender oder toter Sensor-Thread.
+STALE_AFTER_S = 3.0
 
 
 def _pin(label: Gtk.Label, chars: int) -> Gtk.Label:
@@ -148,68 +146,84 @@ class MainWindow(Adw.ApplicationWindow):
         actions.append(settings_btn); actions.append(fs_btn); actions.append(close_btn)
         topbar.set_end_widget(actions)
 
-        # ----- Main grid: single row, 4 columns side-by-side -----
-        # Layout for 2560x720 Xeneon Edge:
-        #   [ Sensors | Chart | Procs+Audio | Launch Deck ]
-        grid = Gtk.Grid(row_spacing=6, column_spacing=6)
-        grid.set_hexpand(True); grid.set_vexpand(True)
-        outer.append(grid)
-        grid.set_column_homogeneous(False)
+        # ----- Hauptgitter: eine Zeile, Spalten laut layout.json -----
+        # Der Halter bleibt im Fenster stehen; apply_layout() tauscht nur sein
+        # Kind, damit ein Layout-Wechsel den Rest des Fensters nicht anfasst.
+        self.grid_holder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.grid_holder.set_hexpand(True)
+        self.grid_holder.set_vexpand(True)
+        outer.append(self.grid_holder)
 
-        # Col 0: Sensors stack — narrow, panels stretched to fill column height
-        sensors_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        sensors_col.set_vexpand(True)
-        sensors_col.set_hexpand(False)  # don't compete with chart for width
-        sensors_col.add_css_class("col-sensors")
-        self.cpu_panel = CpuPanel()
-        self.gpu_panels: list[GpuPanel] = []
-        self.gpu_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        self.gpu_container.set_vexpand(True)
-        self.ram_panel = RamPanel()
-        self.fan_panel = FanPanel()
-        for w in (self.cpu_panel, self.gpu_container, self.ram_panel, self.fan_panel):
-            w.set_vexpand(True)
-        sensors_col.append(self.cpu_panel)
-        sensors_col.append(self.gpu_container)
-        sensors_col.append(self.ram_panel)
-        sensors_col.append(self.fan_panel)
-        grid.attach(FixedWidth(sensors_col, COL_SENSORS_W), 0, 0, 1, 1)
+        # Gebaute Module in Layout-Reihenfolge. apply_snapshot() geht diese
+        # Liste durch, statt feste Attribute anzusprechen — nach einem Rebuild
+        # zeigt sie auf die neuen Widgets, die alten sind weg.
+        self._modules: list[Gtk.Widget] = []
+        self._last_snapshot_at: float = 0.0
+        self._sensor_sources: dict[str, str] = {}
 
-        # Col 1: Chart — flexes to take all remaining horizontal space.
-        # chart_url leer = eingebettetes Widget; eine URL laedt die echte
-        # TradingView-Seite mit der gespeicherten Session (Login siehe
-        # scripts/tradingview-login.py). Der Halter bleibt in der Grid-Zelle
-        # stehen, damit set_chart_url() nur sein Kind tauschen muss.
-        self._chart_url = config_store.load_settings().get("chart_url", "") or ""
-        self.chart_holder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.chart_holder.set_hexpand(True)
-        self.chart_holder.set_vexpand(True)
-        self.chart_holder.append(make_chart_widget(self._chart_url))
-        grid.attach(self.chart_holder, 1, 0, 1, 1)
-
-        # Col 2: Top processes (stretches) + Audio (fixed at bottom)
-        right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        right_col.set_vexpand(True)
-        right_col.set_hexpand(False)
-        right_col.add_css_class("col-compact")
-        self.process_panel = ProcessPanel()
-        self.process_panel.set_vexpand(True)
-        self.process_panel.set_hexpand(False)
-        self.audio_panel = AudioPanel()
-        self.audio_panel.set_hexpand(False)
-        right_col.append(self.process_panel)
-        right_col.append(self.audio_panel)
-        grid.attach(FixedWidth(right_col, COL_PROCS_W), 2, 0, 1, 1)
-
-        # Col 3: Launch Deck — 3 cols × 6 rows, fixed width, fills full column height
-        self.deck = LaunchDeck()
-        self.deck.set_vexpand(True)
-        self.deck.set_hexpand(False)
-        grid.attach(FixedWidth(self.deck, COL_DECK_W), 3, 0, 1, 1)
+        self.apply_layout(layout_store.load())
 
         # tick the clock every second
         self._update_clock()
         GLib.timeout_add_seconds(1, self._update_clock)
+        # Statuspille prueft das Alter der Daten auch dann, wenn gar keine mehr
+        # kommen — ein Snapshot-Handler allein wuerde bei totem Sensor-Thread
+        # nie wieder feuern und die Pille bliebe fuer immer auf LIVE stehen.
+        GLib.timeout_add_seconds(1, self._refresh_status_pill)
+
+    # ----- layout -----
+
+    def apply_layout(self, layout: dict) -> None:
+        """Gitter aus einem Layout neu bauen.
+
+        Laeuft auf dem GTK-Main-Loop, und apply_snapshot() greift nur ueber
+        self._modules zu — ein Rebuild kann also keine Aktualisierung auf einem
+        bereits abgeraeumten Widget hinterlassen.
+        """
+        profile = layout_store.active_profile(layout)
+
+        grid = Gtk.Grid(row_spacing=6, column_spacing=6)
+        grid.set_hexpand(True)
+        grid.set_vexpand(True)
+        grid.set_column_homogeneous(False)
+
+        built: list[Gtk.Widget] = []
+        for index, column in enumerate(profile["columns"]):
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            box.set_vexpand(True)
+
+            for entry in column["modules"]:
+                widget = modules.build(entry["type"], entry.get("config"))
+                if widget is None:
+                    continue
+                widget.set_vexpand(True)
+                box.append(widget)
+                built.append(widget)
+
+            if column["width"] == layout_store.FLEX:
+                box.set_hexpand(True)
+                grid.attach(box, index, 0, 1, 1)
+            else:
+                # Nicht um Breite mit der Flex-Spalte konkurrieren.
+                box.set_hexpand(False)
+                grid.attach(FixedWidth(box, column["width"]), index, 0, 1, 1)
+
+        old = self.grid_holder.get_first_child()
+        if old is not None:
+            self.grid_holder.remove(old)
+        self.grid_holder.append(grid)
+        self._modules = built
+        self._layout = layout
+
+    def find_module(self, type_id: str) -> Gtk.Widget | None:
+        """Erstes gebautes Modul eines Typs — fuer app.py, das das Deck befuellt."""
+        spec = modules.get(type_id)
+        if spec is None:
+            return None
+        for widget in self._modules:
+            if isinstance(widget, spec.factory):
+                return widget
+        return None
 
     def _make_pill(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -231,31 +245,17 @@ class MainWindow(Adw.ApplicationWindow):
     # ----- snapshot push -----
 
     def apply_snapshot(self, snap) -> None:
-        self.cpu_panel.update(snap.cpu, snap.cpu_name)
-        self.ram_panel.update(snap.ram)
-        self.process_panel.update(snap.processes)
-        self.fan_panel.update(snap.fans)
-        self.audio_panel.update(snap.audio)
-
-        # GPU panels: rebuild count if it changed
-        if len(self.gpu_panels) != len(snap.gpus):
-            child = self.gpu_container.get_first_child()
-            while child is not None:
-                nxt = child.get_next_sibling()
-                self.gpu_container.remove(child)
-                child = nxt
-            self.gpu_panels = []
-            for _ in snap.gpus:
-                p = GpuPanel()
-                self.gpu_container.append(p)
-                self.gpu_panels.append(p)
-        for panel, gpu in zip(self.gpu_panels, snap.gpus):
-            panel.update(gpu)
-        if not snap.gpus and not self.gpu_panels:
-            placeholder = GpuPanel()
-            placeholder.update(None)
-            self.gpu_container.append(placeholder)
-            self.gpu_panels.append(placeholder)
+        # Ueber die Liste, nicht ueber feste Attribute: nach apply_layout()
+        # zeigt sie auf die aktuellen Module. Ein Modul, das sich verschluckt,
+        # darf die uebrigen nicht mitreissen.
+        for widget in self._modules:
+            update = getattr(widget, "update", None)
+            if update is None:
+                continue
+            try:
+                update(snap)
+            except Exception as e:
+                print(f"[xeneon-edge] Modul {type(widget).__name__} update: {e}")
 
         # network pill — auto-scale Mbps → KB/s | MB/s | GB/s for readability
         d_val, d_unit = _fmt_speed(snap.net.get("down_mbps", 0))
@@ -271,14 +271,44 @@ class MainWindow(Adw.ApplicationWindow):
         # match pill
         self._update_match(snap.next_match)
 
-        # status: live
-        self.sensor_status.set_label("LIVE")
+        self._last_snapshot_at = getattr(snap, "taken_at", 0.0) or time.time()
+        self._sensor_sources = getattr(snap, "sources", {}) or {}
+        self._refresh_status_pill()
 
     def populate_deck(self, apps: list[dict], macros: list[dict], *,
                       hold_to_confirm: bool, isolate: bool = True,
                       app_slots: int = 9) -> None:
-        self.deck.populate(apps, macros, hold_to_confirm=hold_to_confirm,
-                           isolate=isolate, app_slots=app_slots)
+        deck = self.find_module("deck")
+        if deck is None:
+            return
+        deck.populate(apps, macros, hold_to_confirm=hold_to_confirm,
+                      isolate=isolate, app_slots=app_slots)
+
+    # ----- status pill -----
+
+    def _refresh_status_pill(self) -> bool:
+        """Was die Pille zeigt: welche Quelle liest, und ob die Daten frisch sind.
+
+        Sie stand frueher konstant auf "LIVE" und war damit reine Dekoration —
+        auch bei stehengebliebenem Sensor-Thread. Ein eingefrorenes Dashboard
+        sieht aber aus wie ein ruhiges System, und genau das soll hier
+        auffallen.
+        """
+        if not self._last_snapshot_at:
+            self.sensor_status.set_label("Sensors warming up")
+            self.sensor_status.remove_css_class("status-stale")
+            return True
+
+        age = time.time() - self._last_snapshot_at
+        if age > STALE_AFTER_S:
+            self.sensor_status.set_label(f"STALE {age:.0f}s")
+            self.sensor_status.add_css_class("status-stale")
+            return True
+
+        self.sensor_status.remove_css_class("status-stale")
+        gpu = self._sensor_sources.get("gpu")
+        self.sensor_status.set_label(f"LIVE · {gpu}" if gpu else "LIVE")
+        return True
 
     # ----- match widget rendering -----
 
@@ -331,7 +361,7 @@ class MainWindow(Adw.ApplicationWindow):
         )
 
     def set_chart_url(self, url: str) -> None:
-        """Chart-Panel auf eine neue URL umhaengen (Settings -> General).
+        """URL des ersten Web-Moduls wechseln (Settings -> General).
 
         Neu bauen statt ``load_uri``: der Widget-Modus laedt HTML aus einem
         String, der Account-Modus braucht eine persistente ``NetworkSession``
@@ -339,11 +369,6 @@ class MainWindow(Adw.ApplicationWindow):
         URL bleibt unangetastet, sonst wuerde jedes Anwenden im
         Settings-Dialog den Chart neu laden.
         """
-        url = (url or "").strip()
-        if url == self._chart_url:
-            return
-        self._chart_url = url
-        old = self.chart_holder.get_first_child()
-        if old is not None:
-            self.chart_holder.remove(old)
-        self.chart_holder.append(make_chart_widget(url))
+        web = self.find_module("web")
+        if web is not None:
+            web.set_url((url or "").strip())

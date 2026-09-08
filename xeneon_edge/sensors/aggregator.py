@@ -29,6 +29,12 @@ class Snapshot:
     weather: dict | None = None
     next_match: dict | None = None
     cpu_name: str = "CPU"
+    # Wann dieser Snapshot entstand (time.time()). Die Statuspille erkennt
+    # daran einen haengenden Sensor-Thread — ohne das sieht ein eingefrorenes
+    # Dashboard aus wie ein ruhiges System.
+    taken_at: float = 0.0
+    # Welcher Treiber welchen Wert geliefert hat, z.B. {"gpu": "amdgpu"}.
+    sources: dict = field(default_factory=dict)
 
 
 class Aggregator:
@@ -81,9 +87,17 @@ class Aggregator:
         snap.fans = fans_mod.fan_metrics()
 
         gpus: list[dict] = []
-        gpus.extend(gpu_amd_mod.gpu_amd_metrics())
-        gpus.extend(gpu_nvidia_mod.gpu_nvidia_metrics())
+        amd = gpu_amd_mod.gpu_amd_metrics()
+        nvidia = gpu_nvidia_mod.gpu_nvidia_metrics()
+        gpus.extend(amd)
+        gpus.extend(nvidia)
         snap.gpus = gpus
+        # Welche Treiber wirklich etwas geliefert haben — die Statuspille
+        # zeigt es an, damit sichtbar ist, woher die Werte kommen.
+        found = [name for name, found_gpus in (("amdgpu", amd), ("nvidia", nvidia))
+                 if found_gpus]
+        if found:
+            snap.sources["gpu"] = "+".join(found)
 
         snap.processes = proc_mod.top_processes(14)
 
@@ -113,6 +127,7 @@ class Aggregator:
             self._match_last_fetch = now
         snap.next_match = self._match_cache
 
+        snap.taken_at = time.time()
         self.snapshot = snap
         if self._on_snapshot is not None:
             try:
