@@ -58,7 +58,8 @@ class XeneonEdgeApp(Adw.Application):
         def on_snapshot(snap):
             GLib.idle_add(self._window.apply_snapshot, snap)
 
-        self._aggregator = Aggregator(on_snapshot=on_snapshot, interval=1.0)
+        self._aggregator = Aggregator(on_snapshot=on_snapshot, interval=1.0,
+                                      needs=self._window.needs)
         self._aggregator.start()
 
     def do_shutdown(self):  # type: ignore[override]
@@ -113,7 +114,10 @@ class XeneonEdgeApp(Adw.Application):
             return False
         print("[xeneon-edge] layout.json geaendert — Gitter wird neu gebaut")
         self._window.apply_layout(layout_store.load())
-        # Das Deck ist frisch gebaut und damit leer.
+        if self._aggregator is not None:
+            self._aggregator.set_needs(self._window.needs)
+        # Das Deck ist frisch gebaut und damit leer — oder wiederverwendet;
+        # populate() ist in beiden Faellen richtig.
         self._refresh_deck()
         return False
 

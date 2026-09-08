@@ -20,8 +20,16 @@ from ..ui.deck import LaunchDeck
 from ..ui.chart import make_chart_widget
 
 
+SENSOR_METRICS = ("cpu", "gpu", "ram", "fans")
+
+
 class SensorsModule(Gtk.Box):
-    """CPU + GPU + RAM + Luefter untereinander."""
+    """CPU + GPU + RAM + Luefter untereinander — oder eine Auswahl davon.
+
+    ``config["metrics"]`` bestimmt, welche Panels gebaut werden; ``needs``
+    folgt dieser Auswahl, damit der Aggregator nur liest, was hier auch zu
+    sehen ist.
+    """
 
     def __init__(self, config: dict):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -31,21 +39,34 @@ class SensorsModule(Gtk.Box):
         self.set_hexpand(False)
         self.add_css_class("col-sensors")
 
-        self.cpu_panel = CpuPanel()
+        raw = config.get("metrics")
+        wanted = [m for m in (raw if isinstance(raw, list) else SENSOR_METRICS)
+                  if m in SENSOR_METRICS]
+        self.metrics = tuple(wanted) or SENSOR_METRICS
+        self.needs = frozenset(self.metrics)
+
+        self.cpu_panel = CpuPanel() if "cpu" in self.metrics else None
         self.gpu_panels: list[GpuPanel] = []
-        self.gpu_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        self.gpu_container.set_vexpand(True)
-        self.ram_panel = RamPanel()
-        self.fan_panel = FanPanel()
+        self.gpu_container = None
+        if "gpu" in self.metrics:
+            self.gpu_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.ram_panel = RamPanel() if "ram" in self.metrics else None
+        self.fan_panel = FanPanel() if "fans" in self.metrics else None
         for w in (self.cpu_panel, self.gpu_container, self.ram_panel, self.fan_panel):
+            if w is None:
+                continue
             w.set_vexpand(True)
             self.append(w)
 
     def update(self, snap) -> None:
-        self.cpu_panel.update(snap.cpu, snap.cpu_name)
-        self.ram_panel.update(snap.ram)
-        self.fan_panel.update(snap.fans)
-        self._update_gpus(snap.gpus)
+        if self.cpu_panel is not None:
+            self.cpu_panel.update(snap.cpu, snap.cpu_name)
+        if self.ram_panel is not None:
+            self.ram_panel.update(snap.ram)
+        if self.fan_panel is not None:
+            self.fan_panel.update(snap.fans)
+        if self.gpu_container is not None:
+            self._update_gpus(snap.gpus)
 
     def _update_gpus(self, gpus: list[dict]) -> None:
         # Anzahl der GPU-Panels an die gefundenen GPUs anpassen. Eine GPU kann

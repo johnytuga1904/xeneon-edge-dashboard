@@ -111,6 +111,10 @@ PKGS=(
   adwaita-icon-theme    # Icon-Fallbacks im Deck
   xdg-desktop-portal-gtk # Datei-Picker im Settings-Dialog unter Wayland
 )
+# NVML-Bindings: NVIDIA-Werte in-process (0,1 ms) statt nvidia-smi als
+# Prozessstart pro Tick (28 ms). Haengt nicht am Treiberpaket, kann also
+# mit installiert werden; ohne Treiber faellt das Dashboard auf nvidia-smi zurueck.
+if (( HAS_NVIDIA )); then PKGS+=(python-nvidia-ml-py); fi
 
 if (( ! CHECK_ONLY && DO_PACKAGES )); then
   say "Pakete installieren"

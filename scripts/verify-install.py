@@ -70,6 +70,17 @@ if shutil.which("gst-inspect-1.0"):
 else:
     warn("gst-inspect-1.0 nicht da — autoaudiosink nicht pruefbar")
 
+# NVML-Bindings sind optional: ohne sie laeuft nvidia-smi als Prozessstart pro
+# Tick (28 ms statt 0,1 ms). Nur erwaehnen, wenn ueberhaupt eine NVIDIA da ist.
+if shutil.which("nvidia-smi"):
+    try:
+        __import__("pynvml")
+        ok("pynvml — NVIDIA-Werte ueber NVML")
+    except ImportError:
+        warn("pynvml fehlt — NVIDIA-Werte ueber nvidia-smi (28 ms pro Tick)")
+        warn("  → Arch:   sudo pacman -S python-nvidia-ml-py")
+        warn("  → Debian: sudo apt install python3-pynvml")
+
 for tool, what in (("pactl", "Audio-Lautstaerke/Default-Device"),
                    ("wpctl", "PipeWire-Fallback"),
                    ("sensors", "hwmon-Labels"),

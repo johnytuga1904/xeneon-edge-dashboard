@@ -1,6 +1,7 @@
 """Main window: topbar + 3-column grid (sensor stack, chart, right stack) + deck."""
 from __future__ import annotations
 from datetime import datetime, timezone
+import json
 import time
 import gi
 gi.require_version("Gtk", "4.0")
@@ -18,6 +19,16 @@ from .. import config_store, layout_store, modules
 # Aggregator tickt mit 1 Hz, drei verpasste Ticks sind also kein Jitter mehr,
 # sondern ein haengender oder toter Sensor-Thread.
 STALE_AFTER_S = 3.0
+
+
+def _module_key(type_id: str, config: dict) -> tuple[str, str]:
+    """Identitaet eines Moduls ueber einen Rebuild hinweg: Typ + Konfiguration.
+
+    Schluessel mit Unterstrich (``_palette``) sind Laufzeitbeigaben, keine
+    Konfiguration, und bleiben aussen vor.
+    """
+    public = {k: v for k, v in config.items() if not str(k).startswith("_")}
+    return type_id, json.dumps(public, sort_keys=True, default=str)
 
 
 def _pin(label: Gtk.Label, chars: int) -> Gtk.Label:
@@ -161,6 +172,11 @@ class MainWindow(Adw.ApplicationWindow):
         # Liste durch, statt feste Attribute anzusprechen — nach einem Rebuild
         # zeigt sie auf die neuen Widgets, die alten sind weg.
         self._modules: list[Gtk.Widget] = []
+        # (Widget, Schluessel) des aktuellen Gitters — der Vorrat, aus dem
+        # apply_layout() beim naechsten Rebuild unveraenderte Module holt.
+        self._module_keys: list[tuple[Gtk.Widget, tuple[str, str]]] = []
+        # Sensor-Subsysteme, die die sichtbaren Module brauchen (Aggregator).
+        self.needs: frozenset[str] = frozenset()
         self._last_snapshot_at: float = 0.0
         self._sensor_sources: dict[str, str] = {}
 
@@ -182,6 +198,11 @@ class MainWindow(Adw.ApplicationWindow):
         Laeuft auf dem GTK-Main-Loop, und apply_snapshot() greift nur ueber
         self._modules zu — ein Rebuild kann also keine Aktualisierung auf einem
         bereits abgeraeumten Widget hinterlassen.
+
+        Module, deren Typ und Konfiguration unveraendert sind, wandern aus dem
+        alten Gitter ins neue statt neu gebaut zu werden. Fuer das Web-Modul
+        ist das der Unterschied zwischen "Spalte rutscht" und "Chart laedt
+        mehrere Sekunden neu" — und das Deck behaelt seinen Zustand.
         """
         profile = layout_store.active_profile(layout)
 
@@ -190,20 +211,38 @@ class MainWindow(Adw.ApplicationWindow):
         grid.set_vexpand(True)
         grid.set_column_homogeneous(False)
 
+        pool: dict[tuple[str, str], list[Gtk.Widget]] = {}
+        for widget, key in self._module_keys:
+            pool.setdefault(key, []).append(widget)
+
         built: list[Gtk.Widget] = []
+        keys: list[tuple[Gtk.Widget, tuple[str, str]]] = []
+        needs: set[str] = set()
         for index, column in enumerate(profile["columns"]):
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
             box.set_vexpand(True)
 
             for entry in column["modules"]:
+                type_id = entry["type"]
                 config = dict(entry.get("config") or {})
-                config["_palette"] = self._palette
-                widget = modules.build(entry["type"], config)
-                if widget is None:
-                    continue
+                key = _module_key(type_id, config)
+                reusable = pool.get(key)
+                if reusable:
+                    widget = reusable.pop(0)
+                    parent = widget.get_parent()
+                    if parent is not None:
+                        parent.remove(widget)
+                else:
+                    config["_palette"] = self._palette
+                    widget = modules.build(type_id, config)
+                    if widget is None:
+                        continue
                 widget.set_vexpand(True)
                 box.append(widget)
                 built.append(widget)
+                keys.append((widget, key))
+                spec = modules.get(type_id)
+                needs |= getattr(widget, "needs", spec.needs if spec else frozenset())
 
             if column["width"] == layout_store.FLEX:
                 box.set_hexpand(True)
@@ -218,6 +257,8 @@ class MainWindow(Adw.ApplicationWindow):
             self.grid_holder.remove(old)
         self.grid_holder.append(grid)
         self._modules = built
+        self._module_keys = keys
+        self.needs = frozenset(needs)
         self._layout = layout
 
     def find_module(self, type_id: str) -> Gtk.Widget | None:

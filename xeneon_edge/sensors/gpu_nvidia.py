@@ -1,10 +1,19 @@
-"""NVIDIA GPU sensors via nvidia-smi.
+"""NVIDIA GPU sensors: NVML (pynvml) wenn vorhanden, sonst nvidia-smi.
 
-Falls nvidia-smi nicht installiert ist, einmalig warnen und leere Liste liefern.
+nvidia-smi ist ein Prozessstart pro Tick — gemessen 28 ms, bei 1 Hz ein
+spuerbarer Teil der Dashboard-CPU. NVML fragt dieselben Werte in-process
+ab, gemessen 0,1 ms. Das Paket heisst nvidia-ml-py (Arch:
+python-nvidia-ml-py, Debian: python3-pynvml); fehlt es, bleibt alles wie
+vorher. Welcher Weg laeuft, meldet ``source_name()`` fuer die Statuspille.
 """
 from __future__ import annotations
 import shutil
 import subprocess
+
+try:
+    import pynvml  # type: ignore
+except ImportError:  # optional
+    pynvml = None  # type: ignore
 
 _QUERY = (
     "name,temperature.gpu,utilization.gpu,memory.used,memory.total,"
@@ -12,11 +21,85 @@ _QUERY = (
 )
 
 _warned = False
+# None = noch nicht versucht, True = laeuft, False = NVML unbrauchbar (kein
+# Treiber, alte Bibliothek) — dann dauerhaft nvidia-smi.
+_nvml_ok: bool | None = None
+_source: str | None = None
 
 
-def _nvidia_smi_path() -> str | None:
-    return shutil.which("nvidia-smi")
+def source_name() -> str | None:
+    """"nvml" oder "smi" — was zuletzt Werte geliefert hat, sonst None."""
+    return _source
 
+
+# ----- NVML -----
+
+def _nvml_init() -> bool:
+    global _nvml_ok
+    if _nvml_ok is not None:
+        return _nvml_ok
+    if pynvml is None:
+        _nvml_ok = False
+        return False
+    try:
+        pynvml.nvmlInit()
+        _nvml_ok = True
+    except Exception as e:  # NVMLError oder fehlende libnvidia-ml.so
+        print(f"[xeneon-edge] NVML nicht nutzbar ({e}) — nvidia-smi")
+        _nvml_ok = False
+    return _nvml_ok
+
+
+def _nv(fn, *args):
+    """Einen NVML-Aufruf machen; ein fehlender Sensor ist None, kein Fehler."""
+    try:
+        return fn(*args)
+    except Exception:
+        return None
+
+
+def _nvml_metrics() -> list[dict] | None:
+    """None heisst: NVML ist kaputt gegangen, der Aufrufer nimmt nvidia-smi."""
+    global _nvml_ok
+    try:
+        count = pynvml.nvmlDeviceGetCount()
+    except Exception as e:
+        print(f"[xeneon-edge] NVML ausgefallen ({e}) — ab jetzt nvidia-smi")
+        _nvml_ok = False
+        return None
+
+    out: list[dict] = []
+    for i in range(count):
+        h = _nv(pynvml.nvmlDeviceGetHandleByIndex, i)
+        if h is None:
+            continue
+        name = _nv(pynvml.nvmlDeviceGetName, h)
+        if isinstance(name, bytes):
+            name = name.decode(errors="replace")
+        util = _nv(pynvml.nvmlDeviceGetUtilizationRates, h)
+        mem = _nv(pynvml.nvmlDeviceGetMemoryInfo, h)
+        temp = _nv(pynvml.nvmlDeviceGetTemperature, h, pynvml.NVML_TEMPERATURE_GPU)
+        clk_gr = _nv(pynvml.nvmlDeviceGetClockInfo, h, pynvml.NVML_CLOCK_GRAPHICS)
+        clk_mem = _nv(pynvml.nvmlDeviceGetClockInfo, h, pynvml.NVML_CLOCK_MEM)
+        power = _nv(pynvml.nvmlDeviceGetPowerUsage, h)  # mW
+        fan = _nv(pynvml.nvmlDeviceGetFanSpeed, h)      # %, passiv gekuehlt: Fehler
+        out.append({
+            "name": name or "NVIDIA GPU",
+            "vendor": "nvidia",
+            "load_pct": float(util.gpu) if util is not None else None,
+            "vram_used_gb": mem.used / 1024**3 if mem is not None else None,
+            "vram_total_gb": mem.total / 1024**3 if mem is not None else None,
+            "temp_c": float(temp) if temp is not None else None,
+            "power_w": power / 1000.0 if power is not None else None,
+            "core_mhz": float(clk_gr) if clk_gr is not None else None,
+            "mem_mhz": float(clk_mem) if clk_mem is not None else None,
+            "fan_rpm": None,  # NVML kennt nur Prozent
+            "fan_pct": float(fan) if fan is not None else None,
+        })
+    return out
+
+
+# ----- nvidia-smi -----
 
 def _f(s: str) -> float | None:
     s = s.strip()
@@ -28,9 +111,9 @@ def _f(s: str) -> float | None:
         return None
 
 
-def gpu_nvidia_metrics() -> list[dict]:
+def _smi_metrics() -> list[dict]:
     global _warned
-    smi = _nvidia_smi_path()
+    smi = shutil.which("nvidia-smi")
     if smi is None:
         if not _warned:
             print("[xeneon-edge] nvidia-smi not found; NVIDIA GPU panel disabled. "
@@ -66,3 +149,15 @@ def gpu_nvidia_metrics() -> list[dict]:
             "fan_pct": _f(fan),
         })
     return out
+
+
+def gpu_nvidia_metrics() -> list[dict]:
+    global _source
+    if _nvml_init():
+        result = _nvml_metrics()
+        if result is not None:
+            _source = "nvml" if result else None
+            return result
+    result = _smi_metrics()
+    _source = "smi" if result else None
+    return result

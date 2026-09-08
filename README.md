@@ -239,7 +239,13 @@ Entweder über das Settings-Modal (Zahnrad oben rechts → „Start with desktop
   `isolate_launches`, `deck_app_slots`, `target_monitor`, `fullscreen_on_target`,
   `chart_url`, `theme`, `web_memory_limit_mb`
 - `~/.config/xeneon-edge/layout.json` — welche Module in welcher Spalte, wie
-  breit (siehe `docs/ARCHITECTURE.md`)
+  breit (siehe `docs/ARCHITECTURE.md`). Änderungen wirken sofort; Module,
+  deren Typ und `config` gleich bleiben, werden dabei wiederverwendet — der
+  Chart lädt also nicht neu, nur weil eine Spalte breiter wurde. Das
+  Sensor-Modul nimmt `"config": {"metrics": ["cpu", "gpu"]}` und baut nur
+  diese Panels; was kein sichtbares Modul braucht, liest der Aggregator
+  auch nicht (kein Prozess-Modul → kein psutil-Durchlauf, keine Lüfter →
+  kein hwmon).
 
 ### Farbthemes
 
@@ -454,16 +460,16 @@ Popen-Verhalten zurück.
 | Netzwerk  | `/proc/net/dev`                                                             |
 | Lüfter    | `/sys/class/hwmon/*/fan*_input`                                             |
 | AMD-GPU   | `/sys/class/drm/cardX/device/{gpu_busy_percent,mem_info_vram_*}` + hwmon    |
-| NVIDIA    | `nvidia-smi --query-gpu=...`                                                |
-| Audio     | `pactl get/set-sink-volume`, `set-default-sink`, `wpctl`                    |
+| NVIDIA    | NVML (`pynvml`), Fallback `nvidia-smi --query-gpu=...`                      |
+| Audio     | `pactl get/set-sink-volume`, `set-default-sink`, `wpctl`; neu gelesen nur bei Ereignis aus `pactl subscribe` |
 
 Keine Admin-Rechte nötig (im Gegensatz zur Windows-Version).
 
 ## Bekannte Einschränkungen
 
 - AMD-GPU-Name wird aus `modalias` abgeleitet — generisch („AMD GPU (Radeon)"). Für den schöneren Namen müsste man `lspci` oder `pciutils` parsen.
-- `nvidia-smi` blockiert ~60 ms pro Tick — bei 1-Hz-Polling unbedenklich, bei höheren Raten lieber nvml-Bindings benutzen.
-- Audio-Snapshot wird nur alle 2 s aktualisiert (pactl ist relativ teuer).
+- Ohne `pynvml` (Arch `python-nvidia-ml-py`, Debian `python3-pynvml`) kommen die NVIDIA-Werte aus `nvidia-smi`, ein Prozessstart pro Tick (~28 ms). Mit NVML sind es 0,1 ms; die Statuspille zeigt nicht, welcher Weg läuft, `verify-install.py` schon.
+- Läuft `pactl subscribe` nicht (kein Server), wird Audio wie früher alle 2 s gepollt; sonst nur bei Änderung und alle 30 s zur Sicherheit.
 
 ## Verzeichnisstruktur
 

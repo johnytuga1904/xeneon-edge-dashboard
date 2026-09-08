@@ -282,25 +282,38 @@ class FanPanel(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.panel, self.sub, self.body = _panel("Fans", "RPM")
         self.append(self.panel)
-        self._rows: list[Gtk.Box] = []
+        # Zeilenpool wie beim ProcessPanel: waechst bei Bedarf, ueberzaehlige
+        # Zeilen werden versteckt. Vorher wurden alle Zeilen jede Sekunde
+        # abgerissen und neu gebaut — Widget-Churn fuer Werte, die sich nur in
+        # der Zahl aendern.
+        self._rows: list[tuple[Gtk.Box, Gtk.Label, Gtk.Label]] = []
+
+    def _add_row(self) -> tuple[Gtk.Box, Gtk.Label, Gtk.Label]:
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.add_css_class("proc-row")
+        name = Gtk.Label(xalign=0); name.add_css_class("proc-name")
+        name.set_ellipsize(3); name.set_hexpand(True)
+        rpm = _pin_width(Gtk.Label(xalign=1), RPM_CHARS)
+        rpm.add_css_class("proc-ram")
+        row.append(name); row.append(rpm)
+        self.body.append(row)
+        entry = (row, name, rpm)
+        self._rows.append(entry)
+        return entry
 
     def update(self, fans: list[dict]) -> None:
-        for r in self._rows:
-            self.body.remove(r)
-        self._rows.clear()
         # Hide the whole panel when no fan sensors were detected — frees up
         # vertical space for CPU/GPU/RAM in the sensor column.
         if not fans:
             self.set_visible(False)
             return
         self.set_visible(True)
-        for f in fans:
-            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-            row.add_css_class("proc-row")
-            name = Gtk.Label(label=f["label"], xalign=0); name.add_css_class("proc-name")
-            name.set_ellipsize(3); name.set_hexpand(True)
-            rpm = _pin_width(Gtk.Label(label=f"{f['rpm']} RPM", xalign=1), RPM_CHARS)
-            rpm.add_css_class("proc-ram")
-            row.append(name); row.append(rpm)
-            self.body.append(row)
-            self._rows.append(row)
+        while len(self._rows) < len(fans):
+            self._add_row()
+        for i, (row, name, rpm) in enumerate(self._rows):
+            if i < len(fans):
+                row.set_visible(True)
+                name.set_label(fans[i]["label"])
+                rpm.set_label(f"{fans[i]['rpm']} RPM")
+            else:
+                row.set_visible(False)

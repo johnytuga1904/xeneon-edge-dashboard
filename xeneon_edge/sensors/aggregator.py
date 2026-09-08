@@ -1,4 +1,10 @@
-"""1 Hz background polling — pushes Snapshot to a callback on the GTK main loop."""
+"""1 Hz background polling — pushes Snapshot to a callback on the GTK main loop.
+
+Gelesen wird nur, was ein sichtbares Modul braucht (``needs``, siehe
+modules/): wer die Luefter ausblendet, spart das hwmon-Polling; ohne
+Prozess-Modul entfaellt der psutil-Durchlauf. Netz, Wetter und Spiel haengen
+an der Topbar und werden immer gelesen.
+"""
 from __future__ import annotations
 from dataclasses import dataclass, field
 import threading
@@ -37,11 +43,21 @@ class Snapshot:
     sources: dict = field(default_factory=dict)
 
 
+# Alle abschaltbaren Subsysteme; Default, solange kein Layout etwas anderes sagt.
+ALL_NEEDS = frozenset({"cpu", "gpu", "ram", "fans", "processes", "audio"})
+
+# Audio ohne Ereignisse: alte Rate. Mit Ereignissen: nur zur Sicherheit.
+_AUDIO_POLL_S = 2.0
+_AUDIO_SAFETY_S = 30.0
+
+
 class Aggregator:
     def __init__(self, on_snapshot: Callable[[Snapshot], None] | None = None,
-                 interval: float = 1.0) -> None:
+                 interval: float = 1.0,
+                 needs: frozenset[str] | None = None) -> None:
         self._on_snapshot = on_snapshot
         self._interval = interval
+        self.needs: frozenset[str] = ALL_NEEDS if needs is None else frozenset(needs)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._cpu_load = cpu_mod.CpuLoadTracker()
@@ -50,7 +66,9 @@ class Aggregator:
         self.snapshot = Snapshot(cpu_name=self._cpu_name)
         self._weather_last_fetch = 0.0
         self._weather_cache: dict | None = None
-        self._audio_skip_until = 0.0  # rate-limit audio (heavy pactl call) to 2s
+        self._audio_skip_until = 0.0  # Polling-Rueckfall, wenn pactl subscribe nicht laeuft
+        self._audio_last_read = 0.0
+        self._audio_watch = audio_mod.AudioWatcher()
         self._match_last_fetch = 0.0
         self._match_cache: dict | None = None
 
@@ -60,9 +78,19 @@ class Aggregator:
         self._thread = threading.Thread(target=self._run, name="xeneon-sensors",
                                         daemon=True)
         self._thread.start()
+        self._audio_watch.start()
 
     def stop(self) -> None:
         self._stop.set()
+        self._audio_watch.stop()
+
+    def set_needs(self, needs: frozenset[str]) -> None:
+        """Vom Layout aufgerufen; wirkt ab dem naechsten Tick.
+
+        Nur Lesezugriff aus dem Sensor-Thread, Zuweisung ist atomar — kein
+        Lock noetig.
+        """
+        self.needs = frozenset(needs)
 
     def _run(self) -> None:
         while not self._stop.is_set():
@@ -74,44 +102,57 @@ class Aggregator:
 
     def _tick(self) -> None:
         snap = Snapshot(cpu_name=self._cpu_name)
+        needs = self.needs
 
-        snap.cpu = {
-            "load_pct": self._cpu_load.sample(),
-            "clock_mhz": cpu_mod.cpu_clock_mhz(),
-            "temp_c": cpu_mod.cpu_temp_c(),
-            "power_w": None,  # RAPL is slow (50ms blocking) — fetch every 5 ticks
-        }
-        snap.ram = ram_mod.ram_metrics() or {}
+        if "cpu" in needs:
+            snap.cpu = {
+                "load_pct": self._cpu_load.sample(),
+                "clock_mhz": cpu_mod.cpu_clock_mhz(),
+                "temp_c": cpu_mod.cpu_temp_c(),
+                "power_w": None,  # RAPL is slow (50ms blocking) — fetch every 5 ticks
+            }
+        if "ram" in needs:
+            snap.ram = ram_mod.ram_metrics() or {}
         d_mbps, u_mbps = self._net.sample()
         snap.net = {"down_mbps": d_mbps, "up_mbps": u_mbps}
-        snap.fans = fans_mod.fan_metrics()
+        if "fans" in needs:
+            snap.fans = fans_mod.fan_metrics()
 
-        gpus: list[dict] = []
-        amd = gpu_amd_mod.gpu_amd_metrics()
-        nvidia = gpu_nvidia_mod.gpu_nvidia_metrics()
-        gpus.extend(amd)
-        gpus.extend(nvidia)
-        snap.gpus = gpus
-        # Welche Treiber wirklich etwas geliefert haben — die Statuspille
-        # zeigt es an, damit sichtbar ist, woher die Werte kommen.
-        # Kurze Namen: die Statuspille hat eine feste Breite, und mit zwei
-        # GPUs wird "amdgpu+nvidia" dort abgeschnitten.
-        found = [name for name, found_gpus in (("amd", amd), ("nv", nvidia))
-                 if found_gpus]
-        if found:
-            snap.sources["gpu"] = "+".join(found)
+        if "gpu" in needs:
+            amd = gpu_amd_mod.gpu_amd_metrics()
+            nvidia = gpu_nvidia_mod.gpu_nvidia_metrics()
+            snap.gpus = amd + nvidia
+            # Welche Treiber wirklich etwas geliefert haben — die Statuspille
+            # zeigt es an, damit sichtbar ist, woher die Werte kommen.
+            # Kurze Namen: die Statuspille hat eine feste Breite, und mit zwei
+            # GPUs wird "amdgpu+nvidia" dort abgeschnitten.
+            found = [name for name, found_gpus in (("amd", amd), ("nv", nvidia))
+                     if found_gpus]
+            if found:
+                snap.sources["gpu"] = "+".join(found)
+            nv_src = gpu_nvidia_mod.source_name()
+            if nv_src:
+                snap.sources["nvidia"] = nv_src
 
-        snap.processes = proc_mod.top_processes(14)
+        if "processes" in needs:
+            snap.processes = proc_mod.top_processes(14)
 
         now = time.monotonic()
-        if now >= self._audio_skip_until:
-            try:
-                snap.audio = audio_mod.audio_state()
-            except Exception:
-                snap.audio = None
-            self._audio_skip_until = now + 2.0
-        else:
-            snap.audio = self.snapshot.audio
+        if "audio" in needs:
+            if self._audio_watch.alive:
+                refresh = (self._audio_watch.consume()
+                           or now - self._audio_last_read >= _AUDIO_SAFETY_S)
+            else:
+                refresh = now >= self._audio_skip_until
+            if refresh:
+                try:
+                    snap.audio = audio_mod.audio_state()
+                except Exception:
+                    snap.audio = None
+                self._audio_last_read = now
+                self._audio_skip_until = now + _AUDIO_POLL_S
+            else:
+                snap.audio = self.snapshot.audio
 
         if now - self._weather_last_fetch > 600:  # 10 min
             try:
