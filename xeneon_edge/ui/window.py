@@ -44,8 +44,11 @@ def _fmt_speed(mbps: float) -> tuple[str, str]:
 
 
 class MainWindow(Adw.ApplicationWindow):
-    def __init__(self, app: Adw.Application, *, on_open_settings):
+    def __init__(self, app: Adw.Application, *, on_open_settings, palette=None):
         super().__init__(application=app)
+        # Aktive Palette — Web-Module bekommen sie beim Bau, damit das
+        # TradingView-Widget in denselben Farben startet wie der Rest.
+        self._palette = palette
         self.set_default_size(1480, 900)
         self.set_title("Xeneon Edge Dashboard")
 
@@ -63,13 +66,13 @@ class MainWindow(Adw.ApplicationWindow):
 
         # left brand
         brand_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        brand_label = Gtk.Label(xalign=0)
-        brand_label.set_markup(
-            '<span weight="900" letter_spacing="2400">XENEON</span>'
-            '<span foreground="#ff0033" weight="900">//</span>'
-            '<span weight="900" letter_spacing="2400">EDGE</span>'
-        )
-        brand_label.add_css_class("brand")
+        # Drei Labels statt Pango-Markup: der Akzent des "//" kommt so aus dem
+        # Theme (label.brand-accent) und nicht aus einem festen Hex-Wert.
+        brand_label = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        for text, css in (("XENEON", "brand"), ("//", "brand-accent"), ("EDGE", "brand")):
+            part = Gtk.Label(label=text, xalign=0)
+            part.add_css_class(css)
+            brand_label.append(part)
         sub = Gtk.Label(label="COMMAND CENTER", xalign=0)
         sub.add_css_class("brand-sub")
         brand_box.append(brand_label); brand_box.append(sub)
@@ -193,7 +196,9 @@ class MainWindow(Adw.ApplicationWindow):
             box.set_vexpand(True)
 
             for entry in column["modules"]:
-                widget = modules.build(entry["type"], entry.get("config"))
+                config = dict(entry.get("config") or {})
+                config["_palette"] = self._palette
+                widget = modules.build(entry["type"], config)
                 if widget is None:
                     continue
                 widget.set_vexpand(True)
@@ -359,6 +364,17 @@ class MainWindow(Adw.ApplicationWindow):
             f"Next match: {('home' if is_home else 'away')} vs {opponent} ({comp})\n"
             f"{local.strftime('%a %d %b %Y, %H:%M %Z')}"
         )
+
+    def apply_palette(self, palette) -> None:
+        """Theme-Wechsel zur Laufzeit: Module, die Farben selbst rendern, informieren."""
+        self._palette = palette
+        for widget in self._modules:
+            hook = getattr(widget, "set_palette", None)
+            if hook is not None:
+                try:
+                    hook(palette)
+                except Exception as e:
+                    print(f"[xeneon-edge] Modul {type(widget).__name__} set_palette: {e}")
 
     def set_chart_url(self, url: str) -> None:
         """URL des ersten Web-Moduls wechseln (Settings -> General).

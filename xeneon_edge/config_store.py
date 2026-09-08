@@ -24,6 +24,13 @@ _DEFAULT_SETTINGS = {
     # Wie viele der DECK_SLOTS Plaetze an Apps gehen; der Rest geht an Macros.
     # 0 = alles Macros, DECK_SLOTS = alles Apps.
     "deck_app_slots": 9,
+    # Farbpalette: Dateiname aus xeneon_edge/themes/ ohne .toml, oder
+    # "omarchy" fuer die gerade aktive Omarchy-Palette (siehe theme.py).
+    "theme": "crimson",
+    # Speicherobergrenze (MiB) fuer den WebKit-Prozess des Chart-Panels. Die
+    # volle TradingView-Seite waechst ueber Stunden; am Limit wird der
+    # Web-Prozess beendet und die Seite neu geladen (ui/chart.py). 0 = aus.
+    "web_memory_limit_mb": 1536,
 }
 
 AUTOSTART_DESKTOP = Path.home() / ".config" / "autostart" / "xeneon-edge.desktop"

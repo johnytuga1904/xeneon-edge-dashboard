@@ -237,7 +237,36 @@ Entweder über das Settings-Modal (Zahnrad oben rechts → „Start with desktop
 - `~/.config/xeneon-edge/apps.json` — User-Override (Settings-Dialog schreibt hierhin)
 - `~/.config/xeneon-edge/settings.json` — `auto_start`, `hold_to_confirm`,
   `isolate_launches`, `deck_app_slots`, `target_monitor`, `fullscreen_on_target`,
-  `chart_url`
+  `chart_url`, `theme`, `web_memory_limit_mb`
+- `~/.config/xeneon-edge/layout.json` — welche Module in welcher Spalte, wie
+  breit (siehe `docs/ARCHITECTURE.md`)
+
+### Farbthemes
+
+`theme` in `settings.json` bzw. Settings → General → *Colour theme*; der
+Wechsel wirkt sofort, ohne Neustart. Mitgeliefert in `xeneon_edge/themes/`:
+
+| `theme`   | Look                                              |
+|-----------|---------------------------------------------------|
+| `crimson` | Rot auf Schwarz (Default, der bisherige Look)     |
+| `ember`   | Orange auf Schwarz                                |
+| `ice`     | Cyan auf Schwarz                                  |
+| `matrix`  | Gruen auf Schwarz                                 |
+| `nord`    | Grau-Blau, kein reines Schwarz                    |
+| `omarchy` | folgt der aktiven Omarchy-Palette (siehe unten)   |
+
+Ein eigenes Theme ist eine weitere `.toml` in diesem Ordner — `crimson.toml`
+kopieren, die 13 Farben aendern, fertig; der Dateiname ist der Wert fuer
+`theme`. `style.css` enthaelt keine Farbwerte mehr, nur Namen (`@accent`,
+`@bg`, …), die `theme.py` aus der Palette davor definiert. Das anonyme
+TradingView-Widget bekommt Hintergrund und Grid aus derselben Palette; die
+volle Chart-Seite mit Account bringt ihr eigenes Theme mit.
+
+`omarchy` liest `~/.local/state/omarchy/current/theme/colors.toml` und
+beobachtet das Verzeichnis: `omarchy-theme-set` faerbt das Dashboard mit um.
+Der Eintrag erscheint nur, wenn diese Datei existiert — auf Fedora/KDE fehlt
+er. Die Zuordnung (Omarchy-`accent` → Akzent, `red` → heiss, `yellow` → warm,
+drei Hintergrundstufen → Fenster/Panel/Buttons) steht in `theme.py`.
 
 ### Deck-Aufteilung
 
@@ -333,7 +362,16 @@ Zu beachten:
   Load failed`), wenn ein Adblocker oder DNS-Filter aktiv ist. Ohne Folgen —
   der Chart laedt vollstaendig.
 - **Die volle Seite kostet mehr** als das Widget — eigener Web-Prozess, mehr
-  RAM, mehr CPU. Bei einem Panel, das durchlaeuft, merkbar.
+  RAM, mehr CPU. Bei einem Panel, das durchlaeuft, merkbar: frisch geladen
+  rund 1 GB RSS und 5 % eines Kerns, und die Seite waechst ueber Stunden
+  (3,7 GB Spitze der Dashboard-Unit gemessen). Deshalb haengt am Web-Prozess
+  ein Deckel, `web_memory_limit_mb` in `settings.json` (Default 1536, 0 =
+  aus, gemessen als RSS des Web-Prozesses): ab 70 % gibt WebKit Caches
+  frei, am Limit beendet es den
+  Web-Prozess, und das Panel laedt die Seite drei Sekunden spaeter neu —
+  sichtbar als kurz leeres Panel, im Journal als „Web-Prozess des Charts
+  beendet (exceeded-memory-limit)“. Dasselbe passiert nach einem Absturz des
+  Web-Prozesses; vorher blieb das Panel dann bis zum Neustart leer.
 - **Die Session kann ablaufen.** Dann steht im Panel die Login-Wand statt eines
   Charts; `./scripts/tradingview-login.py` erneut aufrufen.
 - Automatisiertes Einloggen waere gegen die TradingView-ToS — deshalb ein
@@ -444,7 +482,11 @@ linux/
     app.py             # Adw.Application + CSS + Aggregator-Wiring
     config_store.py    # settings.json + apps.json + autostart .desktop
     paths.py
-    style.css          # GTK4-Theme (Port von ../src/.../renderer/styles.css)
+    style.css          # GTK4-Stylesheet, farbfrei — Farben kommen aus theme.py
+    theme.py           # Paletten laden (themes/*.toml, Omarchy), @define-color erzeugen
+    themes/            # crimson, ember, ice, matrix, nord
+    layout_store.py    # layout.json: Spalten, Module, Breiten
+    modules/           # Modul-Register + mitgelieferte Module
     sensors/           # CPU/GPU/RAM/Net/Fans/Audio/Weather/Aggregator
     ui/                # Window + Panels + Deck + AudioPanel + Chart + Settings
       layout.py        # FixedWidth — harte Spaltenbreiten (Werte dürfen nicht schieben)

@@ -32,7 +32,7 @@ from gi.repository import Gtk, GLib  # noqa: E402
 
 from xeneon_edge import config_store  # noqa: E402
 from xeneon_edge.ui import monitors  # noqa: E402
-from xeneon_edge.ui.chart import import_webkit, make_session  # noqa: E402
+from xeneon_edge.ui.chart import import_webkit, make_session, make_context  # noqa: E402
 
 START_URL = "https://www.tradingview.com/chart/"
 
@@ -44,7 +44,9 @@ class LoginWindow(Gtk.ApplicationWindow):
         self._WebKit = WebKit
         self._popups: list[Gtk.Window] = []
 
-        self.view = WebKit.WebView(network_session=session)
+        # Dasselbe Speicherlimit wie das Panel — die Seite ist dieselbe.
+        self.view = WebKit.WebView(web_context=make_context(WebKit),
+                                   network_session=session)
         self.view.set_hexpand(True)
         self.view.set_vexpand(True)
         self.view.connect("notify::uri", self._on_uri)

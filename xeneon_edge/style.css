@@ -1,17 +1,7 @@
-/* Xeneon Edge — GTK4 theme (port of renderer/styles.css) */
+/* Xeneon Edge — GTK4-Stylesheet.
+   Farbwerte stehen hier keine: @bg, @accent usw. werden von theme.py aus der
+   gewaehlten Palette (themes/*.toml oder Omarchy) davor definiert. */
 
-@define-color bg #000000;
-@define-color panel #050505;
-@define-color panel_line #161616;
-@define-color line #1a1a1a;
-@define-color text #ffffff;
-@define-color muted #5a5a5a;
-@define-color label_color #6e6e6e;
-@define-color accent #ff0033;
-@define-color accent_dim alpha(@accent, 0.18);
-@define-color accent_glow alpha(@accent, 0.55);
-@define-color gauge_track #0c0c0c;
-@define-color gauge_track_edge #181818;
 
 window, .background, .shell {
   background-color: @bg;
@@ -152,19 +142,19 @@ label.metric-unit {
 /* horizontal bar gauge — implemented with a Box containing fill child */
 box.gauge {
   background-color: @gauge_track;
-  border: 1px solid @gauge_track_edge;
+  border: 1px solid @gauge_edge;
   min-height: 6px;
 }
 box.gauge > box.gauge-fill {
   background-color: @accent;
   min-height: 6px;
 }
-box.gauge.warm > box.gauge-fill { background-color: #ff8a00; }
-box.gauge.hot  > box.gauge-fill { background-color: @accent; }
+box.gauge.warm > box.gauge-fill { background-color: @warm; }
+box.gauge.hot  > box.gauge-fill { background-color: @hot; }
 
 /* deck buttons */
 button.deck-btn {
-  background-color: #0a0a0a;
+  background-color: @raised;
   border: 1px solid @accent_dim;
   color: @text;
   border-radius: 0;
@@ -223,14 +213,14 @@ button.ico:hover {
   box-shadow: 0 0 8px @accent_glow;
 }
 button.ico.danger:hover {
-  color: white;
+  color: @on_accent;
   background-color: @accent;
   border-color: @accent;
 }
 
 /* status pills (sensor source, network) */
 box.pill {
-  background-color: #0a0a0a;
+  background-color: @raised;
   border: 1px solid @accent_dim;
   border-top: 2px solid @accent;
   padding: 4px 10px;
@@ -271,21 +261,21 @@ button.proc-kill:hover { color: @accent; border-color: @accent; }
 button.proc-kill:disabled { opacity: 0.20; }
 /* held down: fades to solid red over the ~800ms confirm window */
 button.proc-kill.arming {
-  background-color: @accent;
-  border-color: @accent;
-  color: #ffffff;
+  background-color: @hot;
+  border-color: @hot;
+  color: @on_accent;
   transition: background-color 800ms linear, color 800ms linear;
 }
 button.proc-kill.killed {
-  background-color: @accent;
-  border-color: @accent;
-  color: #ffffff;
+  background-color: @hot;
+  border-color: @hot;
+  color: @on_accent;
   box-shadow: 0 0 8px @accent_glow;
 }
 button.proc-kill.fail {
-  background-color: #ff8a00;
-  border-color: #ff8a00;
-  color: #000000;
+  background-color: @warm;
+  border-color: @warm;
+  color: @bg;
 }
 
 /* audio panel */
@@ -293,7 +283,7 @@ scale trough { background-color: @gauge_track; }
 scale highlight { background-color: @accent; }
 scale > trough > slider { background-color: @text; }
 dropdown {
-  background-color: #0a0a0a;
+  background-color: @raised;
   color: @text;
   border: 1px solid @line;
 }

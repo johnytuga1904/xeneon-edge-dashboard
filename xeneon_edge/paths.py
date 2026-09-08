@@ -6,6 +6,8 @@ CONFIG_DIR = ROOT / "config"
 USER_CONFIG_DIR = Path.home() / ".config" / "xeneon-edge"
 APPS_FILE = CONFIG_DIR / "apps.json"
 STYLE_CSS = Path(__file__).resolve().parent / "style.css"
+# Mitgelieferte Farbpaletten, eine TOML pro Theme (siehe theme.py)
+THEMES_DIR = Path(__file__).resolve().parent / "themes"
 # Mitgelieferte Icons, im Feld "icon" per Dateiname ansprechbar (z.B. "llm-start")
 ICONS_DIR = Path(__file__).resolve().parent / "icons"
 

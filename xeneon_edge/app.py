@@ -7,11 +7,15 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Gdk, Gio, Adw, GLib  # noqa: E402
 
 from .paths import STYLE_CSS
+from . import theme as theme_mod
 from .sensors import Aggregator
 from .ui.window import MainWindow
 from .ui.settings import SettingsDialog
 from .ui.monitors import find_target_monitor, describe
 from . import config_store, layout_store
+
+# Der Omarchy-Symlink wird beim Theme-Wechsel mehrfach angefasst — buendeln.
+_THEME_RELOAD_DELAY_MS = 300
 
 
 class XeneonEdgeApp(Adw.Application):
@@ -21,12 +25,18 @@ class XeneonEdgeApp(Adw.Application):
         self._window: MainWindow | None = None
         self._layout_monitor: Gio.FileMonitor | None = None
         self._layout_reload_id: int | None = None
+        self._css_provider: Gtk.CssProvider | None = None
+        self._palette: theme_mod.Palette | None = None
+        self._theme_id: str = theme_mod.DEFAULT
+        self._omarchy_monitor: Gio.FileMonitor | None = None
+        self._theme_reload_id: int | None = None
 
     def do_startup(self):  # type: ignore[override]
         Adw.Application.do_startup(self)
-        # force dark color scheme for libadwaita widgets
-        Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        self._theme_id = str(config_store.load_settings().get("theme") or theme_mod.DEFAULT)
+        self._palette = theme_mod.load(self._theme_id)
         self._load_css()
+        self._watch_omarchy()
 
     def do_activate(self):  # type: ignore[override]
         if self._window is not None:
@@ -37,7 +47,8 @@ class XeneonEdgeApp(Adw.Application):
         # aussieht (chart_url wandert ins Web-Modul).
         layout_store.migrate_from_settings(config_store.load_settings())
 
-        self._window = MainWindow(self, on_open_settings=self._open_settings)
+        self._window = MainWindow(self, on_open_settings=self._open_settings,
+                                  palette=self._palette)
         self._refresh_deck()
         self._watch_layout()
         self._window.present()
@@ -57,6 +68,10 @@ class XeneonEdgeApp(Adw.Application):
             GLib.source_remove(self._layout_reload_id)
         if self._layout_monitor is not None:
             self._layout_monitor.cancel()
+        if self._theme_reload_id is not None:
+            GLib.source_remove(self._theme_reload_id)
+        if self._omarchy_monitor is not None:
+            self._omarchy_monitor.cancel()
         Adw.Application.do_shutdown(self)
 
     # --------
@@ -105,18 +120,84 @@ class XeneonEdgeApp(Adw.Application):
     # --------
 
     def _load_css(self) -> None:
-        provider = Gtk.CssProvider()
+        """Palette + style.css in *einen* Provider laden.
+
+        Ein Provider statt zwei, weil ein Theme-Wechsel dann nur ein
+        ``load_from_string`` ist: GTK wirft den alten Stand komplett weg und
+        rechnet die Styles neu — kein Neustart, kein zweiter Provider, der mit
+        dem ersten um Prioritaeten streitet.
+        """
+        palette = self._palette or theme_mod.load(None)
         try:
-            provider.load_from_path(str(STYLE_CSS))
-        except Exception as e:
+            css = theme_mod.to_css(palette) + STYLE_CSS.read_text()
+        except OSError as e:
             print(f"[xeneon-edge] CSS load failed: {e}")
             return
-        display = Gdk.Display.get_default()
-        if display is None:
-            return
-        Gtk.StyleContext.add_provider_for_display(
-            display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        if self._css_provider is None:
+            self._css_provider = Gtk.CssProvider()
+            display = Gdk.Display.get_default()
+            if display is None:
+                return
+            Gtk.StyleContext.add_provider_for_display(
+                display, self._css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+        try:
+            self._css_provider.load_from_string(css)
+        except Exception as e:
+            print(f"[xeneon-edge] CSS load failed: {e}")
+        # libadwaita-Dialoge (Settings) folgen der Helligkeit der Palette.
+        Adw.StyleManager.get_default().set_color_scheme(
+            Adw.ColorScheme.FORCE_LIGHT if palette.is_light else Adw.ColorScheme.FORCE_DARK
         )
+
+    # ----- Theme -----
+
+    def apply_theme(self, theme_id: str | None) -> None:
+        """Theme aus den Settings uebernehmen — live, ohne Neustart."""
+        theme_id = str(theme_id or theme_mod.DEFAULT)
+        self._theme_id = theme_id
+        self._palette = theme_mod.load(theme_id)
+        print(f"[xeneon-edge] Theme: {self._palette.name}")
+        self._load_css()
+        if self._window is not None:
+            self._window.apply_palette(self._palette)
+        self._watch_omarchy()
+
+    def _watch_omarchy(self) -> None:
+        """Bei Theme "omarchy" dem Theme-Wechsel folgen.
+
+        omarchy-theme-set tauscht das ganze Verzeichnis current/theme aus
+        statt Dateien darin zu aendern. Beobachtet wird deshalb das
+        Verzeichnis darueber — ein Monitor auf colors.toml selbst wuerde mit
+        dem alten Verzeichnis verschwinden und nie wieder feuern.
+        """
+        want = self._theme_id == theme_mod.OMARCHY
+        if not want:
+            if self._omarchy_monitor is not None:
+                self._omarchy_monitor.cancel()
+                self._omarchy_monitor = None
+            return
+        if self._omarchy_monitor is not None:
+            return
+        try:
+            gdir = Gio.File.new_for_path(str(theme_mod.OMARCHY_CURRENT_DIR))
+            monitor = gdir.monitor_directory(Gio.FileMonitorFlags.NONE, None)
+        except Exception as e:
+            print(f"[xeneon-edge] Omarchy-Theme wird nicht beobachtet: {e}")
+            return
+        monitor.connect("changed", self._on_omarchy_changed)
+        self._omarchy_monitor = monitor
+
+    def _on_omarchy_changed(self, _monitor, _f, _other, _event_type) -> None:
+        if self._theme_reload_id is not None:
+            GLib.source_remove(self._theme_reload_id)
+        self._theme_reload_id = GLib.timeout_add(_THEME_RELOAD_DELAY_MS, self._reload_omarchy)
+
+    def _reload_omarchy(self) -> bool:
+        self._theme_reload_id = None
+        if self._theme_id == theme_mod.OMARCHY:
+            self.apply_theme(theme_mod.OMARCHY)
+        return False
 
     def _refresh_deck(self) -> None:
         if self._window is None:
@@ -135,7 +216,8 @@ class XeneonEdgeApp(Adw.Application):
     def _open_settings(self) -> None:
         if self._window is None:
             return
-        dlg = SettingsDialog(self._window, on_apply=self._on_settings_apply)
+        dlg = SettingsDialog(self._window, on_apply=self._on_settings_apply,
+                             on_theme=self.apply_theme)
         dlg.present()
 
     def _on_settings_apply(self) -> None:

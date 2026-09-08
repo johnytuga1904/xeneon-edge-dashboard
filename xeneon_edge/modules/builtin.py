@@ -114,17 +114,31 @@ class WebModule(Gtk.Box):
         self.set_hexpand(True)
         self.set_vexpand(True)
         self._url = str(config.get("url", "") or "")
-        self.append(make_chart_widget(self._url))
+        self._palette = config.get("_palette")
+        self.append(make_chart_widget(self._url, self._palette))
 
     def set_url(self, url: str) -> None:
         url = url or ""
         if url == self._url:
             return
         self._url = url
+        self._rebuild()
+
+    def set_palette(self, palette) -> None:
+        """Theme-Wechsel: nur das anonyme Widget wird neu gefaerbt.
+
+        Die volle Chart-Seite hat ihr eigenes Theme; sie neu zu laden
+        wuerde nur den mehrere Sekunden langen Seitenaufbau wiederholen.
+        """
+        self._palette = palette
+        if not self._url:
+            self._rebuild()
+
+    def _rebuild(self) -> None:
         child = self.get_first_child()
         if child is not None:
             self.remove(child)
-        self.append(make_chart_widget(url))
+        self.append(make_chart_widget(self._url, self._palette))
 
     def update(self, snap) -> None:
         """Webinhalt laedt sich selbst — keine Sensordaten noetig."""

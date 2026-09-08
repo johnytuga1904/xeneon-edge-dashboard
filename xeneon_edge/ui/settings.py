@@ -7,6 +7,8 @@ immediately because they're idempotent.
 """
 from __future__ import annotations
 import copy
+import os
+import shutil
 import sys
 from pathlib import Path
 import gi
@@ -14,7 +16,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, Gio, GLib  # noqa: E402
 
-from .. import config_store
+from .. import config_store, theme as theme_mod
 from ..paths import ROOT
 
 
@@ -26,8 +28,10 @@ def _empty_slot(key: str, idx: int) -> dict:
 
 
 class SettingsDialog(Adw.PreferencesWindow):
-    def __init__(self, parent: Gtk.Window, *, on_apply):
+    def __init__(self, parent: Gtk.Window, *, on_apply, on_theme=None):
         super().__init__()
+        # on_theme(theme_id) — vom Dashboard sofort umgesetzt, kein Apply noetig
+        self._on_theme_cb = on_theme
         self.set_modal(True)
         self.set_transient_for(parent)
         self.set_title("Settings")
@@ -86,6 +90,22 @@ class SettingsDialog(Adw.PreferencesWindow):
         isolate_row.set_active(self._settings.get("isolate_launches", True))
         isolate_row.connect("notify::active", self._on_isolate_launches)
         group.add(isolate_row)
+
+        # Theme: sofort wirksam, wie die Schalter darueber. Die Liste kommt
+        # aus theme.available(); "omarchy" steht nur drin, wenn die
+        # colors.toml des aktiven Omarchy-Themes existiert.
+        choices = theme_mod.available()
+        self._theme_ids = [tid for tid, _ in choices]
+        self._theme_row = Adw.ComboRow(
+            title="Colour theme",
+            subtitle="Palette aus xeneon_edge/themes/ — wirkt sofort",
+            model=Gtk.StringList.new([name for _, name in choices]),
+        )
+        current = str(self._settings.get("theme") or theme_mod.DEFAULT)
+        if current in self._theme_ids:
+            self._theme_row.set_selected(self._theme_ids.index(current))
+        self._theme_row.connect("notify::selected", self._on_theme)
+        group.add(self._theme_row)
 
         app_slots, macro_slots = config_store.deck_split(self._settings)
         self._split_row = Adw.SpinRow(
@@ -158,6 +178,21 @@ class SettingsDialog(Adw.PreferencesWindow):
             config_store.uninstall_autostart()
         config_store.save_settings(self._settings)
 
+    def _on_theme(self, row, _pspec) -> None:
+        idx = row.get_selected()
+        if not (0 <= idx < len(self._theme_ids)):
+            return
+        theme_id = self._theme_ids[idx]
+        if theme_id == self._settings.get("theme"):
+            return
+        self._settings["theme"] = theme_id
+        config_store.save_settings(self._settings)
+        if self._on_theme_cb is not None:
+            try:
+                self._on_theme_cb(theme_id)
+            except Exception as e:
+                print(f"[xeneon-edge] theme callback failed: {e}")
+
     def _on_hold_to_confirm(self, row, _pspec) -> None:
         self._settings["hold_to_confirm"] = bool(row.get_active())
         config_store.save_settings(self._settings)
@@ -183,9 +218,16 @@ class SettingsDialog(Adw.PreferencesWindow):
         if not script.exists():
             self._chart_row.set_subtitle(f"Skript fehlt: {script}")
             return
+        argv = [sys.executable, str(script)]
+        # Eigene cgroup: als Kindprozess liefe das Login-Fenster samt seinem
+        # WebKit-Stapel (rund 1 GB) in der Dashboard-Unit und triebe deren
+        # Speicherspitze hoch. --scope haelt es als Kind von systemd-run, also
+        # bleibt wait_async() unten wie gehabt.
+        if shutil.which("systemd-run"):
+            argv = ["systemd-run", "--user", "--scope", "--quiet", "--collect",
+                    f"--unit=xeneon-login-{os.getpid()}", "--"] + argv
         try:
-            proc = Gio.Subprocess.new([sys.executable, str(script)],
-                                      Gio.SubprocessFlags.NONE)
+            proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE)
         except GLib.Error as e:
             self._chart_row.set_subtitle(f"Start fehlgeschlagen: {e.message}")
             return

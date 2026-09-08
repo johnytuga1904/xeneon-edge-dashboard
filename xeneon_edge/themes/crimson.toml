@@ -1,0 +1,19 @@
+# Xeneon Edge — Farbpalette. Alle Schluessel sind Pflicht, Werte als #rrggbb.
+# mode: "dark" oder "light" — steuert die libadwaita-Dialoge und das
+# TradingView-Widget mit.
+name = "Crimson"
+mode = "dark"
+
+bg          = "#000000"   # Fensterhintergrund
+panel       = "#050505"   # Panel-Flaeche
+raised      = "#0a0a0a"   # Buttons, Pills, Dropdowns
+line        = "#1a1a1a"   # neutrale Rahmen
+text        = "#ffffff"
+muted       = "#5a5a5a"   # Einheiten, Sekundaertext
+label       = "#6e6e6e"   # Panel-Titel
+accent      = "#ff0033"   # Rahmen-Oberkante, Werte, Gauge-Fuellung
+warm        = "#ff8a00"   # Gauge ab 50 %
+hot         = "#ff0033"   # Gauge ab 80 %, Kill-Button beim Halten
+on_accent   = "#ffffff"   # Text auf Akzentflaeche
+gauge_track = "#0c0c0c"
+gauge_edge  = "#181818"
