@@ -94,7 +94,9 @@ class Aggregator:
         snap.gpus = gpus
         # Welche Treiber wirklich etwas geliefert haben — die Statuspille
         # zeigt es an, damit sichtbar ist, woher die Werte kommen.
-        found = [name for name, found_gpus in (("amdgpu", amd), ("nvidia", nvidia))
+        # Kurze Namen: die Statuspille hat eine feste Breite, und mit zwei
+        # GPUs wird "amdgpu+nvidia" dort abgeschnitten.
+        found = [name for name, found_gpus in (("amd", amd), ("nv", nvidia))
                  if found_gpus]
         if found:
             snap.sources["gpu"] = "+".join(found)

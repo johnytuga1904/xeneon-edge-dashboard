@@ -17,4 +17,10 @@ if [[ "${XENEON_WEBKIT_DMABUF:-0}" != "1" ]]; then
   export WEBKIT_DISABLE_DMABUF_RENDERER=1
 fi
 
+# Beim Autostart geht stdout in eine Pipe, und Python puffert dann blockweise:
+# die Log-Zeilen des Dashboards erreichen das Journal erst beim Beenden, wenn
+# ueberhaupt. Fuer ein Programm, das im Hintergrund startet, ist das genau
+# verkehrt herum.
+export PYTHONUNBUFFERED=1
+
 exec python3 -m xeneon_edge "$@"
