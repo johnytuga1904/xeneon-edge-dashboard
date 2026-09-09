@@ -19,6 +19,7 @@ from ..ui.audio_panel import AudioPanel
 from ..ui.calendar import CalendarModule
 from ..ui.clock import ClockModule
 from ..ui.deck import LaunchDeck
+from ..ui.mediaplayer import MediaPlayerModule
 from ..ui.notes import NotesModule
 from ..ui.chart import make_chart_widget
 from ..ui import topbar
@@ -240,6 +241,21 @@ register(ModuleSpec(
         Field("first_day", "Woche beginnt am", "select", default="monday",
               options=(("monday", "Montag"), ("sunday", "Sonntag"))),
         Field("week_numbers", "Kalenderwochen anzeigen", "bool", default=False),
+    ),
+))
+
+register(ModuleSpec(
+    type_id="media",
+    label="Wiedergabe",
+    factory=MediaPlayerModule,
+    default_width=460,
+    schema=(
+        Field("player", "Player", "text", default="",
+              help="Leer = automatisch der, der gerade spielt. Sonst ein Namensteil, "
+                   "z.B. spotify, mpv, firefox."),
+        Field("show_cover", "Cover anzeigen", "bool", default=True,
+              help="Nur wenn das Modul gross genug ist; Titel, Kuenstler und Tasten "
+                   "bleiben immer."),
     ),
 ))
 

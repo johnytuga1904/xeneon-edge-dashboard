@@ -29,6 +29,41 @@ box.clock-module { color: @text; padding: 6px; }
    DrawingArea nur ihre eigene Farbe kennt. */
 box.calendar-module { color: @text; padding: 6px; }
 
+/* Wiedergabe. Cover und Fortschritt blendet ui/mediaplayer.py nach der
+   Modulgroesse ein und aus; hier steht nur, wie sie aussehen. */
+box.media-module { padding: 6px; }
+label.media-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+label.media-artist { color: @muted; font-size: 12px; letter-spacing: 0.06em; }
+label.media-idle { color: @muted; font-weight: 800; }
+picture.media-cover { border: 1px solid @accent_dim; }
+progressbar.media-progress trough {
+  background-color: @gauge_track;
+  border: 1px solid @gauge_edge;
+  min-height: 5px;
+}
+progressbar.media-progress progress {
+  background-color: @accent;
+  min-height: 5px;
+}
+box.media-buttons { margin-top: 4px; }
+button.media-btn {
+  background-color: @raised;
+  border: 1px solid @accent_dim;
+  color: @text;
+  border-radius: 0;
+  /* Fingergross: der Streifen wird getippt, nicht geklickt. */
+  min-width: 44px;
+  min-height: 34px;
+  padding: 0;
+  font-size: 15px;
+}
+button.media-btn:hover { border-color: @accent; background-color: alpha(@accent, 0.10); }
+button.media-btn:disabled { color: @muted; border-color: @gauge_edge; }
+
 /* Notizen: Datei-Zeilen, mit dem Finger scrollbar. */
 box.notes-module { padding: 6px; }
 list.notes-list { background: transparent; }

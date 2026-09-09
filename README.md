@@ -263,6 +263,7 @@ Rahmenlinie des Pads auf dem Streifen.
 | Web-Panel | WebKit-View auf eine Adresse | Adresse, Login-Knopf |
 | Uhr | Zeit gross | Darstellung, Sekunden, Zeitzonen |
 | Kalender | den laufenden Monat | Wochenstart, Kalenderwochen |
+| Wiedergabe | was gerade spielt, mit Tasten | Player, Cover an/aus |
 | Notizen | eine Datei, lesend | Datei |
 
 **Uhr.** Drei Darstellungen: *Zeit und Datum*, *Nur Zeit*, *Zeitzonen*. Die
@@ -286,6 +287,40 @@ nach draussen** — es geht darum, nachzusehen, welcher Wochentag der 23. ist.
 Einstellbar ist, ob die Woche am Montag oder Sonntag beginnt und ob die
 Kalenderwochen mitlaufen. Die Namen der Wochentage und des Monats folgen der
 Spracheinstellung des Systems, wie das Datum im Uhr-Modul.
+
+**Wiedergabe.** Zeigt Titel, Kuenstler, Cover und Fortschritt des gerade
+laufenden Players und bietet Zurueck / Play-Pause / Weiter. Das geht ueber
+**MPRIS**, die D-Bus-Schnittstelle, die unter Linux praktisch jeder Player
+bedient — Spotify, YouTube im Browser, mpv, VLC. Es muss nichts eingerichtet
+werden: laeuft ein Player, ist er da.
+
+Das Feld *Player* bleibt normalerweise leer, dann wird der genommen, der
+gerade spielt. Traegt man etwas ein (`spotify`, `mpv`, `firefox`), gilt *nur*
+dieser — laeuft er nicht, sagt das Modul das auch, statt ersatzweise einen
+anderen zu zeigen.
+
+Das Modul richtet sich nach seiner Groesse: Titel, Kuenstler und die Tasten
+sind immer da, Cover und Fortschrittsbalken kommen dazu, wenn Platz ist. Bei
+einem Live-Stream gibt es keinen Balken — der meldet keine Dauer. Tasten, die
+der Player nicht unterstuetzt, sind ausgegraut.
+
+Mit der Maus geht es bequemer ueber die Omarchy-Bar: `omarchy bar put
+omarchy.media` legt dasselbe als Bar-Widget auf den Hauptmonitor
+(Linksklick Play/Pause, Mitte weiter, Scrollen vor/zurueck, Rechtsklick
+Cover-Popup).
+
+**Video im Web-Panel.** Ein Web-Panel nimmt jede Adresse, also auch YouTube.
+Damit WebKit das Bild dekodiert, braucht es allerdings mehr als
+`gst-plugins-good`:
+
+```bash
+sudo pacman -S --needed gst-plugins-bad gst-plugins-ugly gst-libav
+```
+
+Zu bedenken: jedes Web-Panel kostet einen eigenen WebKit-Prozess, und Video
+ist teuer. Der Spotify-Web-Player funktioniert *nicht* — er braucht
+Widevine-DRM, das WebKitGTK nicht mitbringt. Fuer Spotify also der
+Desktop-Client plus das Wiedergabe-Modul.
 
 **Notizen.** Zeigt eine `.txt`-, `.md`- oder `.json`-Datei und laedt sie neu,
 sobald sie sich aendert — geschrieben wird sie woanders, am Rechner mit
