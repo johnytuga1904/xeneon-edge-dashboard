@@ -262,6 +262,7 @@ Rahmenlinie des Pads auf dem Streifen.
 | Launch-Deck | 3x6-Raster mit Apps und Macros | im Editor unter *Launch-Deck* |
 | Web-Panel | WebKit-View auf eine Adresse | Adresse, Login-Knopf |
 | Uhr | Zeit gross | Darstellung, Sekunden, Zeitzonen |
+| Kalender | den laufenden Monat | Wochenstart, Kalenderwochen |
 | Notizen | eine Datei, lesend | Datei |
 
 **Uhr.** Drei Darstellungen: *Zeit und Datum*, *Nur Zeit*, *Zeitzonen*. Die
@@ -278,6 +279,13 @@ Die Zonennamen sind die aus `/usr/share/zoneinfo`. Steht kein `=` da, gilt
 der Eintrag als Zone und der letzte Pfadteil als Beschriftung
 (`America/New_York` → `NEW YORK`). Eine unbekannte Zone wird uebersprungen
 und im Journal gemeldet, die uebrigen Zeilen bleiben stehen.
+
+**Kalender.** Der laufende Monat als Raster, heute farbig hervorgehoben,
+Tage der Nachbarmonate gedaempft. Bewusst **ohne Termine und ohne Verbindung
+nach draussen** — es geht darum, nachzusehen, welcher Wochentag der 23. ist.
+Einstellbar ist, ob die Woche am Montag oder Sonntag beginnt und ob die
+Kalenderwochen mitlaufen. Die Namen der Wochentage und des Monats folgen der
+Spracheinstellung des Systems, wie das Datum im Uhr-Modul.
 
 **Notizen.** Zeigt eine `.txt`-, `.md`- oder `.json`-Datei und laedt sie neu,
 sobald sie sich aendert — geschrieben wird sie woanders, am Rechner mit

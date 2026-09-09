@@ -24,6 +24,11 @@ label.clock-date { color: @muted; font-size: 10px; letter-spacing: 0.18em; }
    die Farbe — get_color() der DrawingArea liest genau diesen Wert. */
 box.clock-module { color: @text; padding: 6px; }
 
+/* Kalender: wie die Uhr gezeichnet, hier steht nur die Farbe. Die
+   Akzentfarbe fuer "heute" holt ui/calendar.py aus der Palette, weil eine
+   DrawingArea nur ihre eigene Farbe kennt. */
+box.calendar-module { color: @text; padding: 6px; }
+
 /* Notizen: Datei-Zeilen, mit dem Finger scrollbar. */
 box.notes-module { padding: 6px; }
 list.notes-list { background: transparent; }

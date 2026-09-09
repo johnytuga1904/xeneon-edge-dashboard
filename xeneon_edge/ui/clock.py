@@ -22,12 +22,9 @@ gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gtk, Pango, PangoCairo  # noqa: E402
 
-MODES = ("datetime", "time", "zones")
+from .drawing import REF_PX, fit as _fit, layout as _layout, set_source
 
-# Bezugsgroesse zum Ausmessen. Pango skaliert linear, also einmal bei 100 px
-# messen und den Faktor ausrechnen ist genauso genau wie eine Suche und
-# kostet ein Layout statt zehn.
-_REF_PX = 100.0
+MODES = ("datetime", "time", "zones")
 
 # Anteil der Hoehe, den die Zeit in "datetime" bekommt. Der Rest geht an das
 # Datum; die Luecke dazwischen ist in beiden enthalten.
@@ -58,26 +55,6 @@ def parse_zones(raw: str) -> list[tuple[str, ZoneInfo | None]]:
             continue
         out.append((label.strip().upper(), zone))
     return out
-
-
-def _layout(cr, desc: Pango.FontDescription, text: str, px: float):
-    """Ein Pango-Layout in absoluter Pixelgroesse, plus seine Masse."""
-    font = desc.copy()
-    font.set_absolute_size(max(1.0, px) * Pango.SCALE)
-    layout = PangoCairo.create_layout(cr)
-    layout.set_font_description(font)
-    layout.set_text(text, -1)
-    w, h = layout.get_pixel_size()
-    return layout, w, h
-
-
-def _fit(cr, desc: Pango.FontDescription, text: str, max_w: float, max_h: float):
-    """Groesstes Layout fuer ``text``, das in ``max_w`` x ``max_h`` passt."""
-    _, ref_w, ref_h = _layout(cr, desc, text or " ", _REF_PX)
-    if ref_w <= 0 or ref_h <= 0:
-        return _layout(cr, desc, text, 8.0)
-    px = _REF_PX * min(max_w / ref_w, max_h / ref_h)
-    return _layout(cr, desc, text, max(8.0, px))
 
 
 class ClockModule(Gtk.Box):
@@ -138,13 +115,9 @@ class ClockModule(Gtk.Box):
         else:
             self._draw_datetime(cr, desc, colour, now, pad, inner_w, inner_h)
 
-    def _set_colour(self, cr, colour, alpha: float = 1.0) -> None:
-        cr.set_source_rgba(colour.red, colour.green, colour.blue,
-                           colour.alpha * alpha)
-
     def _draw_centred(self, cr, desc, colour, text, pad, w, h) -> None:
         layout, tw, th = _fit(cr, desc, text, w, h)
-        self._set_colour(cr, colour)
+        set_source(cr, colour)
         cr.move_to(pad + (w - tw) / 2, pad + (h - th) / 2)
         PangoCairo.show_layout(cr, layout)
 
@@ -163,11 +136,11 @@ class ClockModule(Gtk.Box):
 
         block_h = th + gap + dh
         top = pad + (h - block_h) / 2
-        self._set_colour(cr, colour)
+        set_source(cr, colour)
         cr.move_to(pad + (w - tw) / 2, top)
         PangoCairo.show_layout(cr, time_layout)
         # Gedaempft, wie ".clock-date" in der Topbar.
-        self._set_colour(cr, colour, 0.55)
+        set_source(cr, colour, 0.55)
         cr.move_to(pad + (w - dw) / 2, top + th + gap)
         PangoCairo.show_layout(cr, date_layout)
 
@@ -185,10 +158,10 @@ class ClockModule(Gtk.Box):
         # den knappsten Fall bestimmen.
         widest = max(rows, key=lambda r: len(r[0]))[0]
         sample = f"{widest}{' ' * 2}{self._time_text(rows[0][1])}"
-        _, ref_w, ref_h = _layout(cr, desc, sample, _REF_PX)
+        _, ref_w, ref_h = _layout(cr, desc, sample, REF_PX)
         if ref_w <= 0 or ref_h <= 0:
             return
-        px = _REF_PX * min((w - gap) / ref_w, (row_h * 0.72) / ref_h)
+        px = REF_PX * min((w - gap) / ref_w, (row_h * 0.72) / ref_h)
         px = max(8.0, px)
 
         label_desc = desc.copy()
@@ -198,12 +171,12 @@ class ClockModule(Gtk.Box):
             lay_t, tw, th = _layout(cr, desc, self._time_text(when), px)
             lay_l, lw, lh = _layout(cr, label_desc, label, px * 0.62)
             base = top + (row_h - th) / 2
-            self._set_colour(cr, colour, 0.55)
+            set_source(cr, colour, 0.55)
             # An der Grundlinie der Ziffern ausrichten, nicht oben: die
             # Beschriftung ist kleiner und haengt sonst in der Luft.
             cr.move_to(pad, base + (th - lh))
             PangoCairo.show_layout(cr, lay_l)
-            self._set_colour(cr, colour)
+            set_source(cr, colour)
             cr.move_to(pad + w - tw, base)
             PangoCairo.show_layout(cr, lay_t)
 

@@ -16,6 +16,7 @@ from gi.repository import Gtk  # noqa: E402
 from . import Field, ModuleSpec, register, register_topbar
 from ..ui.panels import CpuPanel, GpuPanel, RamPanel, ProcessPanel, FanPanel
 from ..ui.audio_panel import AudioPanel
+from ..ui.calendar import CalendarModule
 from ..ui.clock import ClockModule
 from ..ui.deck import LaunchDeck
 from ..ui.notes import NotesModule
@@ -227,6 +228,18 @@ register(ModuleSpec(
               default="London=Europe/London, New York=America/New_York, Tokyo=Asia/Tokyo",
               help="Nur fuer \"Zeitzonen\". Form: Name=Zone, getrennt durch Komma. "
                    "Zonen wie in /usr/share/zoneinfo, z.B. Europe/Zurich."),
+    ),
+))
+
+register(ModuleSpec(
+    type_id="calendar",
+    label="Kalender",
+    factory=CalendarModule,
+    default_width=440,
+    schema=(
+        Field("first_day", "Woche beginnt am", "select", default="monday",
+              options=(("monday", "Montag"), ("sunday", "Sonntag"))),
+        Field("week_numbers", "Kalenderwochen anzeigen", "bool", default=False),
     ),
 ))
 
