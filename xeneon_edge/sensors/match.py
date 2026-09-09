@@ -1,8 +1,10 @@
-"""SL Benfica next/last match via ESPN public scoreboard.
+"""Next/last match of a configured team via ESPN public scoreboard.
 
-Port of WidgetsSource.cs TryFetchNextMatch(): hits the Primeira Liga
-scoreboard with a ±-day window and picks the upcoming match (or, if
-nothing is scheduled, the most recent past one with score).
+Port of WidgetsSource.cs TryFetchNextMatch(): hits the league scoreboard
+with a ±-day window and picks the upcoming match (or, if nothing is
+scheduled, the most recent past one with score). League code and team ID
+are ESPN's (e.g. "por.1" and "1929"); both come from the topbar widget
+config, nothing is hard-wired here any more.
 """
 from __future__ import annotations
 from datetime import datetime, timezone, timedelta
@@ -12,24 +14,24 @@ try:
 except ImportError:
     requests = None  # type: ignore
 
-_BENFICA_ID = "1929"
 
 
-def _url() -> str:
+def _url(league: str) -> str:
     now = datetime.now(timezone.utc)
     frm = (now - timedelta(days=3)).strftime("%Y%m%d")
     to = (now + timedelta(days=21)).strftime("%Y%m%d")
     return (
-        "https://site.api.espn.com/apis/site/v2/sports/soccer/por.1/scoreboard"
+        f"https://site.api.espn.com/apis/site/v2/sports/soccer/{league}/scoreboard"
         f"?dates={frm}-{to}"
     )
 
 
-def fetch_next_match(timeout: float = 4.0) -> dict | None:
-    if requests is None:
+def fetch_next_match(league: str, team_id: str, timeout: float = 4.0) -> dict | None:
+    if requests is None or not league or not team_id:
         return None
+    team_id = str(team_id)
     try:
-        r = requests.get(_url(), timeout=timeout)
+        r = requests.get(_url(league), timeout=timeout)
         r.raise_for_status()
         data = r.json()
     except Exception:
@@ -66,7 +68,7 @@ def fetch_next_match(timeout: float = 4.0) -> dict | None:
                 if isinstance(sc, dict):
                     sc = sc.get("value") or sc.get("displayValue")
                 sc = str(sc) if sc is not None else None
-                if tid == _BENFICA_ID:
+                if tid == team_id:
                     home = side == "home"
                     slb_score = sc
                     is_benfica = True

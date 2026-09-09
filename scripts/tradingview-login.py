@@ -32,7 +32,7 @@ from gi.repository import Gtk  # noqa: E402
 
 from xeneon_edge import config_store  # noqa: E402
 from xeneon_edge.ui import monitors  # noqa: E402
-from xeneon_edge.ui.chart import import_webkit, make_session, make_context  # noqa: E402
+from xeneon_edge.ui.chart import import_webkit, make_session  # noqa: E402
 
 START_URL = "https://www.tradingview.com/chart/"
 
@@ -44,9 +44,12 @@ class LoginWindow(Gtk.ApplicationWindow):
         self._WebKit = WebKit
         self._popups: list[Gtk.Window] = []
 
-        # Dasselbe Speicherlimit wie das Panel — die Seite ist dieselbe.
-        self.view = WebKit.WebView(web_context=make_context(WebKit),
-                                   network_session=session)
+        # Bewusst *ohne* den Speicherdeckel des Chart-Panels: der Google-Login
+        # oeffnet ein Popup im selben Web-Prozess, und Seite plus Popup lagen
+        # bei 1,6 GB — mit Deckel wurde der Prozess nach 30 s gekillt, das
+        # Fenster wurde leer und nahm keine Eingabe mehr an. Das Fenster lebt
+        # nur Minuten, ein Deckel bringt hier nichts.
+        self.view = WebKit.WebView(network_session=session)
         self.view.set_hexpand(True)
         self.view.set_vexpand(True)
         self.view.connect("notify::uri", self._on_uri)
@@ -125,10 +128,18 @@ def main() -> int:
     session = make_session(WebKit)
 
     def on_activate(a):
+        # Single-Instance: ein zweiter Start aktiviert diese Instanz. Dann das
+        # vorhandene Fenster nach vorn holen statt ein zweites exakt darueber
+        # zu legen — zwei identische Fenster uebereinander sehen aus wie eines,
+        # das nicht reagiert.
+        existing = a.get_active_window()
+        if existing is not None:
+            existing.present()
+            return
         win = LoginWindow(a, WebKit, session, url)
         win.present()
         monitors.move_off_dashboard(
-        win, str(config_store.load_settings().get("target_monitor", "") or ""))
+            win, str(config_store.load_settings().get("target_monitor", "") or ""))
 
     app.connect("activate", on_activate)
     return app.run([])

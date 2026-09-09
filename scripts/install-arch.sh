@@ -318,7 +318,7 @@ o.window("^(ch\\.xeneon\\.edge\\.layout)$", {
   tag = "-default-opacity",
   opacity = "1 1",
   float = true,
-  size = "1500 950",
+  size = "1800 640",
   center = true,
 })
 LUA
@@ -359,7 +359,7 @@ windowrule = center,            match:class ^(ch\.xeneon\.edge\.login)$
 # macht das Beurteilen von Farben unmoeglich.
 windowrule = opacity 1 1,       match:class ^(ch\.xeneon\.edge\.layout)$
 windowrule = float,             match:class ^(ch\.xeneon\.edge\.layout)$
-windowrule = size 1500 950,     match:class ^(ch\.xeneon\.edge\.layout)$
+windowrule = size 1800 640,     match:class ^(ch\.xeneon\.edge\.layout)$
 windowrule = center,            match:class ^(ch\.xeneon\.edge\.layout)$
 CONF
   fi

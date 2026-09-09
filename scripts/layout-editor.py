@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Layout-Editor — Module anordnen, in einem normalen Fenster.
+"""Editor — Layout, Modul-Einstellungen, Deck und Settings in einem Fenster.
 
 Das Dashboard laeuft im Vollbild auf einem 2560x720-Streifen, an dem
 ueblicherweise weder Tastatur noch Maus haengen. Dieses Skript oeffnet den
 Editor deshalb auf dem Hauptmonitor — dasselbe Muster wie
-scripts/tradingview-login.py.
+scripts/tradingview-login.py. Das Zahnrad auf dem Streifen startet es.
 
     ./scripts/layout-editor.py
 
-Gespeichert wird nach ~/.config/xeneon-edge/layout.json. Ein laufendes
-Dashboard beobachtet die Datei und baut sein Gitter neu, ohne Neustart.
+Gespeichert wird nach ~/.config/xeneon-edge/{layout,settings,apps}.json. Ein
+laufendes Dashboard beobachtet die Dateien und uebernimmt alles ohne Neustart.
 """
 from __future__ import annotations
+import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -27,9 +29,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import gi  # noqa: E402
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gtk, Gdk, GLib  # noqa: E402
+from gi.repository import Gtk, Gdk, Gio, GLib  # noqa: E402
 
 from xeneon_edge import config_store, editor, theme  # noqa: E402
+from xeneon_edge.paths import ROOT  # noqa: E402
 from xeneon_edge.ui import monitors  # noqa: E402
 from xeneon_edge.ui.chart import import_webkit  # noqa: E402
 
@@ -53,8 +56,12 @@ def stage_geometry(display: Gdk.Display, preferred: str) -> dict:
 
 class EditorWindow(Gtk.ApplicationWindow):
     def __init__(self, app, WebKit, page: str):
-        super().__init__(application=app, title="Xeneon Edge — Layout")
-        self.set_default_size(1500, 950)
+        super().__init__(application=app, title="Xeneon Edge — Einstellungen")
+        # Auf den Inhalt abgestimmt: Kopfleiste, Buehne im Seitenverhaeltnis
+        # des Streifens ueber die volle Breite neben der Seitenleiste, darunter
+        # der Hinweis. Die Hyprland-Regel aus install-arch.sh nennt dieselbe
+        # Groesse.
+        self.set_default_size(1800, 640)
 
         ucm = WebKit.UserContentManager()
         # WebKit 6.0 will einen World-Namen, aeltere Bindings nicht.
@@ -72,6 +79,8 @@ class EditorWindow(Gtk.ApplicationWindow):
         # nicht in das Browserprofil des Chart-Panels einmischen.
         self.view.load_html(page, "xeneon-edge:editor")
 
+    # ----- Seite -> Python -----
+
     def _on_message(self, _ucm, js_value) -> None:
         try:
             raw = js_value.to_json(0)
@@ -79,7 +88,6 @@ class EditorWindow(Gtk.ApplicationWindow):
             raw = js_value.to_string()
         # postMessage schickt einen String, der als JSON-String ankommt —
         # also einmal auspacken, bevor das eigentliche Objekt dran ist.
-        import json
         try:
             unwrapped = json.loads(raw)
             if isinstance(unwrapped, str):
@@ -87,23 +95,86 @@ class EditorWindow(Gtk.ApplicationWindow):
         except (TypeError, ValueError):
             pass
 
+        try:
+            action = json.loads(raw).get("action")
+        except Exception:
+            action = None
+
+        if action == "login":
+            self._open_login()
+            return
+        if action == "browse":
+            self._browse()
+            return
+
         result = editor.handle_message(raw)
         print(("[xeneon-edge] " if result.ok else "[xeneon-edge] FEHLER: ") + result.message)
-        self._reply(result.ok, result.message)
+        self._call("__saved", result.ok, result.message)
 
-    def _reply(self, ok: bool, message: str) -> None:
-        import json
-        script = f"window.__saved({json.dumps(ok)}, {json.dumps(message)});"
+    # ----- Python -> Seite -----
+
+    def _call(self, fn: str, *args) -> None:
+        script = f"window.{fn}({', '.join(json.dumps(a) for a in args)});"
         try:
             self.view.evaluate_javascript(script, -1, None, None, None, None, None)
         except Exception as e:
             print(f"[xeneon-edge] Rueckmeldung an die Seite fehlgeschlagen: {e}")
 
+    # ----- Login-Fenster -----
+
+    def _open_login(self) -> None:
+        """scripts/tradingview-login.py starten und auf sein Ende warten.
+
+        Das Fenster laeuft als eigener Prozess: anmelden, Chart oeffnen, "Als
+        Chart uebernehmen" — das schreibt chart_url in settings.json. Danach
+        lesen wir die URL und geben sie der Seite, die sie ins ausgewaehlte
+        Web-Modul traegt.
+        """
+        script = ROOT / "scripts" / "tradingview-login.py"
+        if not script.exists():
+            self._call("__login_done", "", f"Skript fehlt: {script}")
+            return
+        argv = [sys.executable, str(script)]
+        if shutil.which("systemd-run"):
+            argv = ["systemd-run", "--user", "--scope", "--quiet", "--collect",
+                    f"--unit=xeneon-login-{os.getpid()}", "--"] + argv
+        try:
+            proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE)
+        except GLib.Error as e:
+            self._call("__login_done", "", f"Start fehlgeschlagen: {e.message}")
+            return
+        proc.wait_async(None, self._on_login_done)
+
+    def _on_login_done(self, proc, result) -> None:
+        try:
+            proc.wait_finish(result)
+        except GLib.Error:
+            pass
+        url = str(config_store.load_settings().get("chart_url") or "")
+        self._call("__login_done", url, "" if url else "Kein Chart uebernommen")
+
+    # ----- Datei-Picker fuer Deck-Kommandos -----
+
+    def _browse(self) -> None:
+        dialog = Gtk.FileDialog.new()
+        dialog.set_title("Programm waehlen")
+        dialog.set_initial_folder(Gio.File.new_for_path("/usr/bin"))
+        dialog.open(self, None, self._on_browsed)
+
+    def _on_browsed(self, dialog, result) -> None:
+        try:
+            file = dialog.open_finish(result)
+        except Exception:
+            return
+        path = file.get_path() if file is not None else None
+        if path:
+            self._call("__browsed", path)
+
 
 def main() -> int:
     WebKit = import_webkit()
     if WebKit is None:
-        print("WebKitGTK 6.0 fehlt — ohne das gibt es keinen Layout-Editor.")
+        print("WebKitGTK 6.0 fehlt — ohne das gibt es keinen Editor.")
         print("  Fedora: sudo dnf install webkitgtk6.0")
         print("  Arch:   sudo pacman -S webkitgtk-6.0")
         print("  Debian: sudo apt install gir1.2-webkit-6.0")
@@ -114,14 +185,18 @@ def main() -> int:
 
     def on_activate(a):
         display = Gdk.Display.get_default()
-        stage = (stage_geometry(display, str(settings.get("target_monitor", "") or ""))
-                 if display is not None else dict(editor.FALLBACK_STAGE))
+        preferred = str(settings.get("target_monitor", "") or "")
+        if display is not None:
+            stage = stage_geometry(display, preferred)
+            mons = monitors.list_monitors_for_settings(display)
+        else:
+            stage, mons = dict(editor.FALLBACK_STAGE), []
         palette = theme.load(settings.get("theme"))
-        page = editor.build_page(editor.payload(stage=stage, palette=palette))
+        page = editor.build_page(editor.payload(stage=stage, palette=palette, monitors=mons))
 
         win = EditorWindow(a, WebKit, page)
         win.present()
-        monitors.move_off_dashboard(win, str(settings.get("target_monitor", "") or ""))
+        monitors.move_off_dashboard(win, preferred)
 
     app.connect("activate", on_activate)
     return app.run([])

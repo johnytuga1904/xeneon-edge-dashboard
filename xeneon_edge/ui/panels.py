@@ -252,23 +252,51 @@ class ProcessPanel(Gtk.Box):
     # height is a constant too, not just its width.
     ROWS = 14
 
-    def __init__(self):
+    def __init__(self, rows: int | None = None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.panel, self.sub, self.body = _panel("Top Processes", "CPU · RAM")
         self.append(self.panel)
         # Fixed pool of rows, built once. Rebuilding them every tick would reset
         # an in-progress hold and make the panel height jump when the process
         # count changes.
-        self._rows = [ProcessRow(on_kill=self._kill) for _ in range(self.ROWS)]
+        self._rows = [ProcessRow(on_kill=self._kill) for _ in range(rows or self.ROWS)]
+        # Die Zeilen liegen in einem ScrolledWindow ohne Balken: so ist die
+        # Mindesthoehe des Panels nicht 14 Zeilen, sondern fast nichts, und
+        # ein Hoehenanteil aus layout.json ("height") kann das Panel wirklich
+        # kleiner machen. update() blendet dann die Zeilen aus, die nicht
+        # mehr ganz hineinpassen — statt eine halbe Zeile abzuschneiden.
+        self._list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         for r in self._rows:
-            self.body.append(r)
+            self._list.append(r)
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.EXTERNAL)
+        scroller.set_child(self._list)
+        scroller.set_vexpand(True)
+        # Natuerliche Hoehe = alle Zeilen: ohne Hoehenanteil bekommt das
+        # Panel dann seine volle Liste, mit Anteil darf es darunter.
+        scroller.set_propagate_natural_height(True)
+        self.body.append(scroller)
+        self._scroller = scroller
+
+    def _rows_that_fit(self) -> int:
+        avail = self._scroller.get_height()
+        if avail <= 0:
+            return len(self._rows)
+        # Natuerliche Hoehe, nicht get_height(): die Zuteilung kann kleiner
+        # sein als das, was die Zeile im Stapel wirklich einnimmt.
+        row_h = max(1, self._rows[0].measure(Gtk.Orientation.VERTICAL, -1)[1])
+        # n Zeilen brauchen n*row_h + (n-1)*spacing.
+        fit = (avail + 2) // (row_h + 2)
+        return max(1, min(len(self._rows), fit))
 
     def update(self, procs: list[dict]) -> None:
         # Freeze while a × is held down — otherwise a reorder mid-hold would
         # swap the target out from under the user and kill the wrong process.
         if any(r.is_arming() for r in self._rows):
             return
+        fit = self._rows_that_fit()
         for i, row in enumerate(self._rows):
+            row.set_visible(i < fit)
             row.set_process(procs[i] if i < len(procs) else None)
 
     def _kill(self, pid: int, name: str) -> bool:

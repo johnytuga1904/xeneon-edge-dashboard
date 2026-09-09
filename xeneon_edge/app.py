@@ -1,16 +1,17 @@
 """Adw.Application entry point."""
 from __future__ import annotations
+import os
+import shutil
 import sys
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Gdk, Gio, Adw, GLib  # noqa: E402
 
-from .paths import STYLE_CSS
+from .paths import STYLE_CSS, ROOT
 from . import theme as theme_mod
 from .sensors import Aggregator
 from .ui.window import MainWindow
-from .ui.settings import SettingsDialog
 from .ui.monitors import find_target_monitor, describe
 from . import config_store, layout_store
 
@@ -23,8 +24,12 @@ class XeneonEdgeApp(Adw.Application):
         super().__init__(application_id="ch.xeneon.edge")
         self._aggregator: Aggregator | None = None
         self._window: MainWindow | None = None
-        self._layout_monitor: Gio.FileMonitor | None = None
-        self._layout_reload_id: int | None = None
+        # layout.json, settings.json, apps.json: der Editor schreibt sie, das
+        # Dashboard hoert zu. Kein Rueckkanal noetig — und ein Texteditor
+        # wirkt genauso.
+        self._file_monitors: list[Gio.FileMonitor] = []
+        self._reload_ids: dict[str, int] = {}
+        self._settings_seen = config_store.load_settings()
         self._css_provider: Gtk.CssProvider | None = None
         self._palette: theme_mod.Palette | None = None
         self._theme_id: str = theme_mod.DEFAULT
@@ -47,10 +52,12 @@ class XeneonEdgeApp(Adw.Application):
         # aussieht (chart_url wandert ins Web-Modul).
         layout_store.migrate_from_settings(config_store.load_settings())
 
-        self._window = MainWindow(self, on_open_settings=self._open_settings,
+        self._window = MainWindow(self, on_open_settings=self._open_editor,
                                   palette=self._palette)
         self._refresh_deck()
-        self._watch_layout()
+        self._watch(layout_store.LAYOUT_FILE, "layout", self._reload_layout)
+        self._watch(config_store.USER_SETTINGS_FILE, "settings", self._reload_settings)
+        self._watch(config_store.USER_APPS_FILE, "apps", self._reload_apps)
         self._window.present()
         self._target_monitor()
 
@@ -60,15 +67,16 @@ class XeneonEdgeApp(Adw.Application):
 
         self._aggregator = Aggregator(on_snapshot=on_snapshot, interval=1.0,
                                       needs=self._window.needs)
+        self._aggregator.set_feeds(self._window.feeds)
         self._aggregator.start()
 
     def do_shutdown(self):  # type: ignore[override]
         if self._aggregator is not None:
             self._aggregator.stop()
-        if self._layout_reload_id is not None:
-            GLib.source_remove(self._layout_reload_id)
-        if self._layout_monitor is not None:
-            self._layout_monitor.cancel()
+        for source_id in self._reload_ids.values():
+            GLib.source_remove(source_id)
+        for monitor in self._file_monitors:
+            monitor.cancel()
         if self._theme_reload_id is not None:
             GLib.source_remove(self._theme_reload_id)
         if self._omarchy_monitor is not None:
@@ -77,49 +85,73 @@ class XeneonEdgeApp(Adw.Application):
 
     # --------
 
-    def _watch_layout(self) -> None:
-        """layout.json beobachten und das Gitter bei Aenderung neu bauen.
+    def _watch(self, path, key: str, reload) -> None:
+        """Eine Konfigurationsdatei beobachten und bei Aenderung ``reload`` rufen.
 
         Auf die Datei zu horchen statt auf den Editor zu warten heisst: jeder
         Weg wirkt gleich — der Editor, ein Texteditor, ein Konfig-Werkzeug.
+
+        Ein Speichervorgang meldet sich mehrfach (Temp-Datei + Umbenennen:
+        CREATED, dann CHANGES_DONE_HINT); die Ereignisse werden pro Datei zu
+        einem Reload gebuendelt, sonst flackert das Gitter.
         """
         try:
-            gfile = Gio.File.new_for_path(str(layout_store.LAYOUT_FILE))
+            gfile = Gio.File.new_for_path(str(path))
             monitor = gfile.monitor_file(Gio.FileMonitorFlags.NONE, None)
         except Exception as e:
-            print(f"[xeneon-edge] layout.json wird nicht beobachtet: {e}")
+            print(f"[xeneon-edge] {path.name} wird nicht beobachtet: {e}")
             return
-        monitor.connect("changed", self._on_layout_changed)
-        self._layout_monitor = monitor
 
-    def _on_layout_changed(self, _monitor, _f, _other, event_type) -> None:
-        """Ein Speichervorgang meldet sich mehrfach — zu einem Rebuild buendeln.
+        def on_changed(_monitor, _f, _other, event_type):
+            if event_type not in (Gio.FileMonitorEvent.CHANGES_DONE_HINT,
+                                  Gio.FileMonitorEvent.MOVED_IN,
+                                  Gio.FileMonitorEvent.CREATED):
+                return
+            pending = self._reload_ids.pop(key, None)
+            if pending is not None:
+                GLib.source_remove(pending)
 
-        layout_store.save() schreibt in eine Temp-Datei und benennt sie um.
-        Der Monitor sieht dadurch pro Speichern *zwei* Ereignisse (CREATED,
-        dann CHANGES_DONE_HINT); ungebremst wuerde das Gitter zweimal
-        hintereinander neu gebaut und sichtbar flackern.
-        """
-        if event_type not in (Gio.FileMonitorEvent.CHANGES_DONE_HINT,
-                              Gio.FileMonitorEvent.MOVED_IN,
-                              Gio.FileMonitorEvent.CREATED):
-            return
-        if self._layout_reload_id is not None:
-            GLib.source_remove(self._layout_reload_id)
-        self._layout_reload_id = GLib.timeout_add(250, self._reload_layout)
+            def fire():
+                self._reload_ids.pop(key, None)
+                reload()
+                return False
 
-    def _reload_layout(self) -> bool:
-        self._layout_reload_id = None
+            self._reload_ids[key] = GLib.timeout_add(250, fire)
+
+        monitor.connect("changed", on_changed)
+        self._file_monitors.append(monitor)
+
+    def _reload_layout(self) -> None:
         if self._window is None:
-            return False
+            return
         print("[xeneon-edge] layout.json geaendert — Gitter wird neu gebaut")
         self._window.apply_layout(layout_store.load())
         if self._aggregator is not None:
             self._aggregator.set_needs(self._window.needs)
+            self._aggregator.set_feeds(self._window.feeds)
         # Das Deck ist frisch gebaut und damit leer — oder wiederverwendet;
         # populate() ist in beiden Faellen richtig.
         self._refresh_deck()
-        return False
+
+    def _reload_settings(self) -> None:
+        """settings.json geaendert (Editor): nur uebernehmen, was sich geaendert hat."""
+        old = self._settings_seen
+        new = config_store.load_settings()
+        self._settings_seen = new
+        print("[xeneon-edge] settings.json geaendert")
+        if new.get("theme") != old.get("theme"):
+            self.apply_theme(new.get("theme"))
+        if any(new.get(k) != old.get(k)
+               for k in ("deck_app_slots", "hold_to_confirm", "isolate_launches")):
+            self._refresh_deck()
+        if any(new.get(k) != old.get(k) for k in ("target_monitor", "fullscreen_on_target")):
+            self._target_monitor()
+        # web_memory_limit_mb wirkt auf neu gebaute Web-Views; ein laufender
+        # Chart behaelt sein Limit bis zum naechsten Rebuild oder Neustart.
+
+    def _reload_apps(self) -> None:
+        print("[xeneon-edge] apps.json geaendert — Deck wird neu befuellt")
+        self._refresh_deck()
 
     # --------
 
@@ -217,18 +249,28 @@ class XeneonEdgeApp(Adw.Application):
             app_slots=app_slots,
         )
 
-    def _open_settings(self) -> None:
-        if self._window is None:
-            return
-        dlg = SettingsDialog(self._window, on_apply=self._on_settings_apply,
-                             on_theme=self.apply_theme)
-        dlg.present()
+    def _open_editor(self) -> None:
+        """Das Zahnrad: den Editor auf dem Hauptmonitor starten.
 
-    def _on_settings_apply(self) -> None:
-        self._refresh_deck()
-        self._target_monitor()
-        if self._window is not None:
-            self._window.set_chart_url(config_store.load_settings().get("chart_url", ""))
+        Der Editor ist der einzige Ort fuer Layout, Modul-Einstellungen, Deck
+        und globale Settings. Er schreibt die drei JSON-Dateien, das Dashboard
+        hoert per FileMonitor zu — hier muss nichts auf ihn gewartet werden.
+
+        Eigene cgroup (systemd-run --scope): der WebKit-Stapel des Editors
+        soll nicht in der Dashboard-Unit haengen, siehe launcher.py.
+        """
+        script = ROOT / "scripts" / "layout-editor.py"
+        if not script.exists():
+            print(f"[xeneon-edge] Editor fehlt: {script}")
+            return
+        argv = [sys.executable, str(script)]
+        if shutil.which("systemd-run"):
+            argv = ["systemd-run", "--user", "--scope", "--quiet", "--collect",
+                    f"--unit=xeneon-editor-{os.getpid()}", "--"] + argv
+        try:
+            Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE)
+        except GLib.Error as e:
+            print(f"[xeneon-edge] Editor liess sich nicht starten: {e.message}")
 
     def _target_monitor(self) -> None:
         """Move/fullscreen the window onto the configured (or auto-detected) Xeneon Edge."""

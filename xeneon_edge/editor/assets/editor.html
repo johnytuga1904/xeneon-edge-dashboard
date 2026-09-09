@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Xeneon Edge — Layout</title>
+<title>Xeneon Edge — Einstellungen</title>
 <style>/*CSS*/</style>
 </head>
 <body>
@@ -10,7 +10,7 @@
 <header class="bar">
   <div class="brand">
     <span class="brand-name">XENEON<span class="brand-slash">//</span>EDGE</span>
-    <span class="brand-sub">LAYOUT</span>
+    <span class="brand-sub">EINSTELLUNGEN</span>
   </div>
 
   <div class="profiles">
@@ -23,6 +23,19 @@
     <button id="profile-rename" class="ghost" title="Umbenennen">Aa</button>
     <button id="profile-delete" class="ghost danger" title="Profil loeschen">&times;</button>
   </div>
+
+  <!-- Hinzufuegen als Menue: Spalten-Module landen in der ausgewaehlten
+       Spalte, Topbar-Widgets im ausgewaehlten Slot. -->
+  <div class="menu-wrap">
+    <button id="add-btn" class="ghost">Modul hinzufuegen &#9662;</button>
+    <div id="add-menu" class="menu" hidden>
+      <div class="menu-title">Spalten-Module</div>
+      <div id="menu-modules"></div>
+      <div class="menu-title">Topbar-Widgets</div>
+      <div id="menu-topbar"></div>
+    </div>
+  </div>
+  <button id="settings-btn" class="ghost">Einstellungen</button>
 
   <div class="actions">
     <span id="status" class="status"></span>
@@ -37,20 +50,21 @@
       <span id="stage-label"></span>
       <span id="stage-warning" class="warning" hidden></span>
     </div>
-    <!-- Buehne: der Streifen in echter Proportion. Spalten liegen als
-         Flexbox darin, Breiten in Prozent der Monitorbreite. -->
-    <div id="stage" class="stage"></div>
+    <!-- Buehne: der Streifen in echter Proportion. Oben die Topbar mit drei
+         Slots, darunter die Spalten als proportionale Grid-Spuren. -->
+    <div id="stage" class="stage">
+      <div id="topbar" class="tb"></div>
+      <div id="columns" class="columns"></div>
+    </div>
     <p class="hint">
-      Modul ziehen zum Verschieben &middot; Spaltenkante ziehen fuer die Breite
-      &middot; Klick auf ein Modul waehlt es aus
+      Ziehen zum Verschieben &middot; Spaltenkante ziehen fuer die Breite
+      &middot; Klick waehlt aus, die Einstellungen stehen rechts
+      &middot; &times; entfernt
     </p>
   </section>
 
   <aside class="side">
-    <h2>Modul hinzufuegen</h2>
-    <div id="catalogue" class="catalogue"></div>
-
-    <h2>Auswahl</h2>
+    <h2 id="side-title">Auswahl</h2>
     <div id="inspector" class="inspector">
       <p class="muted">Nichts ausgewaehlt.</p>
     </div>

@@ -72,7 +72,7 @@ Debian-spezifisch zu beachten:
   Autostart-Eintrag quotet `Exec=` bereits korrekt.
 - **Kein 2560×720-Monitor?** Dann findet die Auto-Erkennung nichts und die App
   startet im normalen Fenster auf dem Standard-Display. Zielmonitor entweder
-  mit `--monitor <Connector>` setzen oder später im Settings-Modal wählen.
+  mit `--monitor <Connector>` setzen oder später im Editor (Einstellungen → Zielmonitor) wählen.
 
 ## Voraussetzungen (Arch / Omarchy)
 
@@ -139,7 +139,7 @@ Bleibt der normale XDG-Eintrag in `~/.config/autostart` — kein `exec-once`.
 Omarchy startet Hyprland ueber **uwsm**, und uwsm laesst systemd die
 `.desktop`-Dateien in `app-*@autostart.service` uebersetzen und mit
 `graphical-session.target` starten. Damit bleibt der Schalter *„Start with
-desktop session"* im Settings-Modal die einzige Stelle, die den Autostart an-
+der Sitzung starten"* im Editor die einzige Stelle, die den Autostart an-
 und abschaltet; ein zusaetzliches `exec-once` wuerde das Dashboard doppelt
 starten. Ohne uwsm (Hyprland direkt von der TTY) stattdessen in
 `~/.config/hypr/autostart.conf`:
@@ -225,7 +225,7 @@ python3 -m xeneon_edge
 
 ## Auto-Start einrichten
 
-Entweder über das Settings-Modal (Zahnrad oben rechts → „Start with desktop session") oder manuell:
+Entweder über den Editor (Zahnrad → Einstellungen → „Mit der Sitzung starten") oder manuell:
 
 ```bash
 ./scripts/install-autostart.sh
@@ -233,23 +233,43 @@ Entweder über das Settings-Modal (Zahnrad oben rechts → „Start with desktop
 
 ## Konfiguration
 
+Alles laeuft ueber den **Editor** (`./scripts/layout-editor.py`, oder das
+Zahnrad auf dem Streifen). Er oeffnet sich auf dem Hauptmonitor, weil am
+Streifen keine Tastatur haengt, und zeigt den Streifen als Buehne in echter
+Proportion: oben die Topbar mit drei Slots, darunter die Spalten. Ein Klick
+auf ein Modul, ein Topbar-Widget oder eine Spaltenbreite zeigt rechts die
+zugehoerigen Einstellungen — das Formular kommt aus dem `schema` des Moduls.
+Das Launch-Deck erscheint dort als 3×6-Raster: Platz anklicken, Felder
+darunter, Plaetze per Ziehen tauschen. *Einstellungen* in der Kopfleiste
+zeigt Theme, Zielmonitor, Autostart, Hold-to-confirm, isolierte Starts und
+den Speicherdeckel. *Speichern* schreibt `layout.json`, `settings.json` und
+`apps.json`; das laufende Dashboard beobachtet alle drei und uebernimmt die
+Aenderung sofort. Module, deren Typ und Config gleich bleiben, werden dabei
+wiederverwendet — der Chart laedt nicht neu, nur weil eine Spalte breiter
+wurde. Liegen mehrere Module in einer Spalte, laesst sich die Kante zwischen
+ihnen ziehen (`height` in Prozent am Modul); die Prozessliste zeigt dann so
+viele Zeilen, wie in ihre Hoehe passen. Jedes Deck-Pad hat eine eigene Farbe
+(`accent` in `apps.json`, Farbpunkt auf dem Pad im Editor): die untere
+Rahmenlinie des Pads auf dem Streifen.
+
+Die Dateien:
+
 - `config/apps.json` — Default-Apps und -Macros (im Repo, dient als Vorlage)
-- `~/.config/xeneon-edge/apps.json` — User-Override (Settings-Dialog schreibt hierhin)
+- `~/.config/xeneon-edge/apps.json` — User-Override (der Editor schreibt hierhin)
 - `~/.config/xeneon-edge/settings.json` — `auto_start`, `hold_to_confirm`,
   `isolate_launches`, `deck_app_slots`, `target_monitor`, `fullscreen_on_target`,
   `chart_url`, `theme`, `web_memory_limit_mb`
-- `~/.config/xeneon-edge/layout.json` — welche Module in welcher Spalte, wie
-  breit (siehe `docs/ARCHITECTURE.md`). Änderungen wirken sofort; Module,
-  deren Typ und `config` gleich bleiben, werden dabei wiederverwendet — der
-  Chart lädt also nicht neu, nur weil eine Spalte breiter wurde. Das
-  Sensor-Modul nimmt `"config": {"metrics": ["cpu", "gpu"]}` und baut nur
-  diese Panels; was kein sichtbares Modul braucht, liest der Aggregator
-  auch nicht (kein Prozess-Modul → kein psutil-Durchlauf, keine Lüfter →
-  kein hwmon).
+- `~/.config/xeneon-edge/layout.json` — Version 2: Profile mit `topbar`
+  (Slots `left`/`center`/`right`, je eine Liste `{type, config}`) und
+  `columns` (Breite + Module). Topbar-Widgets: `brand`, `status`, `net`,
+  `clock`, `weather` (`lat`, `lon`, `label`), `match` (`league`, `team`,
+  `short` — ESPN-Codes). Eine Version-1-Datei wird beim Laden umgebaut.
+  Was kein sichtbares Modul braucht, liest der Aggregator auch nicht: ohne
+  Prozess-Modul kein psutil-Durchlauf, ohne Wetter-Widget kein Open-Meteo.
 
 ### Farbthemes
 
-`theme` in `settings.json` bzw. Settings → General → *Colour theme*; der
+`theme` in `settings.json` bzw. Editor → Einstellungen → *Farbthema*; der
 Wechsel wirkt sofort, ohne Neustart. Mitgeliefert in `xeneon_edge/themes/`:
 
 | `theme`   | Look                                              |
@@ -278,8 +298,8 @@ drei Hintergrundstufen → Fenster/Panel/Buttons) steht in `theme.py`.
 
 Das Deck hat fest 18 Plätze (3 Spalten × 6 Zeilen, `DECK_*` in
 `config_store.py` — die Buttonhöhe ist auf die 660px Inhaltsfläche des Xeneon
-Edge abgestimmt). `deck_app_slots` (Settings → General → *Deck slots reserved
-for apps*, 0–18) legt fest, wie viele davon an Apps gehen; der Rest geht an
+Edge abgestimmt). `deck_app_slots` (Editor → Launch-Deck → *Plaetze fuer
+Apps*, 0–18) legt fest, wie viele davon an Apps gehen; der Rest geht an
 Macros:
 
 | `deck_app_slots` | Deck                                     |
@@ -308,10 +328,10 @@ mit Pango bei der realen Buttonbreite passt damit alles bis
 
 ### TradingView mit eigenem Account
 
-Das Chart-Panel kennt zwei Betriebsarten, umgeschaltet ueber `chart_url` in
-`~/.config/xeneon-edge/settings.json`:
+Das Web-Panel kennt zwei Betriebsarten, umgeschaltet ueber `url` in seiner
+Modul-Config (`layout.json`, im Editor das Feld *Adresse*):
 
-| `chart_url`                                       | Was laeuft                                     |
+| `url`                                             | Was laeuft                                     |
 |---------------------------------------------------|------------------------------------------------|
 | `""` (Default)                                    | *Advanced Chart*-Widget, anonym, BTC/USDT       |
 | `https://www.tradingview.com/chart/AbCdEf12/`     | die echte Chart-Seite mit deinem Layout         |
@@ -321,8 +341,8 @@ account-los und nimmt nur Parameter (Symbol, Intervall, `studies`). Wer seine
 Indikatoren, Zeichnungen und Templates sehen will, muss die richtige Seite
 laden und dort angemeldet sein.
 
-Angemeldet wird ueber den Settings-Dialog: Zahnrad → *General* → *Chart* →
-**Anmelden / Chart waehlen**. Der Button startet dasselbe Skript auch von Hand:
+Angemeldet wird ueber den Editor: Web-Panel anklicken → **Anmelden / Chart
+waehlen**. Der Button startet dasselbe Skript auch von Hand:
 
 ```bash
 ./scripts/tradingview-login.py
@@ -356,11 +376,12 @@ nach jedem Neustart weg.
 
 Zu beachten:
 
-- **Kein Neustart noetig.** Der Settings-Dialog zeigt die aktive URL als
-  Untertitel und wartet auf das Ende des Login-Fensters; danach haengt sich das
-  Panel selbst um. Der Button *Widget* daneben schaltet zurueck auf das anonyme
-  BTC/USDT-Widget. Ein Eingabefeld gibt es bewusst nicht — am Streifen haengt
-  keine Tastatur.
+- **Kein Neustart noetig.** Der Editor wartet auf das Ende des Login-Fensters
+  und traegt die URL ins Feld *Adresse* des Web-Panels ein; nach *Speichern*
+  haengt sich das Panel im laufenden Dashboard um. Der Button *Widget*
+  daneben leert die Adresse und schaltet zurueck auf das anonyme
+  BTC/USDT-Widget. Die Adresse laesst sich auch von Hand eintippen — der
+  Editor laeuft ja auf dem Monitor mit Tastatur.
 - **Der erste Aufbau dauert.** Das Panel bleibt einige Sekunden leer, bis
   Layout und Indikatoren geladen sind — beim anonymen Widget steht der Chart
   fast sofort. Das ist kein Fehler, sondern der Preis des eigenen Layouts.
@@ -379,7 +400,12 @@ Zu beachten:
   beendet (exceeded-memory-limit)“. Dasselbe passiert nach einem Absturz des
   Web-Prozesses; vorher blieb das Panel dann bis zum Neustart leer.
 - **Die Session kann ablaufen.** Dann steht im Panel die Login-Wand statt eines
-  Charts; `./scripts/tradingview-login.py` erneut aufrufen.
+  Charts; im Editor beim Web-Panel erneut *Anmelden / Chart waehlen*.
+- **Das Login-Fenster hat keinen Speicherdeckel.** Der Google-Login oeffnet
+  ein Popup im selben Web-Prozess, zusammen lagen die beiden bei 1,6 GB —
+  mit dem Deckel des Chart-Panels wurde der Prozess nach 30 s gekillt und
+  das Fenster nahm keine Eingabe mehr an. Ein zweiter Start holt das
+  vorhandene Fenster nach vorn statt ein zweites darueberzulegen.
 - Automatisiertes Einloggen waere gegen die TradingView-ToS — deshalb ein
   Fenster zum Selbst-Anmelden und kein Skript, das Zugangsdaten eintippt.
 
@@ -435,13 +461,13 @@ Instanz, sondern scheitert an „unit already exists“ — die Meldung landet i
 Journal der Dashboard-Unit (`journalctl --user -u xeneon-edge`).
 
 Einzelne Einträge lassen sich mit `"launch": "direct"` in `apps.json` davon
-ausnehmen; der Schalter im Settings-Dialog stellt global auf das alte
+ausnehmen; der Schalter im Editor (Einstellungen) stellt global auf das alte
 Popen-Verhalten zurück.
 
 ## Tastatur / Bedienung
 
-- Zahnrad-Button: Settings (Apps/Macros bearbeiten, Pfade per Browse-Picker,
-  Chart per Login-Fenster waehlen)
+- Zahnrad-Button: oeffnet den Editor auf dem Hauptmonitor (siehe unten) —
+  Layout, Modul-Einstellungen, Deck und alle Settings an einem Ort
 - `FS`: Vollbild umschalten
 - `X`: Beenden
 - Macros mit `confirm: true`: Button gedrückt halten (1 s) bis er rot aufleuchtet

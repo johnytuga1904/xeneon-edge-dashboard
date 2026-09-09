@@ -6,6 +6,10 @@
   --bg: #000; --panel: #050505; --raised: #0a0a0a; --line: #1a1a1a;
   --text: #fff; --muted: #5a5a5a; --label: #6e6e6e;
   --accent: #ff0033; --warm: #ff8a00; --hot: #ff0033; --on-accent: #fff;
+  /* Kanten im Editor: --line (#1a1a1a) verschwindet auf Schwarz, deshalb das
+     Muted-Grau der Palette. Das Dashboard selbst bleibt bei seinen feinen
+     Linien — hier geht es darum, Kaesten auseinanderzuhalten. */
+  --edge: var(--muted);
 }
 
 * { box-sizing: border-box; }
@@ -22,16 +26,27 @@ body {
   overflow: hidden;
 }
 
+h2 {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--label);
+  font-weight: 700;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
 /* ---------- Kopfleiste ---------- */
 
 .bar {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 18px;
   padding: 10px 16px;
   background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--edge);
   flex: none;
+  position: relative;
+  z-index: 5;
 }
 
 .brand { display: flex; flex-direction: column; line-height: 1.1; }
@@ -54,22 +69,41 @@ select, input {
   appearance: none;
   background: var(--raised);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   border-radius: 3px;
   padding: 4px 6px;
   font: inherit;
 }
+input[type="checkbox"] {
+  appearance: none;
+  width: 30px; height: 16px;
+  border-radius: 8px;
+  padding: 0;
+  position: relative;
+  cursor: pointer;
+  flex: none;
+}
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+input[type="checkbox"]:checked::after { left: 16px; background: var(--on-accent); }
 
 button {
   font: inherit;
   border-radius: 3px;
   padding: 5px 10px;
   cursor: pointer;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   background: var(--raised);
   color: var(--text);
 }
-button:hover { border-color: var(--muted); }
+button:hover { border-color: var(--text); }
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -79,6 +113,35 @@ button.primary {
 button.ghost { padding: 4px 8px; }
 button.danger:hover { border-color: var(--accent); color: var(--accent); }
 button:disabled { opacity: 0.4; cursor: default; }
+button.active { border-color: var(--accent); }
+
+/* Hinzufuegen-Menue */
+.menu-wrap { position: relative; }
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 20;
+}
+/* display:flex wuerde das hidden-Attribut sonst ueberstimmen. */
+.menu[hidden] { display: none; }
+.menu-title {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--label);
+  text-transform: uppercase;
+  margin: 6px 4px 2px;
+}
+.menu button { text-align: left; width: 100%; border-color: transparent; }
+.menu button:hover { border-color: var(--edge); background: var(--raised); }
+.menu button:disabled { opacity: 0.35; }
 
 /* ---------- Hauptbereich ---------- */
 
@@ -86,15 +149,16 @@ main { flex: 1; display: flex; min-height: 0; }
 
 .stage-wrap {
   flex: 1;
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  /* Mittig: die Buehne haelt ihr Seitenverhaeltnis und ist damit meist
-     deutlich flacher als das Fenster. Oben angeschlagen bliebe darunter eine
-     grosse tote Flaeche. */
-  justify-content: center;
+  /* Von oben nach unten: Buehne, Hinweis. Die Fenstergroesse in
+     scripts/layout-editor.py ist auf diesen Stapel abgestimmt; wird das
+     Fenster breiter, waechst die Buehne mit (sie haelt das Seitenverhaeltnis
+     des Monitors). */
   gap: 10px;
   min-width: 0;
+  overflow: auto;
 }
 
 .stage-meta {
@@ -107,29 +171,93 @@ main { flex: 1; display: flex; min-height: 0; }
 }
 .warning { color: var(--accent); letter-spacing: 0; }
 
-/* Die Buehne haelt das Seitenverhaeltnis des Zielmonitors. Wird von editor.js
-   per aspect-ratio gesetzt, damit Proportionen echt sind — der ganze Zweck
-   der schematischen Darstellung. */
+/* Die Buehne haelt das Seitenverhaeltnis des Zielmonitors (aspect-ratio
+   setzt editor.js). Innen: Topbar-Streifen, darunter die Spalten. */
 .stage {
   display: flex;
-  gap: 4px;
+  flex-direction: column;
+  gap: 6px;
   background: var(--bg);
-  border: 1px solid var(--line);
-  padding: 4px;
+  border: 1px solid var(--edge);
+  padding: 6px;
   width: 100%;
-  max-height: 60vh;
 }
 
-.hint { margin: 0; font-size: 11px; color: var(--muted); }
+.hint { margin: 0; font-size: 11px; color: var(--muted); text-align: center; }
+
+/* ---------- Topbar ---------- */
+
+.tb {
+  flex: none;
+  height: 9%;
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 6px;
+}
+.tb-slot {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 3px;
+  border: 1px dashed var(--edge);
+  min-width: 80px;
+  min-height: 0;
+}
+.tb-slot.center { justify-content: center; }
+.tb-slot.right  { justify-content: flex-end; }
+.tb-slot.drop-target { border-style: solid; border-color: var(--accent); }
+
+.chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 20px 0 8px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-top: 2px solid var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  cursor: grab;
+  user-select: none;
+}
+.chip:hover { border-color: var(--text); border-top-color: var(--accent); }
+.chip.selected { border-color: var(--accent); background: var(--raised); }
+.chip.dragging { opacity: 0.35; }
+.chip.fixed { opacity: 0.5; cursor: default; padding-right: 8px; border-top-color: var(--edge); }
+.chip .module-x { top: -2px; right: 2px; font-size: 13px; }
+.drop-line-v {
+  flex: none;
+  width: 3px;
+  background: var(--accent);
+  margin: 0 -1px;
+}
 
 /* ---------- Spalten ---------- */
+
+/* Ein Grid statt Flexbox: die Spalten sind proportionale Spuren
+   (grid-template-columns setzt editor.js), und das Grid zieht die
+   Zwischenraeume *vorher* ab. Mit Flex-Prozenten kamen die Luecken obendrauf
+   und die letzte Spalte stand ueber den Rand. */
+.columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  column-gap: 6px;
+  position: relative;
+}
 
 .column {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  position: relative;
+  min-height: 0;
+  background: var(--raised);
+  border: 1px solid var(--edge);
+  padding: 4px;
 }
 
 .column-head {
@@ -150,27 +278,32 @@ main { flex: 1; display: flex; min-height: 0; }
   padding: 1px 3px;
   border-radius: 2px;
 }
-.column-width:hover { color: var(--text); background: var(--raised); }
+.column-width:hover { color: var(--text); background: var(--panel); }
 .column-width.is-flex { color: var(--accent); }
 
-/* Greifkante zwischen zwei Spalten. Liegt im Zwischenraum und ist bewusst
-   breiter als die sichtbare Linie — 4px trifft man mit der Maus schlecht. */
+/* Greifkante zwischen zwei Spalten: liegt als Overlay ueber dem Zwischenraum
+   (editor.js setzt `left` aus der gemessenen Spaltenkante) und ist bewusst
+   breiter als die sichtbare Linie — 2px trifft man mit der Maus schlecht. */
 .grip {
-  flex: none;
-  width: 9px;
-  margin: 0 -3px;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  margin-left: -7px;
   cursor: col-resize;
   background: transparent;
-  position: relative;
   z-index: 2;
 }
 .grip::after {
   content: "";
   position: absolute;
-  inset: 18px 4px 0 4px;
-  background: var(--line);
+  top: 0;
+  bottom: 0;
+  left: 6px;
+  width: 2px;
+  background: var(--edge);
 }
-.grip:hover::after, .grip.active::after { background: var(--accent); }
+.grip:hover::after, .grip.active::after { background: var(--accent); width: 3px; left: 5.5px; }
 
 /* ---------- Modulkaesten ---------- */
 
@@ -178,8 +311,9 @@ main { flex: 1; display: flex; min-height: 0; }
   flex: 1;
   min-height: 26px;
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   border-top: 2px solid var(--accent);
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -190,9 +324,26 @@ main { flex: 1; display: flex; min-height: 0; }
   overflow: hidden;
   padding: 4px;
 }
-.module:hover { border-color: var(--muted); border-top-color: var(--accent); }
+.module:hover { border-color: var(--text); border-top-color: var(--accent); }
 .module.selected { border-color: var(--accent); background: var(--raised); }
 .module.dragging { opacity: 0.35; cursor: grabbing; }
+
+/* Entfernen direkt am Kasten. Sitzt oben rechts, faengt pointerdown ab,
+   damit ein Klick darauf kein Ziehen beginnt. */
+.module-x {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.module-x:hover { color: var(--on-accent); background: var(--accent); }
 
 .module-label {
   font-size: 11px;
@@ -213,6 +364,25 @@ main { flex: 1; display: flex; min-height: 0; }
   max-width: 100%;
 }
 
+/* Greifkante zwischen zwei gestapelten Modulen: Hoehenanteil ziehen. */
+.hgrip {
+  flex: none;
+  height: 8px;
+  margin: -4px 0;
+  cursor: row-resize;
+  position: relative;
+  z-index: 2;
+}
+.hgrip::after {
+  content: "";
+  position: absolute;
+  left: 20%; right: 20%;
+  top: 3px;
+  height: 2px;
+  background: var(--edge);
+}
+.hgrip:hover::after, .hgrip.active::after { background: var(--accent); height: 3px; top: 2.5px; }
+
 /* Einfuegemarke beim Ziehen */
 .drop-line {
   flex: none;
@@ -225,7 +395,7 @@ main { flex: 1; display: flex; min-height: 0; }
 /* Leere Spalte wird beim Speichern verworfen — vorher sichtbar markieren. */
 .column-empty {
   flex: 1;
-  border: 1px dashed var(--line);
+  border: 1px dashed var(--edge);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,29 +406,101 @@ main { flex: 1; display: flex; min-height: 0; }
 /* ---------- Seitenleiste ---------- */
 
 .side {
-  width: 280px;
+  width: 300px;
   flex: none;
-  border-left: 1px solid var(--line);
+  border-left: 1px solid var(--edge);
   background: var(--panel);
   padding: 14px;
   overflow-y: auto;
 }
 
-.side h2 {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  color: var(--label);
-  font-weight: 700;
-  margin: 0 0 8px;
-  text-transform: uppercase;
-}
-.side h2:not(:first-child) { margin-top: 20px; }
-
-.catalogue { display: flex; flex-wrap: wrap; gap: 6px; }
-.catalogue button { font-size: 11px; }
-
-.inspector { display: flex; flex-direction: column; gap: 8px; }
+.inspector { display: flex; flex-direction: column; gap: 10px; }
 .inspector .row { display: flex; align-items: center; gap: 8px; }
 .inspector .row label { font-size: 10px; letter-spacing: 0.1em; color: var(--label); min-width: 7ch; }
-.inspector input[type="text"] { flex: 1; min-width: 0; }
+.inspector input[type="text"], .inspector input[type="number"], .inspector select { flex: 1; min-width: 0; width: 100%; }
 .muted { color: var(--muted); font-size: 11px; margin: 0; }
+.row-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Formulare aus dem Schema */
+.form { display: flex; flex-direction: column; gap: 9px; }
+.field { display: flex; flex-direction: column; gap: 3px; }
+.field > label { font-size: 10px; letter-spacing: 0.1em; color: var(--label); }
+.field .help { font-size: 10px; color: var(--muted); }
+.check-row { display: flex; align-items: center; gap: 8px; }
+.check-row > label { flex: 1; font-size: 12px; letter-spacing: 0; color: var(--text); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.checks label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.with-btn { display: flex; gap: 6px; }
+.with-btn input { flex: 1; min-width: 0; }
+
+/* Deck: Abbild des 3x6-Rasters */
+.deck {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.deck-cell {
+  aspect-ratio: 2.1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 3px;
+  border: 1px solid var(--edge);
+  background: var(--raised);
+  cursor: pointer;
+  overflow: hidden;
+  word-break: break-word;
+  user-select: none;
+}
+.deck-cell.macro { border-style: dashed; }
+/* Untere Kante in der Pad-Farbe — genau wie auf dem Streifen. */
+.deck-cell { position: relative; border-bottom: 3px solid var(--accent); }
+/* Bestaetigung: kleines Zeichen oben rechts statt einer farbigen Kante. */
+.deck-cell.danger::after {
+  content: "!";
+  position: absolute;
+  top: 0; right: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--accent);
+}
+/* Farbpunkt: Klick oeffnet die Palette. Faengt pointerdown ab, damit kein
+   Ziehen beginnt. */
+.pad-dot {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--bg);
+  cursor: pointer;
+}
+.pad-dot:hover { transform: scale(1.3); }
+.palette {
+  position: absolute;
+  z-index: 30;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 180px;
+}
+.swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.swatch {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  cursor: pointer;
+}
+.swatch:hover { transform: scale(1.15); }
+.swatch.theme { background: linear-gradient(135deg, var(--accent) 50%, var(--raised) 50%); }
+.deck-cell.empty { color: var(--muted); font-weight: 400; }
+.deck-cell.selected { border-color: var(--accent); background: var(--panel); border-style: solid; }
+.deck-cell.dragging { opacity: 0.35; }
+.deck-cell.drop-target { outline: 2px solid var(--accent); outline-offset: -2px; }
+.deck-legend { display: flex; gap: 12px; font-size: 10px; color: var(--muted); }

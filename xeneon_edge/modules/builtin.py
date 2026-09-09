@@ -13,11 +13,12 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk  # noqa: E402
 
-from . import Field, ModuleSpec, register
+from . import Field, ModuleSpec, register, register_topbar
 from ..ui.panels import CpuPanel, GpuPanel, RamPanel, ProcessPanel, FanPanel
 from ..ui.audio_panel import AudioPanel
 from ..ui.deck import LaunchDeck
 from ..ui.chart import make_chart_widget
+from ..ui import topbar
 
 
 SENSOR_METRICS = ("cpu", "gpu", "ram", "fans")
@@ -95,7 +96,11 @@ class SensorsModule(Gtk.Box):
 
 class ProcessesModule(ProcessPanel):
     def __init__(self, config: dict):
-        super().__init__()
+        try:
+            rows = int(config.get("count") or ProcessPanel.ROWS)
+        except (TypeError, ValueError):
+            rows = ProcessPanel.ROWS
+        super().__init__(rows=max(4, min(20, rows)))
         self.set_vexpand(True)
         self.set_hexpand(False)
 
@@ -174,7 +179,8 @@ register(ModuleSpec(
     schema=(
         Field("metrics", "Angezeigte Werte", "list",
               default=["cpu", "gpu", "ram", "fans"],
-              help="Was nicht angezeigt wird, wird spaeter auch nicht gelesen."),
+              options=(("cpu", "CPU"), ("gpu", "GPU"), ("ram", "RAM"), ("fans", "Luefter")),
+              help="Was nicht angezeigt wird, liest der Aggregator auch nicht."),
     ),
 ))
 
@@ -185,7 +191,7 @@ register(ModuleSpec(
     needs=frozenset({"processes"}),
     default_width=420,
     schema=(
-        Field("count", "Anzahl Zeilen", "int", default=14),
+        Field("count", "Anzahl Zeilen", "int", default=14, min=4, max=20),
     ),
 ))
 
@@ -211,6 +217,45 @@ register(ModuleSpec(
     factory=WebModule,
     schema=(
         Field("url", "Adresse", "text", default="",
-              help="Leer = eingebettetes TradingView-Widget ohne Login."),
+              help="Leer = eingebettetes TradingView-Widget ohne Login. "
+                   "\"Anmelden / Chart waehlen\" traegt die URL des eigenen Charts ein."),
+    ),
+))
+
+
+# ----- Topbar -----
+
+register_topbar(ModuleSpec(
+    type_id="brand", label="Marke", factory=topbar.BrandWidget, singleton=True,
+    schema=(Field("subtitle", "Untertitel", "text", default="COMMAND CENTER"),),
+))
+register_topbar(ModuleSpec(
+    type_id="status", label="Sensor-Status", factory=topbar.StatusPill, singleton=True,
+))
+register_topbar(ModuleSpec(
+    type_id="net", label="Netzwerk", factory=topbar.NetPill, singleton=True,
+))
+register_topbar(ModuleSpec(
+    type_id="clock", label="Uhr", factory=topbar.ClockWidget,
+    schema=(Field("seconds", "Sekunden anzeigen", "bool", default=False),),
+))
+register_topbar(ModuleSpec(
+    type_id="weather", label="Wetter", factory=topbar.WeatherPill,
+    schema=(
+        Field("lat", "Breitengrad", "float", default=None, min=-90, max=90,
+              help="Open-Meteo, z.B. 47.3769 fuer Zuerich"),
+        Field("lon", "Laengengrad", "float", default=None, min=-180, max=180,
+              help="z.B. 8.5417"),
+        Field("label", "Ortsname", "text", default="", help="Nur als Tooltip"),
+    ),
+))
+register_topbar(ModuleSpec(
+    type_id="match", label="Naechstes Spiel", factory=topbar.MatchPill,
+    schema=(
+        Field("league", "Liga (ESPN-Code)", "text", default="",
+              help="por.1, eng.1, ger.1, esp.1, ita.1, uefa.champions ..."),
+        Field("team", "Team-ID (ESPN)", "text", default="",
+              help="Zahl aus der ESPN-URL des Teams, z.B. 1929"),
+        Field("short", "Kuerzel", "text", default="", help="Steht gross in der Pille, z.B. SLB"),
     ),
 ))

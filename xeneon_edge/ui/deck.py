@@ -2,13 +2,49 @@
 from __future__ import annotations
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, GLib, Pango  # noqa: E402
+from gi.repository import Gtk, Gdk, GLib, Pango  # noqa: E402
 
 from pathlib import Path
+import re
 
 from ..config_store import DECK_COLS, DECK_SLOTS
 from ..launcher import launch as _launch
 from .icons import resolve_icon
+
+
+_HEX = re.compile(r"^#?([0-9a-fA-F]{6})$")
+_PAD_CSS_PROVIDER: Gtk.CssProvider | None = None
+
+
+def pad_colour(entry: dict) -> str | None:
+    """'#rrggbb' aus dem accent-Feld, oder None fuer den Theme-Akzent."""
+    m = _HEX.match(str(entry.get("accent") or "").strip())
+    return m.group(1).lower() if m else None
+
+
+def _apply_pad_colours(colours: set[str]) -> None:
+    """Eine CSS-Regel pro benutzter Farbe: die untere Rahmenlinie des Pads.
+
+    Ein Provider fuer alle Pads, bei jedem populate() neu geladen — die Menge
+    der Farben ist klein und aendert sich nur, wenn der Editor speichert.
+    Prioritaet ueber dem Stylesheet, damit die Farbe den @accent-Default aus
+    style.css ueberstimmt.
+    """
+    global _PAD_CSS_PROVIDER
+    display = Gdk.Display.get_default()
+    if display is None:
+        return
+    if _PAD_CSS_PROVIDER is None:
+        _PAD_CSS_PROVIDER = Gtk.CssProvider()
+        Gtk.StyleContext.add_provider_for_display(
+            display, _PAD_CSS_PROVIDER, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
+    css = "\n".join(
+        f"button.deck-btn.pad-{c} {{ border-bottom-color: #{c}; }}"
+        for c in sorted(colours))
+    try:
+        _PAD_CSS_PROVIDER.load_from_string(css)
+    except Exception as e:  # pragma: no cover
+        print(f"[xeneon-edge] Pad-Farben: {e}")
 
 
 def display_label(entry: dict) -> str:
@@ -43,6 +79,9 @@ class DeckButton(Gtk.Button):
             self.add_css_class("macro")
         if entry.get("confirm"):
             self.add_css_class("danger")
+        colour = pad_colour(entry)
+        if colour:
+            self.add_css_class(f"pad-{colour}")
 
         body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         # Horizontal FILL, nicht CENTER: bei CENTER bekommt der Kasten nur
@@ -161,6 +200,7 @@ class LaunchDeck(Gtk.Box):
         # Und hinten auffuellen, damit das Raster auch dann geschlossen wirkt,
         # wenn apps.json weniger Eintraege hat als das Deck Plaetze.
         entries += [{}] * max(0, DECK_SLOTS - len(entries))
+        _apply_pad_colours({c for c in (pad_colour(e) for e in entries) if c})
         for i, entry in enumerate(entries[:DECK_SLOTS]):
             self.grid.attach(DeckButton(entry, hold_to_confirm=hold_to_confirm,
                                         isolate=isolate, slot=i),

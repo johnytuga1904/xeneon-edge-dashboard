@@ -64,13 +64,18 @@ class Aggregator:
         self._net = net_mod.NetTracker()
         self._cpu_name = cpu_mod.cpu_name()
         self.snapshot = Snapshot(cpu_name=self._cpu_name)
+        # Was die Topbar aus dem Netz braucht: {"weather": {lat, lon},
+        # "match": {league, team}} — gesetzt vom Fenster nach dem Layout.
+        self.feeds: dict = {}
         self._weather_last_fetch = 0.0
         self._weather_cache: dict | None = None
+        self._weather_key: tuple | None = None
         self._audio_skip_until = 0.0  # Polling-Rueckfall, wenn pactl subscribe nicht laeuft
         self._audio_last_read = 0.0
         self._audio_watch = audio_mod.AudioWatcher()
         self._match_last_fetch = 0.0
         self._match_cache: dict | None = None
+        self._match_key: tuple | None = None
 
     def start(self) -> None:
         if self._thread is not None:
@@ -83,6 +88,10 @@ class Aggregator:
     def stop(self) -> None:
         self._stop.set()
         self._audio_watch.stop()
+
+    def set_feeds(self, feeds: dict) -> None:
+        """Wetter-/Spiel-Konfiguration der Topbar; ein Wechsel holt sofort neu."""
+        self.feeds = dict(feeds or {})
 
     def set_needs(self, needs: frozenset[str]) -> None:
         """Vom Layout aufgerufen; wirkt ab dem naechsten Tick.
@@ -154,21 +163,38 @@ class Aggregator:
             else:
                 snap.audio = self.snapshot.audio
 
-        if now - self._weather_last_fetch > 600:  # 10 min
-            try:
-                self._weather_cache = weather_mod.fetch_weather()
-            except Exception:
-                pass
-            self._weather_last_fetch = now
-        snap.weather = self._weather_cache
+        feeds = self.feeds
+        weather = feeds.get("weather")
+        if weather:
+            key = (weather.get("lat"), weather.get("lon"))
+            if key != self._weather_key:
+                self._weather_key, self._weather_cache, self._weather_last_fetch = key, None, 0.0
+            if now - self._weather_last_fetch > 600:  # 10 min
+                try:
+                    self._weather_cache = weather_mod.fetch_weather(key[0], key[1])
+                except Exception:
+                    pass
+                # Fehlschlag (z.B. noch kein Netz nach dem Login): in einer
+                # Minute wieder, nicht erst in zehn.
+                self._weather_last_fetch = now if self._weather_cache else now - 540
+            snap.weather = self._weather_cache
+        else:
+            snap.weather = None
 
-        if now - self._match_last_fetch > 3600:  # 1 hour
-            try:
-                self._match_cache = match_mod.fetch_next_match()
-            except Exception:
-                pass
-            self._match_last_fetch = now
-        snap.next_match = self._match_cache
+        match = feeds.get("match")
+        if match:
+            key = (match.get("league"), match.get("team"))
+            if key != self._match_key:
+                self._match_key, self._match_cache, self._match_last_fetch = key, None, 0.0
+            if now - self._match_last_fetch > 3600:  # 1 hour
+                try:
+                    self._match_cache = match_mod.fetch_next_match(key[0], key[1])
+                except Exception:
+                    pass
+                self._match_last_fetch = now if self._match_cache else now - 3540
+            snap.next_match = self._match_cache
+        else:
+            snap.next_match = None
 
         snap.taken_at = time.time()
         self.snapshot = snap

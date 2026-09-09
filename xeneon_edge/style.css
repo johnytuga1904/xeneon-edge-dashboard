@@ -177,13 +177,22 @@ button.deck-btn.macro:hover {
   border-color: @accent;
   background-color: alpha(@accent, 0.10);
 }
-button.deck-btn.danger {
-  border-color: alpha(@accent, 0.40);
-  border-top: 2px solid @accent;
-}
+/* Pads mit Bestaetigung: kein eigener Rahmen mehr — die rote Oberkante las
+   sich als Trennlinie zwischen den Zeilen. Erkennbar bleiben sie am roten
+   Aufleuchten beim Halten (.hot) und im Editor. */
 button.deck-btn.danger:hover {
-  border-color: @accent;
   background-color: alpha(@accent, 0.12);
+}
+/* Jedes Pad hat eine eigene Farbe (apps.json "accent"): die untere
+   Rahmenlinie. Die Klasse pad-<hex> setzt ui/deck.py, die Regel dazu kommt
+   aus einem eigenen CssProvider (deck.py), weil die Farben erst zur
+   Laufzeit bekannt sind. Ohne Farbe: der Theme-Akzent. */
+button.deck-btn {
+  border-bottom: 3px solid @accent;
+}
+button.deck-btn.hot {
+  border-color: @hot;
+  background-color: alpha(@hot, 0.25);
 }
 label.deck-label {
   /* 11px statt 13px und weniger Sperrung: bringt pro Zeile rund ein Drittel

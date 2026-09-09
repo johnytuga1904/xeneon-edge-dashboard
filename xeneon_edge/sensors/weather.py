@@ -1,4 +1,4 @@
-"""Open-Meteo weather (Wohlen, CH) — same approach as the Windows app."""
+"""Open-Meteo weather for a configured location (topbar widget "weather")."""
 from __future__ import annotations
 
 try:
@@ -6,10 +6,8 @@ try:
 except ImportError:
     requests = None  # type: ignore
 
-_LAT = 47.3464
-_LON = 8.2752
 _URL = (
-    f"https://api.open-meteo.com/v1/forecast?latitude={_LAT}&longitude={_LON}"
+    "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
     "&current=temperature_2m,weather_code"
 )
 
@@ -24,11 +22,11 @@ _SYMBOLS = {
 }
 
 
-def fetch_weather(timeout: float = 4.0) -> dict | None:
+def fetch_weather(lat: float, lon: float, timeout: float = 4.0) -> dict | None:
     if requests is None:
         return None
     try:
-        r = requests.get(_URL, timeout=timeout)
+        r = requests.get(_URL.format(lat=float(lat), lon=float(lon)), timeout=timeout)
         r.raise_for_status()
         data = r.json()
     except Exception:

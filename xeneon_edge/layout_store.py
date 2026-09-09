@@ -17,11 +17,17 @@ from . import modules
 
 LAYOUT_FILE = USER_CONFIG_DIR / "layout.json"
 
-VERSION = 1
+# Version 2: die Topbar besteht aus drei Slots (links, Mitte, rechts) mit
+# Widgets wie die Spalten aus Modulen. Version 1 hatte dort nur
+# {"weather": {...}, "match": {...}} und wird beim Laden umgebaut.
+VERSION = 2
 FLEX = "flex"
+TOPBAR_SLOTS = ("left", "center", "right")
 
 # Das bisher fest verdrahtete Layout aus ui/window.py. Breiten wie gehabt:
-# Sensoren 460, Prozesse+Audio 420, Deck 430, Chart nimmt den Rest.
+# Sensoren 460, Prozesse+Audio 420, Deck 430, Chart nimmt den Rest. Die
+# Topbar hat bewusst weder Wetter noch Spiel: beides braucht einen Standort
+# bzw. ein Team, und die des Autors sind kein sinnvoller Default.
 _DEFAULT_PROFILE: dict[str, Any] = {
     "label": "Standard",
     "columns": [
@@ -32,8 +38,10 @@ _DEFAULT_PROFILE: dict[str, Any] = {
         {"width": 430, "modules": [{"type": "deck", "config": {}}]},
     ],
     "topbar": {
-        "weather": {"enabled": True, "lat": 47.3464, "lon": 8.2752, "label": ""},
-        "match": {"enabled": True, "league": "por.1", "team": "1929"},
+        "left": [{"type": "brand", "config": {}}, {"type": "status", "config": {}},
+                 {"type": "net", "config": {}}],
+        "center": [{"type": "clock", "config": {}}],
+        "right": [],
     },
 }
 
@@ -80,9 +88,80 @@ def _validate_column(col: Any, where: str) -> dict[str, Any]:
         # Unbekannte Typen sind hier *kein* Fehler: die Datei kann aus einer
         # neueren Version stammen. modules.build() ueberspringt sie einzeln,
         # der Rest des Layouts bleibt benutzbar.
-        out_modules.append({"type": type_id, "config": config})
+        entry: dict[str, Any] = {"type": type_id, "config": config}
+        # Hoehenanteil in Prozent, nur sinnvoll bei mehreren Modulen in der
+        # Spalte. Fehlt er, teilen sich die Module die Hoehe gleich.
+        if m.get("height") is not None:
+            try:
+                height = int(m["height"])
+            except (TypeError, ValueError):
+                raise LayoutError(f"{where}, Modul {i}: height '{m['height']}' ist keine Zahl")
+            if not 5 <= height <= 95:
+                raise LayoutError(f"{where}, Modul {i}: height {height} liegt nicht in 5..95")
+            entry["height"] = height
+        out_modules.append(entry)
 
     return {"width": width, "modules": out_modules}
+
+
+def _validate_entries(raw: Any, where: str) -> list[dict[str, Any]]:
+    """[{type, config}]-Liste, wie sie Spalten und Topbar-Slots enthalten."""
+    if not isinstance(raw, list):
+        raise LayoutError(f"{where}: keine Liste")
+    out = []
+    for i, m in enumerate(raw):
+        if not isinstance(m, dict):
+            raise LayoutError(f"{where}, Eintrag {i}: kein Objekt")
+        type_id = m.get("type")
+        if not isinstance(type_id, str) or not type_id:
+            raise LayoutError(f"{where}, Eintrag {i}: kein Typ angegeben")
+        config = m.get("config", {})
+        if not isinstance(config, dict):
+            raise LayoutError(f"{where}, Eintrag {i}: config ist kein Objekt")
+        out.append({"type": type_id, "config": config})
+    return out
+
+
+def _topbar_from_v1(old: Any) -> dict[str, Any]:
+    """Topbar der Version 1 ({"weather": {...}, "match": {...}}) umbauen.
+
+    Was eingeschaltet war, bleibt an seinem Platz; die drei festen Pillen
+    links kommen dazu. So sieht ein Dashboard nach dem Update aus wie vorher.
+    """
+    old = old if isinstance(old, dict) else {}
+    center: list[dict[str, Any]] = []
+    weather = old.get("weather") or {}
+    if isinstance(weather, dict) and weather.get("enabled", True) \
+            and weather.get("lat") is not None and weather.get("lon") is not None:
+        center.append({"type": "weather", "config": {
+            "lat": weather["lat"], "lon": weather["lon"],
+            "label": str(weather.get("label") or "")}})
+    center.append({"type": "clock", "config": {}})
+    match = old.get("match") or {}
+    if isinstance(match, dict) and match.get("enabled") \
+            and match.get("league") and match.get("team"):
+        team = str(match["team"])
+        center.append({"type": "match", "config": {
+            "league": str(match["league"]), "team": team,
+            # Das Kuerzel stand vorher fest im Code.
+            "short": "SLB" if team == "1929" else ""}})
+    return {
+        "left": [{"type": "brand", "config": {}}, {"type": "status", "config": {}},
+                 {"type": "net", "config": {}}],
+        "center": center,
+        "right": [],
+    }
+
+
+def _validate_topbar(raw: Any, name: str) -> dict[str, Any]:
+    if raw is None:
+        return json.loads(json.dumps(_DEFAULT_PROFILE["topbar"]))
+    if not isinstance(raw, dict):
+        raise LayoutError(f"Profil '{name}': topbar ist kein Objekt")
+    if not any(slot in raw for slot in TOPBAR_SLOTS):
+        return _topbar_from_v1(raw)
+    return {slot: _validate_entries(raw.get(slot, []), f"Profil '{name}', Topbar {slot}")
+            for slot in TOPBAR_SLOTS}
 
 
 def _validate_profile(profile: Any, name: str) -> dict[str, Any]:
@@ -104,14 +183,10 @@ def _validate_profile(profile: Any, name: str) -> dict[str, Any]:
             f"Profil '{name}': genau eine Spalte muss '{FLEX}' sein, gefunden: {len(flex)}"
         )
 
-    topbar = profile.get("topbar", {})
-    if not isinstance(topbar, dict):
-        raise LayoutError(f"Profil '{name}': topbar ist kein Objekt")
-
     return {
         "label": str(profile.get("label") or name),
         "columns": columns,
-        "topbar": topbar,
+        "topbar": _validate_topbar(profile.get("topbar"), name),
     }
 
 
@@ -120,7 +195,7 @@ def validate(data: Any) -> dict[str, Any]:
         raise LayoutError("Datei enthaelt kein Objekt")
 
     version = data.get("version", VERSION)
-    if version != VERSION:
+    if version not in (1, VERSION):
         raise LayoutError(f"Version {version} wird nicht unterstuetzt (erwartet {VERSION})")
 
     raw_profiles = data.get("profiles")
