@@ -16,7 +16,9 @@ from gi.repository import Gtk  # noqa: E402
 from . import Field, ModuleSpec, register, register_topbar
 from ..ui.panels import CpuPanel, GpuPanel, RamPanel, ProcessPanel, FanPanel
 from ..ui.audio_panel import AudioPanel
+from ..ui.clock import ClockModule
 from ..ui.deck import LaunchDeck
+from ..ui.notes import NotesModule
 from ..ui.chart import make_chart_widget
 from ..ui import topbar
 
@@ -209,6 +211,36 @@ register(ModuleSpec(
     factory=DeckModule,
     default_width=430,
     singleton=True,
+))
+
+register(ModuleSpec(
+    type_id="clock",
+    label="Uhr",
+    factory=ClockModule,
+    default_width=420,
+    schema=(
+        Field("mode", "Darstellung", "select", default="datetime",
+              options=(("datetime", "Zeit und Datum"), ("time", "Nur Zeit"),
+                       ("zones", "Zeitzonen"))),
+        Field("seconds", "Sekunden anzeigen", "bool", default=False),
+        Field("zones", "Zeitzonen", "text",
+              default="London=Europe/London, New York=America/New_York, Tokyo=Asia/Tokyo",
+              help="Nur fuer \"Zeitzonen\". Form: Name=Zone, getrennt durch Komma. "
+                   "Zonen wie in /usr/share/zoneinfo, z.B. Europe/Zurich."),
+    ),
+))
+
+register(ModuleSpec(
+    type_id="notes",
+    label="Notizen",
+    factory=NotesModule,
+    default_width=460,
+    schema=(
+        Field("path", "Datei", "path", default="",
+              help="Text-, Markdown- oder JSON-Datei. Wird nur angezeigt, nie "
+                   "geschrieben; aendert sie sich, laedt das Modul sie neu. "
+                   "Ein Tipp auf eine Zeile kopiert sie."),
+    ),
 ))
 
 register(ModuleSpec(

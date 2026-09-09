@@ -646,7 +646,24 @@ function renderForm(schema, values, onChange) {
         if ((f.kind === "int" || f.kind === "float") && v !== null && !Number.isFinite(v)) return;
         onChange(f.key, v);
       });
-      field.appendChild(input);
+      if (f.kind === "path") {
+        /* Tippen geht auch — der Editor laeuft am Rechner mit Tastatur —,
+         * aber einen Pfad abzutippen ist fehlertraechtig. Derselbe Knopf und
+         * dieselbe Verdrahtung wie beim Deck-Kommando, nur oeffnet der Picker
+         * im Home statt in /usr/bin. */
+        const wrap = el("div", "with-btn");
+        const browse = el("button", "ghost", "…");
+        browse.title = "Datei waehlen";
+        browse.addEventListener("click", () => {
+          pendingBrowse = input;
+          post({ action: "browse", target: "file" });
+        });
+        wrap.appendChild(input);
+        wrap.appendChild(browse);
+        field.appendChild(wrap);
+      } else {
+        field.appendChild(input);
+      }
     }
     if (f.help) field.appendChild(el("div", "help", f.help));
     form.appendChild(field);

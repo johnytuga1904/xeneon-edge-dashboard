@@ -252,6 +252,44 @@ viele Zeilen, wie in ihre Hoehe passen. Jedes Deck-Pad hat eine eigene Farbe
 (`accent` in `apps.json`, Farbpunkt auf dem Pad im Editor): die untere
 Rahmenlinie des Pads auf dem Streifen.
 
+### Module
+
+| Modul | Was es zeigt | Einstellungen |
+|-------|--------------|---------------|
+| Sensoren | CPU, GPU, RAM, Luefter | welche davon (`metrics`) |
+| Prozesse | Top-Prozesse nach CPU | Anzahl Zeilen |
+| Audio | Ausgabe/Eingabe, Lautstaerke | — |
+| Launch-Deck | 3x6-Raster mit Apps und Macros | im Editor unter *Launch-Deck* |
+| Web-Panel | WebKit-View auf eine Adresse | Adresse, Login-Knopf |
+| Uhr | Zeit gross | Darstellung, Sekunden, Zeitzonen |
+| Notizen | eine Datei, lesend | Datei |
+
+**Uhr.** Drei Darstellungen: *Zeit und Datum*, *Nur Zeit*, *Zeitzonen*. Die
+Ziffern skalieren auf die Flaeche, die das Modul im Layout bekommt — eine
+schmale Spalte zeigt sie kleiner, der ganze Streifen macht daraus eine
+Wanduhr. Bei *Zeitzonen* steht pro Zeile eine Zone; das Feld nimmt
+`Name=Zone`, durch Komma getrennt:
+
+```
+London=Europe/London, New York=America/New_York, Tokyo=Asia/Tokyo
+```
+
+Die Zonennamen sind die aus `/usr/share/zoneinfo`. Steht kein `=` da, gilt
+der Eintrag als Zone und der letzte Pfadteil als Beschriftung
+(`America/New_York` → `NEW YORK`). Eine unbekannte Zone wird uebersprungen
+und im Journal gemeldet, die uebrigen Zeilen bleiben stehen.
+
+**Notizen.** Zeigt eine `.txt`-, `.md`- oder `.json`-Datei und laedt sie neu,
+sobald sie sich aendert — geschrieben wird sie woanders, am Rechner mit
+Tastatur. JSON wird beim Anzeigen eingerueckt; ist es kaputt, bleibt es roh
+stehen. Markdown wird **nicht** formatiert, sondern als Klartext gezeigt.
+
+Bedient wird das Modul mit dem Finger: scrollen durch Wischen, und ein Tipp
+auf eine Zeile legt sie in die Zwischenablage — die Zeile leuchtet kurz in
+der Akzentfarbe auf. Ohne Tastatur am Streifen ist das der einzige Weg,
+etwas aus der Datei herauszubekommen. Angezeigt werden hoechstens 1500
+Zeilen; was darueber liegt, meldet die letzte Zeile.
+
 Die Dateien:
 
 - `config/apps.json` — Default-Apps und -Macros (im Repo, dient als Vorlage)

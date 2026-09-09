@@ -96,15 +96,16 @@ class EditorWindow(Gtk.ApplicationWindow):
             pass
 
         try:
-            action = json.loads(raw).get("action")
+            msg = json.loads(raw)
+            action, target = msg.get("action"), msg.get("target")
         except Exception:
-            action = None
+            action = target = None
 
         if action == "login":
             self._open_login()
             return
         if action == "browse":
-            self._browse()
+            self._browse(str(target or "program"))
             return
 
         result = editor.handle_message(raw)
@@ -155,10 +156,16 @@ class EditorWindow(Gtk.ApplicationWindow):
 
     # ----- Datei-Picker fuer Deck-Kommandos -----
 
-    def _browse(self) -> None:
+    def _browse(self, target: str = "program") -> None:
+        """``target="file"`` waehlt eine Datei im Home (Notizen-Modul),
+        alles andere ein Programm in /usr/bin (Deck-Kommandos)."""
         dialog = Gtk.FileDialog.new()
-        dialog.set_title("Programm waehlen")
-        dialog.set_initial_folder(Gio.File.new_for_path("/usr/bin"))
+        if target == "file":
+            dialog.set_title("Datei waehlen")
+            dialog.set_initial_folder(Gio.File.new_for_path(GLib.get_home_dir()))
+        else:
+            dialog.set_title("Programm waehlen")
+            dialog.set_initial_folder(Gio.File.new_for_path("/usr/bin"))
         dialog.open(self, None, self._on_browsed)
 
     def _on_browsed(self, dialog, result) -> None:

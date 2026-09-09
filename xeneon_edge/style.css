@@ -19,6 +19,32 @@ label.brand-sub { color: @label_color; font-size: 9px; letter-spacing: 0.28em; }
 label.clock-time { font-size: 22px; font-weight: 900; letter-spacing: 0.04em; }
 label.clock-date { color: @muted; font-size: 10px; letter-spacing: 0.18em; }
 
+/* Uhr als Spalten-Modul. Die Groesse steht nicht hier: ui/clock.py zeichnet
+   selbst und rechnet sie aus der zugeteilten Flaeche aus. Vererbt wird nur
+   die Farbe — get_color() der DrawingArea liest genau diesen Wert. */
+box.clock-module { color: @text; padding: 6px; }
+
+/* Notizen: Datei-Zeilen, mit dem Finger scrollbar. */
+box.notes-module { padding: 6px; }
+list.notes-list { background: transparent; }
+list.notes-list > row {
+  padding: 3px 6px;
+  border-radius: 3px;
+  /* Fingerbreit: eine 11px-Zeile ist mit der Maus zu treffen, mit dem
+     Daumen nicht. */
+  min-height: 26px;
+}
+list.notes-list > row:hover { background: @raised; }
+/* Bestaetigung, dass die Zeile in der Zwischenablage liegt — ohne Tastatur
+   ist ein Tipp sonst nicht von einem Fehlgriff zu unterscheiden. */
+list.notes-list > row.copied { background: @accent; }
+list.notes-list > row.copied label.notes-line { color: @on_accent; }
+label.notes-line {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+label.notes-hint { color: @muted; font-family: inherit; }
+
 label.weather-symbol { font-size: 22px; }
 label.weather-temp { font-size: 18px; font-weight: 900; }
 label.weather-temp-strong { color: @accent; font-weight: 900; }
