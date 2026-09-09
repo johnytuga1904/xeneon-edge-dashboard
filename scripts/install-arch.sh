@@ -288,16 +288,26 @@ if (( DO_HYPR )) && command -v hyprctl >/dev/null 2>&1; then
 -- ~/.config/xeneon-edge/settings.json, fullscreen_on_monitor). Hier stehen nur
 -- die Omarchy-Defaults, die ein 2560x720-Streifen nicht will: 0.985 Opacity
 -- auf jedem Fenster, Rahmen, Rundungen, Abdunkeln im Hintergrund.
+--
+-- no_focus: der Streifen ist ein Anzeigegeraet, kein Arbeitsplatz. Ohne die
+-- Regel wandert der Fokus mit SUPER+Pfeil dorthin, das Dashboard wird das
+-- aktive Fenster, und der naechste Fenster-Dispatcher (SUPER+SHIFT+Pfeil
+-- tauscht Fenster) zieht es auf den Hauptmonitor. Bedient wird per Touch, und
+-- Touch- wie Zeigerereignisse gehen an die Flaeche unter dem Finger statt an
+-- das Fokusfenster — die Deck-Buttons reagieren weiter.
 o.window("^(ch\\.xeneon\\.edge)$", {
   tag = "-default-opacity",
   opacity = "1 1",
   border_size = 0,
   rounding = 0,
   no_dim = true,
+  no_focus = true,
 })
 
 -- Optional: Connector hart pinnen, falls der Vollbild-Wunsch der App mal nicht
--- auf dem richtigen Monitor landet.
+-- auf dem richtigen Monitor landet, oder ein Dispatcher es doch verschiebt.
+-- Der Connector heisst auf jedem Rechner anders, deshalb nur als Beispiel —
+-- und in eine Datei, die dieses Skript nicht ueberschreibt.
 -- o.window("^(ch\\.xeneon\\.edge)$", { monitor = "DP-2" })
 
 -- Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf
@@ -336,14 +346,24 @@ LUA
 # ~/.config/xeneon-edge/settings.json, fullscreen_on_monitor). Hier stehen nur
 # die Omarchy-Defaults, die ein 2560x720-Streifen nicht will: 0.985 Opacity auf
 # jedem Fenster, Rahmen, Rundungen, Abdunkeln im Hintergrund.
+#
+# no_focus: der Streifen ist ein Anzeigegeraet, kein Arbeitsplatz. Ohne die
+# Regel wandert der Fokus mit SUPER+Pfeil dorthin, das Dashboard wird das
+# aktive Fenster, und der naechste Fenster-Dispatcher (SUPER+SHIFT+Pfeil
+# tauscht Fenster) zieht es auf den Hauptmonitor. Bedient wird per Touch, und
+# Touch- wie Zeigerereignisse gehen an die Flaeche unter dem Finger statt an
+# das Fokusfenster — die Deck-Buttons reagieren weiter.
 windowrule = tag -default-opacity, match:class ^(ch\.xeneon\.edge)$
 windowrule = opacity 1 1,          match:class ^(ch\.xeneon\.edge)$
 windowrule = border_size 0,        match:class ^(ch\.xeneon\.edge)$
 windowrule = rounding 0,           match:class ^(ch\.xeneon\.edge)$
 windowrule = no_dim on,            match:class ^(ch\.xeneon\.edge)$
+windowrule = no_focus on,          match:class ^(ch\.xeneon\.edge)$
 
 # Optional: Connector hart pinnen, falls der Vollbild-Wunsch der App mal nicht
-# auf dem richtigen Monitor landet.
+# auf dem richtigen Monitor landet, oder ein Dispatcher es doch verschiebt.
+# Der Connector heisst auf jedem Rechner anders, deshalb nur als Beispiel —
+# und in eine Datei, die dieses Skript nicht ueberschreibt.
 # windowrule = monitor DP-2, match:class ^(ch\.xeneon\.edge)$
 
 # Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf den
