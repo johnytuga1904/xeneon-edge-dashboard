@@ -257,6 +257,13 @@ register(ModuleSpec(
         Field("show_cover", "Cover anzeigen", "bool", default=True,
               help="Nur wenn das Modul gross genug ist; Titel, Kuenstler und Tasten "
                    "bleiben immer."),
+        Field("music_dir", "Musikordner", "dir", default="",
+              help="Gesetzt, spielt das Modul diesen Ordner selbst ab — ohne "
+                   "fremdes Programm. Wird mit den Unterordnern durchsucht. "
+                   "Laeuft anderswo etwas, hat das Vorrang."),
+        Field("shuffle", "Zufaellige Reihenfolge", "bool", default=False,
+              show_if=("music_dir", ()),
+              help="Mischt den Musikordner einmalig beim Start."),
     ),
 ))
 

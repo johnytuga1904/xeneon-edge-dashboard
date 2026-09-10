@@ -318,6 +318,35 @@ omarchy.media` legt dasselbe als Bar-Widget auf den Hauptmonitor
 (Linksklick Play/Pause, Mitte weiter, Scrollen vor/zurueck, Rechtsklick
 Cover-Popup).
 
+**Musikordner: das Modul spielt selbst.** Steht im Feld *Musikordner* ein
+Pfad, braucht es gar keinen fremden Player mehr. Der Ordner wird mitsamt
+Unterordnern nach Audiodateien durchsucht (`.mp3 .flac .ogg .opus .m4a .aac
+.wav .wma` und einige mehr, hoechstens 5000 Stueck), und die Play-Taste
+startet ihn. Weiter und Zurueck blaettern, am Ende der Liste hoert es auf.
+*Zufaellige Reihenfolge* mischt einmalig beim Start.
+
+Abgespielt wird ueber `Gtk.MediaFile`, also GStreamer — dieselbe Maschinerie,
+mit der GTK jedes Video abspielt. Fehlen `gst-plugins-base` und
+`gst-plugins-good`, sagt das Modul das im Klartext, statt stumm zu bleiben.
+
+Titel und Kuenstler kommen aus dem **Dateinamen** und dem Ordner darueber,
+nicht aus den Tags — bei der ueblichen Ablage `Kuenstler/Album/01 Titel.flac`
+steht damit das Richtige da. Als Cover wird eine Bilddatei im selben Ordner
+genommen (`cover`, `folder`, `front`, `album`, `albumart` als `.jpg`, `.png`
+oder `.webp`); ein in die Datei eingebettetes Bild wird *nicht* gelesen.
+
+Beide Quellen teilen sich die drei Tasten. Wer gewinnt: der eigene Player,
+solange er laeuft. Pausiert tritt er zurueck, sobald irgendwo sonst etwas
+spielt — startet man Spotify, uebernimmt Spotify die Anzeige, ohne dass der
+eigene Titel verloren geht.
+
+**Nur Ton, kein Bild.** Das Modul zeigt Cover als Standbild, mehr nicht. Ein
+YouTube-Video laeuft im Browser und bleibt dort: MPRIS liefert Metadaten,
+kein Bild, und unter Wayland laesst sich das Fenster eines fremden Programms
+nicht in den Streifen holen. Wer Bewegtbild auf dem Streifen will, nimmt ein
+**Web-Panel** mit der YouTube-Adresse (siehe unten) — das kostet dann aber
+einen eigenen WebKit-Prozess.
+
 **Video im Web-Panel.** Ein Web-Panel nimmt jede Adresse, also auch YouTube.
 Damit WebKit das Bild dekodiert, braucht es allerdings mehr als
 `gst-plugins-good`:

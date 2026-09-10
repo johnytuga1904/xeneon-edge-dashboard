@@ -3,6 +3,13 @@
 Haengt an MPRIS (siehe sensors/mpris.py) und bedient damit jeden Player, der
 sich an den Standard haelt — Spotify, YouTube im Browser, mpv, VLC.
 
+Zusaetzlich kann das Modul selbst spielen: ist in den Einstellungen ein
+Musikordner gesetzt, wird er zur Playlist (siehe ui/localplayer.py). Beide
+Quellen teilen sich dieselben drei Tasten. Wer gewinnt, entscheidet
+``_pick_source``: der eigene Player, solange er laeuft; pausiert tritt er
+zurueck, sobald sonst etwas spielt. So uebernimmt Spotify die Anzeige, ohne
+dass die eigene Wiedergabe verloren geht.
+
 Das Modul richtet sich nach seiner Groesse. Titel, Kuenstler und die Tasten
 sind immer da; Cover und Fortschrittsbalken kommen dazu, wenn Platz ist, und
 verschwinden wieder, wenn das Modul im Layout schmal oder flach gezogen wird.
@@ -18,6 +25,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gtk, Gdk, GLib, Gio  # noqa: E402
 
 from ..sensors.mpris import MprisWatcher, Track
+from .localplayer import LocalPlayer
 
 # Ein- und Ausblendschwellen (Breite x Hoehe des Moduls, in Pixeln). Zwischen
 # den Paaren liegt die Hysterese.
@@ -49,6 +57,7 @@ class MediaPlayerModule(Gtk.Box):
 
         self._show_cover = config.get("show_cover", True) is not False
         self._track = Track()
+        self._use_local = False
         self._art_cache: dict[str, Gdk.Texture] = {}
         self._art_url = ""
         self._refresh_source = 0
@@ -93,11 +102,13 @@ class MediaPlayerModule(Gtk.Box):
         right.set_valign(Gtk.Align.CENTER)
         body.append(right)
 
-        self._title = Gtk.Label(label="", xalign=0)
+        # Zentriert, nicht linksbuendig: der Streifen wird im Vorbeigehen
+        # angeschaut, und eine Mitte findet das Auge schneller als eine Kante.
+        self._title = Gtk.Label(label="", xalign=0.5)
         self._title.add_css_class("media-title")
         self._title.set_ellipsize(3)
         self._title.set_hexpand(True)
-        self._artist = Gtk.Label(label="", xalign=0)
+        self._artist = Gtk.Label(label="", xalign=0.5)
         self._artist.add_css_class("media-artist")
         self._artist.set_ellipsize(3)
         right.append(self._title)
@@ -109,7 +120,7 @@ class MediaPlayerModule(Gtk.Box):
 
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         buttons.add_css_class("media-buttons")
-        buttons.set_halign(Gtk.Align.START)
+        buttons.set_halign(Gtk.Align.CENTER)
         self._prev = self._button("media-skip-backward-symbolic", "Previous")
         self._play = self._button("media-playback-start-symbolic", "PlayPause")
         self._next = self._button("media-skip-forward-symbolic", "Next")
@@ -123,6 +134,11 @@ class MediaPlayerModule(Gtk.Box):
 
         self._watcher = MprisWatcher(str(config.get("player") or ""), self._on_change)
         self._watcher.start()
+
+        folder = str(config.get("music_dir") or "").strip()
+        self._local = LocalPlayer(folder, bool(config.get("shuffle")),
+                                  self._on_change) if folder else None
+
         self._refresh()
 
     def _button(self, icon: str, method: str) -> Gtk.Button:
@@ -150,46 +166,124 @@ class MediaPlayerModule(Gtk.Box):
         return GLib.SOURCE_REMOVE
 
     def _on_button(self, _button, method: str) -> None:
+        local = self._local
+        if self._use_local and local is not None:
+            {"PlayPause": local.play_pause,
+             "Next": local.next,
+             "Previous": local.previous}[method]()
+            return
         if not self._track.present:
+            # Nichts laeuft, aber ein Ordner ist eingestellt: Play startet ihn.
+            if local is not None and method == "PlayPause":
+                local.play_pause()
             return
         self._watcher.call(self._track.player, method)
         # Nicht auf PropertiesChanged warten: eine Taste, die erst nach einer
         # Zehntelsekunde reagiert, fuehlt sich kaputt an.
         self._on_change()
 
+    def _pick_source(self) -> bool:
+        """True = der eigene Ordner-Player liefert die Anzeige.
+
+        Laufend hat er Vorrang — er wurde ja an diesem Modul gestartet.
+        Pausiert tritt er zurueck, sobald irgendwo sonst etwas spielt, sonst
+        wuerde ein vergessener pausierter Titel Spotify verdecken.
+        """
+        local = self._local
+        if local is None or not local.active:
+            return False
+        return local.playing or not self._track.playing
+
     def _refresh(self) -> None:
         self._track = self._watcher.read()
-        track = self._track
+        self._use_local = self._pick_source()
 
-        if not track.present:
-            self._player_label.set_label("")
-            # Ist ein Player fest eingestellt, sagen, dass *der* fehlt — sonst
-            # sucht man den Fehler beim Modul statt beim nicht laufenden
-            # Programm.
-            wanted = self._watcher.preferred
-            self._title.set_label(f"{wanted.capitalize()} laeuft nicht" if wanted
-                                  else "Nichts spielt")
-            self._title.add_css_class("media-idle")
-            self._artist.set_label("")
-            self._cover.set_paintable(None)
-            self._art_url = ""
+        if self._use_local:
+            self._show_local()
+        elif self._track.present:
+            self._show_track()
         else:
-            self._title.remove_css_class("media-idle")
-            self._player_label.set_label(track.identity)
-            self._title.set_label(track.title or "—")
-            self._artist.set_label(track.artist or track.album)
-            self._load_art(track.art_url)
+            self._show_idle()
 
+        self._update_progress()
+        self._apply_visibility()
+
+    def _show_local(self) -> None:
+        local = self._local
+        assert local is not None
+        self._title.remove_css_class("media-idle")
+        self._player_label.set_label(local.label)
+        self._title.set_label(local.title or "—")
+        self._artist.set_label(local.artist)
+        self._load_art(local.art_url)
+        self._play.set_icon_name("media-playback-pause-symbolic" if local.playing
+                                 else "media-playback-start-symbolic")
+        many = local.count > 1
+        self._prev.set_sensitive(many)
+        self._next.set_sensitive(many)
+        self._play.set_sensitive(True)
+
+    def _show_track(self) -> None:
+        track = self._track
+        self._title.remove_css_class("media-idle")
+        self._player_label.set_label(track.identity)
+        self._title.set_label(track.title or "—")
+        self._artist.set_label(track.artist or track.album)
+        self._load_art(track.art_url)
         self._play.set_icon_name("media-playback-pause-symbolic" if track.playing
                                  else "media-playback-start-symbolic")
         self._prev.set_sensitive(track.can_prev)
         self._next.set_sensitive(track.can_next)
         self._play.set_sensitive(track.can_play or track.can_pause)
-        self._update_progress()
-        self._apply_visibility()
+
+    def _show_idle(self) -> None:
+        """Nichts laeuft. Mit eingestelltem Ordner ist das kein Leerlauf,
+        sondern eine Einladung: die Play-Taste startet ihn."""
+        local = self._local
+        self._title.add_css_class("media-idle")
+        self._cover.set_paintable(None)
+        self._art_url = ""
+        self._play.set_icon_name("media-playback-start-symbolic")
+        self._prev.set_sensitive(False)
+        self._next.set_sensitive(False)
+
+        if local is not None and local.count:
+            self._player_label.set_label(local.label)
+            self._title.set_label("Ordner abspielen")
+            self._artist.set_label(str(local.folder))
+            self._play.set_sensitive(True)
+            return
+
+        self._player_label.set_label("")
+        self._play.set_sensitive(False)
+        if local is not None:
+            # Ein leerer oder unlesbarer Ordner ist ein Einstellungsfehler und
+            # soll auch so aussehen, nicht wie "es laeuft halt nichts".
+            self._title.set_label("Keine Musik im Ordner" if local.available
+                                  else "Kein Media-Backend (GStreamer)")
+            self._artist.set_label(str(local.folder))
+            return
+        # Ist ein Player fest eingestellt, sagen, dass *der* fehlt — sonst
+        # sucht man den Fehler beim Modul statt beim nicht laufenden
+        # Programm.
+        wanted = self._watcher.preferred
+        self._title.set_label(f"{wanted.capitalize()} laeuft nicht" if wanted
+                              else "Nichts spielt")
+        self._artist.set_label("")
+
+    def _length_us(self) -> int:
+        if self._use_local and self._local is not None:
+            return self._local.length_us
+        return self._track.length_us
 
     def _update_progress(self) -> None:
-        self._progress.set_fraction(self._track.fraction)
+        if self._use_local and self._local is not None:
+            length = self._local.length_us
+            fraction = (max(0.0, min(1.0, self._local.position_us / length))
+                        if length > 0 else 0.0)
+        else:
+            fraction = self._track.fraction
+        self._progress.set_fraction(fraction)
 
     # ----- Cover -----
 
@@ -274,7 +368,7 @@ class MediaPlayerModule(Gtk.Box):
 
         progress = height >= (PROGRESS_OFF_H if vis["progress"] else PROGRESS_ON_H)
         # Ohne sinnvolle Dauer (Live-Stream) waere der Balken immer leer.
-        progress = progress and self._track.length_us > 0
+        progress = progress and self._length_us() > 0
 
         header = height >= (HEADER_OFF_H if vis["header"] else HEADER_ON_H)
 
@@ -289,7 +383,13 @@ class MediaPlayerModule(Gtk.Box):
                 self._cover.set_size_request(side, side)
 
     def _apply_visibility(self) -> None:
-        self._cover.set_visible(self._vis["cover"])
+        # Ob ueberhaupt ein Bild da ist, kann sich mit jedem Titel aendern —
+        # die Groessenentscheidung in _decide() faellt aber nur, wenn sich das
+        # Modul aendert. Ohne diese Pruefung bleibt nach einem Titel mit Cover
+        # ein leerer Rahmen stehen, und das trifft den Musikordner staendig:
+        # dort hat laengst nicht jedes Album ein Bild danebenliegen.
+        has_art = self._cover.get_paintable() is not None
+        self._cover.set_visible(self._vis["cover"] and has_art)
         self._progress.set_visible(self._vis["progress"])
         self._header.set_visible(self._vis["header"])
 
@@ -297,6 +397,11 @@ class MediaPlayerModule(Gtk.Box):
 
     def tick(self) -> None:
         self._check_size()
+        if self._use_local:
+            # Gtk.MediaStream kennt die Position selbst; nur zeichnen.
+            if self._local is not None and self._local.playing:
+                self._update_progress()
+            return
         # Nur die Position abfragen; alles andere meldet der Player selbst.
         if self._track.present and self._track.playing and self._track.length_us > 0:
             self._track.position_us = self._watcher.position(self._track.player)
@@ -310,4 +415,6 @@ class MediaPlayerModule(Gtk.Box):
             GLib.source_remove(self._refresh_source)
             self._refresh_source = 0
         self._watcher.stop()
+        if self._local is not None:
+            self._local.close()
         Gtk.Box.do_dispose(self)

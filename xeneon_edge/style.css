@@ -49,18 +49,22 @@ progressbar.media-progress progress {
   background-color: @accent;
   min-height: 5px;
 }
-box.media-buttons { margin-top: 4px; }
+box.media-buttons { margin-top: 6px; }
 button.media-btn {
   background-color: @raised;
   border: 1px solid @accent_dim;
   color: @text;
   border-radius: 0;
-  /* Fingergross: der Streifen wird getippt, nicht geklickt. */
-  min-width: 44px;
-  min-height: 34px;
+  /* Fingergross: der Streifen wird getippt, nicht geklickt. Deutlich groesser
+     als eine Schaltflaeche fuer die Maus — auf Armlaenge ueber der Tastatur
+     ist eine 44er Taste zu klein zum sicheren Treffen. */
+  min-width: 60px;
+  min-height: 48px;
   padding: 0;
   font-size: 15px;
 }
+/* Ohne das bleibt das symbolische Icon bei 16 px und schwimmt in der Taste. */
+button.media-btn image { -gtk-icon-size: 24px; }
 button.media-btn:hover { border-color: @accent; background-color: alpha(@accent, 0.10); }
 button.media-btn:disabled { color: @muted; border-color: @gauge_edge; }
 
