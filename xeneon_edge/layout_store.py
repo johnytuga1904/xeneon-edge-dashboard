@@ -20,7 +20,10 @@ LAYOUT_FILE = USER_CONFIG_DIR / "layout.json"
 # Version 2: die Topbar besteht aus drei Slots (links, Mitte, rechts) mit
 # Widgets wie die Spalten aus Modulen. Version 1 hatte dort nur
 # {"weather": {...}, "match": {...}} und wird beim Laden umgebaut.
-VERSION = 2
+# Version 3: TradingView ist ein eigenes Modul. Bis 2 war das Web-Panel
+# beides — leere Adresse hiess "TradingView-Widget". Beides wird beim Laden
+# umgebaut, aeltere Dateien bleiben also lesbar.
+VERSION = 3
 FLEX = "flex"
 TOPBAR_SLOTS = ("left", "center", "right")
 
@@ -32,7 +35,7 @@ _DEFAULT_PROFILE: dict[str, Any] = {
     "label": "Standard",
     "columns": [
         {"width": 460, "modules": [{"type": "sensors", "config": {}}]},
-        {"width": FLEX, "modules": [{"type": "web", "config": {}}]},
+        {"width": FLEX, "modules": [{"type": "tradingview", "config": {}}]},
         {"width": 420, "modules": [{"type": "processes", "config": {}},
                                    {"type": "audio", "config": {}}]},
         {"width": 430, "modules": [{"type": "deck", "config": {}}]},
@@ -122,6 +125,48 @@ def _validate_entries(raw: Any, where: str) -> list[dict[str, Any]]:
     return out
 
 
+def _module_from_v2(module: Any) -> Any:
+    """Ein Web-Modul der Version 2 auf das TradingView-Modul umlegen.
+
+    Bis Version 2 hiess "Web-Panel ohne Adresse" das eingebettete
+    TradingView-Widget und "Web-Panel mit tradingview.com-Adresse" der eigene
+    Chart. Ohne diesen Umbau zeigte ein bestehendes Layout nach dem Update
+    einen leeren Kasten, wo vorher der Chart stand.
+    """
+    if not isinstance(module, dict) or module.get("type") != "web":
+        return module
+    raw_config = module.get("config")
+    config = dict(raw_config) if isinstance(raw_config, dict) else {}
+    url = str(config.get("url") or "")
+    if url and "tradingview.com" not in url:
+        return module          # ein echtes Web-Panel, bleibt eines
+    config.pop("url", None)
+    if url:
+        config["mode"] = "account"
+        config["url"] = url
+    else:
+        config["mode"] = "widget"
+    return {**module, "type": "tradingview", "config": config}
+
+
+def _profiles_from_v2(raw: Any) -> Any:
+    if not isinstance(raw, dict):
+        return raw
+    out = {}
+    for name, profile in raw.items():
+        if not isinstance(profile, dict) or not isinstance(profile.get("columns"), list):
+            out[name] = profile
+            continue
+        columns = []
+        for column in profile["columns"]:
+            if isinstance(column, dict) and isinstance(column.get("modules"), list):
+                column = {**column,
+                          "modules": [_module_from_v2(m) for m in column["modules"]]}
+            columns.append(column)
+        out[name] = {**profile, "columns": columns}
+    return out
+
+
 def _topbar_from_v1(old: Any) -> dict[str, Any]:
     """Topbar der Version 1 ({"weather": {...}, "match": {...}}) umbauen.
 
@@ -195,12 +240,15 @@ def validate(data: Any) -> dict[str, Any]:
         raise LayoutError("Datei enthaelt kein Objekt")
 
     version = data.get("version", VERSION)
-    if version not in (1, VERSION):
+    if version not in (1, 2, VERSION):
         raise LayoutError(f"Version {version} wird nicht unterstuetzt (erwartet {VERSION})")
 
     raw_profiles = data.get("profiles")
     if not isinstance(raw_profiles, dict) or not raw_profiles:
         raise LayoutError("keine Profile")
+
+    if version in (1, 2):
+        raw_profiles = _profiles_from_v2(raw_profiles)
 
     profiles = {name: _validate_profile(p, name) for name, p in raw_profiles.items()}
 
@@ -259,8 +307,8 @@ def migrate_from_settings(settings: dict) -> bool:
     if chart_url:
         for column in data["profiles"]["default"]["columns"]:
             for module in column["modules"]:
-                if module["type"] == "web":
-                    module["config"]["url"] = chart_url
+                if module["type"] == "tradingview":
+                    module["config"].update({"mode": "account", "url": chart_url})
     try:
         save(data)
     except (OSError, LayoutError) as e:

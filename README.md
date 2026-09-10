@@ -10,8 +10,11 @@ Linux-Port des Windows-Desktop-Dashboards — native GTK4-Oberfläche, Sensoren 
 - Top-Prozesse (psutil) — `×` gedrückt halten beendet den Prozess (SIGTERM)
 - Audio: PipeWire-Lautstärke + Mute + Default-Device-Auswahl (`pactl` / `wpctl`)
 - Wetter (open-meteo, Wohlen CH)
-- TradingView-Chart (WebKitGTK) — wahlweise das anonyme Widget oder die
-  echte Chart-Seite mit dem eigenen Account und gespeichertem Layout
+- TradingView-Modul (WebKitGTK) — wahlweise das anonyme Widget mit
+  einstellbarem Symbol, Intervall und Indikatoren oder die echte Chart-Seite
+  mit dem eigenen Account und gespeichertem Layout
+- Wiedergabe: was gerade spielt (MPRIS), oder ein eigener Musikordner, den
+  das Dashboard selbst abspielt
 - 3×6 Launch-Deck (18 Buttons) mit frei einstellbarer Aufteilung Apps/Macros,
   Hold-to-confirm für `poweroff`/`reboot`/etc.
 - Auto-Start via `~/.config/autostart`
@@ -269,10 +272,11 @@ Rahmenlinie des Pads auf dem Streifen.
 | Prozesse | Top-Prozesse nach CPU | Anzahl Zeilen |
 | Audio | Ausgabe/Eingabe, Lautstaerke | — |
 | Launch-Deck | 3x6-Raster mit Apps und Macros | im Editor unter *Launch-Deck* |
-| Web-Panel | WebKit-View auf eine Adresse | Adresse, Login-Knopf |
+| Web-Panel | WebKit-View auf eine Adresse | Adresse |
+| TradingView | Chart-Widget oder eigener Chart | Quelle, Symbol, Intervall, Zeitzone, Indikatoren, Werkzeugleisten |
 | Uhr | Zeit gross | Darstellung, Sekunden, Zeitzonen |
 | Kalender | den laufenden Monat | Wochenstart, Kalenderwochen |
-| Wiedergabe | was gerade spielt, mit Tasten | Player, Cover an/aus |
+| Wiedergabe | was gerade spielt, mit Tasten | Player, Cover an/aus, Musikordner, Zufall |
 | Notizen | eine Datei, lesend | Datei |
 
 **Uhr.** Drei Darstellungen: *Zeit und Datum*, *Nur Zeit*, *Zeitzonen*. Die
@@ -445,23 +449,57 @@ mit Pango bei der realen Buttonbreite passt damit alles bis
 `g1_gemma-4-e4b_128k` vollständig auf den Button; vorher wurde schon
 „qwen 96k vision" gekürzt.
 
-### TradingView mit eigenem Account
+### TradingView
 
-Das Web-Panel kennt zwei Betriebsarten, umgeschaltet ueber `url` in seiner
-Modul-Config (`layout.json`, im Editor das Feld *Adresse*):
+TradingView ist ein **eigenes Modul**, getrennt vom Web-Panel. Das Web-Panel
+fragt nur nach einer Adresse; TradingView fragt, *wie* — Feld *Quelle*:
 
-| `url`                                             | Was laeuft                                     |
-|---------------------------------------------------|------------------------------------------------|
-| `""` (Default)                                    | *Advanced Chart*-Widget, anonym, BTC/USDT       |
-| `https://www.tradingview.com/chart/AbCdEf12/`     | die echte Chart-Seite mit deinem Layout         |
+| Quelle (`mode`)      | Was laeuft                                       |
+|----------------------|--------------------------------------------------|
+| `widget` (Default)   | *Advanced Chart*-Widget, anonym, konfigurierbar   |
+| `account`            | die echte Chart-Seite mit deinem gespeicherten Layout, aus `url` |
+
+Bis Layout-Version 2 war beides ein Web-Panel: leere Adresse hiess „Widget",
+eine `tradingview.com`-Adresse hiess „eigener Chart". Bestehende Layouts
+werden beim Laden umgestellt, es ist nichts von Hand zu tun.
+
+**Das Widget einstellen.** Im Editor hinter dem Aufklapper
+*Widget-Einstellungen* — bei Quelle *Eigener Chart* ist der Block gar nicht da,
+dort gilt ohnehin das Layout aus dem Account. Symbol (`BINANCE:BTCUSDT`,
+`NASDAQ:AAPL`, `SIX:NESN` …), Intervall, Zeitzone, Werkzeugleisten an/aus und
+die Indikatoren zum Anklicken:
+
+| Anzeige | Kennung |
+|---------|---------|
+| Volumen | eigene Widget-Option (`hide_volume`), zaehlt nicht ins Limit |
+| RSI | `STD;RSI` |
+| MACD | `STD;MACD` |
+| Bollinger-Baender | `STD;Bollinger_Bands` |
+| EMA / SMA | `STD;EMA`, `STD;SMA` |
+| VWAP | `STD;VWAP` |
+| Stochastic RSI | `STD;Stochastic_RSI` |
+| Ichimoku-Wolke | `STD;Ichimoku%1Cloud` |
+| Supertrend | `STD;Supertrend` |
+| RSI-Divergenz | `STD;Divergence%1Indicator` |
+
+Zwei Dinge, die man nur durch Nachmessen erfaehrt — das Widget meldet
+naemlich **keinen Fehler**, es laesst den Indikator einfach weg:
+
+- **Hoechstens fuenf Indikatoren.** Alles darueber wird stillschweigend
+  verworfen, und zwar die *letzten* der Liste. Das Modul kappt deshalb selbst
+  bei fuenf (`TV_MAX_STUDIES` in `ui/chart.py`).
+- **Die Liste ist die vollstaendige.** ATR, OBV, ADX, MFI und Awesome
+  Oscillator wurden in mehreren Schreibweisen probiert und von keiner
+  erkannt; sie stehen deshalb nicht zur Auswahl, statt einen Haken
+  anzubieten, der nichts bewirkt. Wer sie braucht, nimmt den eigenen Chart —
+  der bringt die Indikatoren aus dem Account mit.
 
 Das eingebettete Widget kann gespeicherte Layouts **nicht** laden — es ist
-account-los und nimmt nur Parameter (Symbol, Intervall, `studies`). Wer seine
-Indikatoren, Zeichnungen und Templates sehen will, muss die richtige Seite
-laden und dort angemeldet sein.
+account-los und nimmt nur die Parameter oben. Wer seine Zeichnungen und
+Templates sehen will, muss die richtige Seite laden und dort angemeldet sein.
 
-Angemeldet wird ueber den Editor: Web-Panel anklicken → **Anmelden / Chart
-waehlen**. Der Button startet dasselbe Skript auch von Hand:
+Angemeldet wird ueber den Editor: TradingView-Modul anklicken → **Anmelden /
+Chart waehlen**. Der Button startet dasselbe Skript auch von Hand:
 
 ```bash
 ./scripts/tradingview-login.py
@@ -495,12 +533,12 @@ nach jedem Neustart weg.
 
 Zu beachten:
 
-- **Kein Neustart noetig.** Der Editor wartet auf das Ende des Login-Fensters
-  und traegt die URL ins Feld *Adresse* des Web-Panels ein; nach *Speichern*
-  haengt sich das Panel im laufenden Dashboard um. Der Button *Widget*
-  daneben leert die Adresse und schaltet zurueck auf das anonyme
-  BTC/USDT-Widget. Die Adresse laesst sich auch von Hand eintippen — der
-  Editor laeuft ja auf dem Monitor mit Tastatur.
+- **Kein Neustart noetig.** Der Editor wartet auf das Ende des Login-Fensters,
+  traegt die URL ins Feld *Chart-Adresse* ein und stellt *Quelle* auf
+  „Eigener Chart"; nach *Speichern* haengt sich das Panel im laufenden
+  Dashboard um. Der Button *Zurueck zum Widget* daneben stellt die Quelle
+  wieder um und laesst die Adresse stehen. Die Adresse laesst sich auch von
+  Hand eintippen — der Editor laeuft ja auf dem Monitor mit Tastatur.
 - **Der erste Aufbau dauert.** Das Panel bleibt einige Sekunden leer, bis
   Layout und Indikatoren geladen sind — beim anonymen Widget steht der Chart
   fast sofort. Das ist kein Fehler, sondern der Preis des eigenen Layouts.
@@ -519,7 +557,7 @@ Zu beachten:
   beendet (exceeded-memory-limit)“. Dasselbe passiert nach einem Absturz des
   Web-Prozesses; vorher blieb das Panel dann bis zum Neustart leer.
 - **Die Session kann ablaufen.** Dann steht im Panel die Login-Wand statt eines
-  Charts; im Editor beim Web-Panel erneut *Anmelden / Chart waehlen*.
+  Charts; im Editor beim TradingView-Modul erneut *Anmelden / Chart waehlen*.
 - **Das Login-Fenster hat keinen Speicherdeckel.** Der Google-Login oeffnet
   ein Popup im selben Web-Prozess, zusammen lagen die beiden bei 1,6 GB —
   mit dem Deckel des Chart-Panels wurde der Prozess nach 30 s gekillt und

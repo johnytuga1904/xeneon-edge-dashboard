@@ -1,22 +1,28 @@
-"""Chart-Panel: TradingView in einer WebKitGTK-View. Faellt auf einen
-Platzhalter zurueck, wenn WebKitGTK fehlt.
+"""WebKitGTK-Views: das TradingView-Modul und das freie Web-Panel.
 
-Zwei Betriebsarten, gesteuert ueber ``chart_url`` in den Settings:
+Beide zeigen eine Seite in einer ``WebKit.WebView``; getrennt sind sie, weil
+sie verschiedene Fragen stellen. Das Web-Panel fragt nur nach einer Adresse.
+TradingView fragt, *wie*:
 
-* leer (Default) — das eingebettete *Advanced Chart*-Widget. Kein Login, kein
-  Account, Symbol und Indikatoren stehen fest im HTML unten.
-* eine URL wie ``https://www.tradingview.com/chart/AbCdEf12/`` — die echte
-  Chart-Seite mit der gespeicherten Browser-Session, also mit dem Layout aus
-  dem eigenen Account. Das Widget kann das nicht: es ist account-los und kennt
-  keine gespeicherten Layouts.
+* **Widget** — das eingebettete *Advanced Chart*. Kein Login, kein Account;
+  Symbol, Intervall, Zeitzone und Indikatoren kommen aus der Modul-Konfiguration
+  und werden unten in die Seite geschrieben.
+* **Eigener Chart** — eine URL wie ``https://www.tradingview.com/chart/AbCdEf12/``:
+  die echte Chart-Seite mit der gespeicherten Browser-Session, also mit dem
+  Layout aus dem eigenen Account. Das Widget kann das nicht, es ist account-los
+  und kennt keine gespeicherten Layouts.
 
 Fuer die zweite Variante braucht es eine *persistente* ``NetworkSession``.
 Ohne eigenes Datenverzeichnis liegt der Cookie-Jar im Speicher und der Login
 ist nach jedem Neustart weg. Angemeldet wird einmalig ueber
 ``scripts/tradingview-login.py`` — dasselbe Profil, aber in einem normalen
 Fenster auf dem Hauptmonitor, wo Tastatur und Maus sind.
+
+Ohne WebKitGTK faellt beides auf einen Platzhalter mit Installationshinweis
+zurueck.
 """
 from __future__ import annotations
+import json
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib  # noqa: E402
@@ -37,28 +43,61 @@ _HTML = """<!doctype html><html><head><meta charset='utf-8'>
 <div class="tradingview-widget-container" style="height:100%;width:100%;">
   <div class="tradingview-widget-container__widget" style="height:100%;width:100%;"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-  {
-    "symbol": "BINANCE:BTCUSDT",
-    "interval": "240",
-    "timezone": "Europe/Zurich",
-    "theme": "__MODE__",
-    "style": "1",
-    "autosize": true,
-    "locale": "en",
-    "backgroundColor": "__BG__",
-    "gridColor": "__GRID__",
-    "hide_top_toolbar": false,
-    "hide_side_toolbar": false,
-    "allow_symbol_change": true,
-    "withdateranges": true,
-    "hide_volume": true,
-    "save_image": false,
-    "calendar": false,
-    "studies": ["STD;Divergence%1Indicator"]
-  }
+  __CONFIG__
   </script>
 </div>
 </body></html>"""
+
+# Voreinstellung des Widgets, wenn das Modul nichts anderes sagt. Bis Schritt 6
+# stand das alles fest im HTML.
+TV_DEFAULTS = {
+    "symbol": "BINANCE:BTCUSDT",
+    "interval": "240",
+    "timezone": "Europe/Zurich",
+    "toolbars": True,
+    "studies": ["STD;Divergence%1Indicator"],
+}
+
+# Was das Intervall-Auswahlfeld anbietet. Die Werte sind die des Widgets:
+# Minuten als Zahl, darueber D/W/M.
+TV_INTERVALS = (
+    ("1", "1 Minute"), ("5", "5 Minuten"), ("15", "15 Minuten"),
+    ("30", "30 Minuten"), ("60", "1 Stunde"), ("240", "4 Stunden"),
+    ("D", "1 Tag"), ("W", "1 Woche"), ("M", "1 Monat"),
+)
+
+# Indikatoren zum Anklicken. Die Kennungen sind die der TradingView-Bibliothek
+# ("%1" steht fuer ein Leerzeichen); "volume" ist keine davon, sondern schaltet
+# das eingebaute Volumen unter dem Chart ein — deshalb die Sonderbehandlung in
+# widget_config().
+#
+# Jede Kennung hier ist nachgemessen: die Seite wurde in WebKit geladen und in
+# der Legende nachgesehen, was tatsaechlich erscheint. Das ist noetig, weil das
+# Widget eine unbekannte Kennung *stumm* verwirft — es gibt keine Fehlermeldung,
+# der Indikator fehlt einfach. Nicht erkannt wurden unter anderem ATR, OBV, ADX,
+# MFI und Awesome Oscillator; sie fehlen deshalb in der Liste, statt eine
+# Auswahl anzubieten, die nichts tut.
+TV_VOLUME = "volume"
+TV_STUDIES = (
+    (TV_VOLUME, "Volumen"),
+    ("STD;RSI", "RSI"),
+    ("STD;MACD", "MACD"),
+    ("STD;Bollinger_Bands", "Bollinger-Baender"),
+    ("STD;EMA", "EMA (gleitender Durchschnitt)"),
+    ("STD;SMA", "SMA (gleitender Durchschnitt)"),
+    ("STD;VWAP", "VWAP"),
+    ("STD;Stochastic_RSI", "Stochastic RSI"),
+    ("STD;Ichimoku%1Cloud", "Ichimoku-Wolke"),
+    ("STD;Supertrend", "Supertrend"),
+    ("STD;Divergence%1Indicator", "RSI-Divergenz"),
+)
+
+# Das kostenlose Widget nimmt fuenf Indikatoren an; alles darueber laesst es
+# stillschweigend weg — und zwar die *letzten* der Liste. Lieber hier kappen
+# und es im Editor dazuschreiben, als den Nutzer raten lassen, warum sein
+# sechster Haken nichts bewirkt. Volumen zaehlt nicht mit, es ist eine eigene
+# Option des Widgets.
+TV_MAX_STUDIES = 5
 
 
 def import_webkit():
@@ -87,17 +126,51 @@ def make_session(WebKit):
     return session
 
 
-def widget_html(palette: theme_mod.Palette | None) -> str:
+def widget_config(config: dict | None = None) -> dict:
+    """Die Widget-Optionen aus der Modul-Konfiguration.
+
+    Alles, was nicht gesetzt ist, faellt auf TV_DEFAULTS zurueck — ein frisch
+    hinzugefuegtes Modul zeigt damit denselben Chart wie frueher das fest
+    verdrahtete HTML.
+    """
+    cfg = config or {}
+    raw = cfg.get("studies")
+    chosen = list(raw) if isinstance(raw, list) else list(TV_DEFAULTS["studies"])
+    known = {value for value, _label in TV_STUDIES}
+    studies = [s for s in chosen if s in known and s != TV_VOLUME][:TV_MAX_STUDIES]
+    toolbars = cfg.get("toolbars", TV_DEFAULTS["toolbars"]) is not False
+    return {
+        "symbol": str(cfg.get("symbol") or TV_DEFAULTS["symbol"]),
+        "interval": str(cfg.get("interval") or TV_DEFAULTS["interval"]),
+        "timezone": str(cfg.get("timezone") or TV_DEFAULTS["timezone"]),
+        "style": "1",
+        "autosize": True,
+        "locale": "en",
+        "hide_top_toolbar": not toolbars,
+        "hide_side_toolbar": not toolbars,
+        "allow_symbol_change": True,
+        "withdateranges": True,
+        "hide_volume": TV_VOLUME not in chosen,
+        "save_image": False,
+        "calendar": False,
+        "studies": studies,
+    }
+
+
+def widget_html(palette: theme_mod.Palette | None, config: dict | None = None) -> str:
     """Das Widget-HTML in den Farben der Palette.
 
     Nur das anonyme Widget laesst sich faerben — die volle Chart-Seite bringt
     ihr eigenes Theme mit und folgt dem TradingView-Account.
     """
     p = palette or theme_mod.load(None)
-    return (_HTML.replace("__BG__", p.bg)
-                 .replace("__FG__", p.text)
-                 .replace("__GRID__", theme_mod.rgba(p.text, 0.05))
-                 .replace("__MODE__", "light" if p.is_light else "dark"))
+    options = widget_config(config)
+    options["theme"] = "light" if p.is_light else "dark"
+    options["backgroundColor"] = p.bg
+    options["gridColor"] = theme_mod.rgba(p.text, 0.05)
+    return (_HTML.replace("__CONFIG__", json.dumps(options, indent=2))
+                 .replace("__BG__", p.bg)
+                 .replace("__FG__", p.text))
 
 
 def memory_limit_mb() -> int:
@@ -168,23 +241,50 @@ def _watch_web_process(view, reload) -> None:
     view.connect("web-process-terminated", on_terminated)
 
 
-def _try_webview(chart_url: str = "",
-                 palette: theme_mod.Palette | None = None) -> Gtk.Widget | None:
+def _log_page_loads(view, what: str) -> None:
+    """Jedes Laden der Seite ins Journal schreiben.
+
+    Eine Seite, die sich von selbst neu laedt, sieht auf dem Streifen aus wie
+    ein Flackern des Dashboards — und ohne diese Zeile ist von aussen nicht zu
+    unterscheiden, ob das Dashboard neu baut oder die Seite neu laedt. Der
+    erste Aufbau schreibt eine Zeile, jede weitere ist ein Neuladen.
+    """
+    state = {"loads": 0}
+
+    def on_load(_view, event) -> None:
+        WebKit = import_webkit()
+        if WebKit is None or event != WebKit.LoadEvent.STARTED:
+            return
+        state["loads"] += 1
+        kind = "erster Aufbau" if state["loads"] == 1 else f"Neuladen #{state['loads'] - 1}"
+        print(f"[xeneon-edge] {what}: {kind}")
+
+    view.connect("load-changed", on_load)
+
+
+def _try_webview(url: str = "", html: str = "", base: str = "") -> Gtk.Widget | None:
+    """View auf ``url``, oder auf ``html`` mit ``base`` als Herkunft.
+
+    Eine Adresse bekommt die persistente Session: sonst waere jeder Login —
+    TradingView wie Webmail — nach einem Neustart des Dashboards weg. Das
+    eingebettete Widget braucht sie nicht, es meldet sich nirgends an.
+    """
     WebKit = import_webkit()
     if WebKit is None:
         return None
     try:
         context = make_context(WebKit)
-        if chart_url:
+        if url:
             view = WebKit.WebView(web_context=context,
                                   network_session=make_session(WebKit))
-            view.load_uri(chart_url)
-            _watch_web_process(view, lambda: view.load_uri(chart_url))
+            _log_page_loads(view, f"Seite {url[:60]}")
+            view.load_uri(url)
+            _watch_web_process(view, lambda: view.load_uri(url))
         else:
             view = WebKit.WebView(web_context=context)
-            html = widget_html(palette)
-            view.load_html(html, "https://tradingview.com/")
-            _watch_web_process(view, lambda: view.load_html(html, "https://tradingview.com/"))
+            _log_page_loads(view, "TradingView-Widget")
+            view.load_html(html, base)
+            _watch_web_process(view, lambda: view.load_html(html, base))
         view.set_hexpand(True); view.set_vexpand(True)
         return view
     except Exception as e:
@@ -192,28 +292,55 @@ def _try_webview(chart_url: str = "",
         return None
 
 
-def make_chart_widget(chart_url: str = "",
-                      palette: theme_mod.Palette | None = None) -> Gtk.Widget:
-    view = _try_webview(chart_url, palette)
-    if view is not None:
-        wrap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        wrap.add_css_class("panel")
-        wrap.append(view)
-        return wrap
-    # fallback placeholder
+def _wrap(view: Gtk.Widget) -> Gtk.Widget:
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    box.add_css_class("panel")
+    box.append(view)
+    return box
+
+
+def _placeholder(title: str, message: str) -> Gtk.Widget:
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
     box.add_css_class("panel")
     box.set_vexpand(True); box.set_hexpand(True)
-    title = Gtk.Label(label="BTC/USDT", xalign=0)
-    title.add_css_class("panel-label")
-    box.append(title)
-    msg = Gtk.Label(
-        label="Chart-Widget braucht WebKitGTK 6.0.\nInstalliere mit:\n\n"
-              "  Fedora: sudo dnf install webkitgtk6.0\n"
-              "  Arch:   sudo pacman -S webkitgtk-6.0\n"
-              "  Debian: sudo apt install gir1.2-webkit-6.0",
-        xalign=0)
+    label = Gtk.Label(label=title, xalign=0)
+    label.add_css_class("panel-label")
+    box.append(label)
+    msg = Gtk.Label(label=message, xalign=0)
     msg.add_css_class("muted")
     msg.set_wrap(True)
     box.append(msg)
     return box
+
+
+NO_WEBKIT = ("Braucht WebKitGTK 6.0.\nInstalliere mit:\n\n"
+             "  Fedora: sudo dnf install webkitgtk6.0\n"
+             "  Arch:   sudo pacman -S webkitgtk-6.0\n"
+             "  Debian: sudo apt install gir1.2-webkit-6.0")
+
+
+def make_tradingview_widget(config: dict | None = None,
+                            palette: theme_mod.Palette | None = None) -> Gtk.Widget:
+    """TradingView — eigener Chart aus dem Account oder eingebettetes Widget."""
+    cfg = config or {}
+    url = str(cfg.get("url") or "") if str(cfg.get("mode") or "widget") == "account" else ""
+    if url:
+        view = _try_webview(url=url)
+    else:
+        html = widget_html(palette, cfg)
+        view = _try_webview(html=html, base="https://tradingview.com/")
+    if view is not None:
+        return _wrap(view)
+    return _placeholder("TRADINGVIEW", NO_WEBKIT)
+
+
+def make_web_widget(url: str = "") -> Gtk.Widget:
+    """Freies Web-Panel: eine Adresse, sonst nichts."""
+    if not url:
+        return _placeholder(
+            "WEB-PANEL",
+            "Keine Adresse eingestellt. Im Editor das Modul anklicken und "
+            "unter \u201eAdresse\u201c eine URL eintragen — oder das "
+            "TradingView-Modul nehmen, wenn es um Charts geht.")
+    view = _try_webview(url=url)
+    return _wrap(view) if view is not None else _placeholder("WEB-PANEL", NO_WEBKIT)

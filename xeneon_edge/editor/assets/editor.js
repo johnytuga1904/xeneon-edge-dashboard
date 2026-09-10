@@ -305,8 +305,15 @@ function removeModule(ci, mi) {
 function describeConfig(mod) {
   const cfg = mod.config || {};
   if (mod.type === "web") {
-    if (!cfg.url) return "eingebettetes Widget";
+    if (!cfg.url) return "keine Adresse";
     try { return new URL(cfg.url).hostname; } catch { return cfg.url.slice(0, 30); }
+  }
+  if (mod.type === "tradingview") {
+    if ((cfg.mode || "widget") === "account") return cfg.url ? "eigener Chart" : "Login fehlt";
+    return cfg.symbol || "BINANCE:BTCUSDT";
+  }
+  if (mod.type === "media" && cfg.music_dir) {
+    return cfg.music_dir.split("/").filter(Boolean).pop() || cfg.music_dir;
   }
   if (mod.type === "sensors") {
     /* Immer zeigen, welche Sensoren drin sind — auch mit Default-Auswahl. */
@@ -880,16 +887,18 @@ function renderModuleInspector(box, title) {
       setStatus("Login-Fenster offen …", "");
       post({ action: "login" });
     });
-    const widget = el("button", "ghost", "Widget");
-    widget.title = "Zurueck auf das anonyme BTC/USDT-Widget";
+    const widget = el("button", "ghost", "Zurueck zum Widget");
+    widget.title = "Wieder das anonyme Widget zeigen; die Chart-Adresse bleibt gespeichert";
+    widget.disabled = (mod.config.mode || "widget") !== "account";
     widget.addEventListener("click", () => {
-      delete mod.config.url; markDirty(); renderColumns(); renderInspector();
+      mod.config.mode = "widget"; markDirty(); renderColumns(); renderInspector();
     });
     btns.appendChild(login); btns.appendChild(widget);
     box.appendChild(btns);
     box.appendChild(el("p", "muted",
-      "Das eingebettete Widget ist anonym und kennt keine gespeicherten Layouts. " +
-      "Die volle Seite kostet rund 1 GB; siehe Speicherdeckel in den Einstellungen."));
+      "Der Login schreibt die Adresse ins Feld oben und stellt die Quelle auf " +
+      "„Eigener Chart“. Die volle Seite kostet rund 1 GB; siehe Speicherdeckel " +
+      "in den Einstellungen. Das Widget kostet einen Bruchteil davon."));
   }
 }
 
@@ -1310,6 +1319,9 @@ window.__login_done = function (url, error) {
   if (url && mod) {
     mod.config = mod.config || {};
     mod.config.url = url;
+    // Ohne das bliebe die Quelle auf "Widget" und der frisch gewaehlte Chart
+    // waere nirgends zu sehen.
+    mod.config.mode = "account";
     markDirty();
     setStatus("Chart uebernommen — Speichern nicht vergessen", "ok");
   } else {

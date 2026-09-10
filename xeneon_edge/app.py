@@ -49,7 +49,7 @@ class XeneonEdgeApp(Adw.Application):
             return
         # Bestehende Installationen haben noch keine layout.json — aus den
         # Settings eine bauen, damit das Dashboard nach dem Update unveraendert
-        # aussieht (chart_url wandert ins Web-Modul).
+        # aussieht (chart_url wandert ins TradingView-Modul).
         layout_store.migrate_from_settings(config_store.load_settings())
 
         self._window = MainWindow(self, on_open_settings=self._open_editor,

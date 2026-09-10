@@ -21,11 +21,15 @@ from ..ui.clock import ClockModule
 from ..ui.deck import LaunchDeck
 from ..ui.mediaplayer import MediaPlayerModule
 from ..ui.notes import NotesModule
-from ..ui.chart import make_chart_widget
+from ..ui import chart as chart_mod
+from ..ui.chart import make_tradingview_widget, make_web_widget
 from ..ui import topbar
 
 
 SENSOR_METRICS = ("cpu", "gpu", "ram", "fans")
+
+# Ueberschrift des aufklappbaren Blocks im TradingView-Formular.
+WIDGET_GROUP = "Widget-Einstellungen"
 
 
 class SensorsModule(Gtk.Box):
@@ -131,28 +135,53 @@ class DeckModule(LaunchDeck):
         """Das Deck haengt nicht an Sensordaten — es wird von app.py befuellt."""
 
 
-class WebModule(Gtk.Box):
-    """WebKit-View auf eine URL.
+class _WebHolder(Gtk.Box):
+    """Gemeinsamer Unterbau von Web-Panel und TradingView.
 
-    Haelt die View in einem Halter, damit ein URL-Wechsel nur das Kind
-    tauschen muss und die Zelle im Grid stehen bleibt. Leere URL = das
-    eingebettete TradingView-Widget (der bisherige Default).
+    Haelt die View in einem Halter, damit ein Wechsel nur das Kind tauschen
+    muss und die Zelle im Grid stehen bleibt.
     """
 
     def __init__(self, config: dict):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.set_hexpand(True)
         self.set_vexpand(True)
-        self._url = str(config.get("url", "") or "")
+        self._config = dict(config)
         self._palette = config.get("_palette")
-        self.append(make_chart_widget(self._url, self._palette))
+        self.append(self._make())
+
+    def _make(self) -> Gtk.Widget:
+        raise NotImplementedError
+
+    def _rebuild(self) -> None:
+        child = self.get_first_child()
+        if child is not None:
+            self.remove(child)
+        self.append(self._make())
+
+    def update(self, snap) -> None:
+        """Webinhalt laedt sich selbst — keine Sensordaten noetig."""
+
+
+class WebModule(_WebHolder):
+    """WebKit-View auf eine frei gewaehlte Adresse."""
+
+    def _make(self) -> Gtk.Widget:
+        return make_web_widget(str(self._config.get("url", "") or ""))
 
     def set_url(self, url: str) -> None:
         url = url or ""
-        if url == self._url:
+        if url == str(self._config.get("url", "") or ""):
             return
-        self._url = url
+        self._config["url"] = url
         self._rebuild()
+
+
+class TradingViewModule(_WebHolder):
+    """TradingView: eingebettetes Widget oder der eigene Chart nach Login."""
+
+    def _make(self) -> Gtk.Widget:
+        return make_tradingview_widget(self._config, self._palette)
 
     def set_palette(self, palette) -> None:
         """Theme-Wechsel: nur das anonyme Widget wird neu gefaerbt.
@@ -161,17 +190,8 @@ class WebModule(Gtk.Box):
         wuerde nur den mehrere Sekunden langen Seitenaufbau wiederholen.
         """
         self._palette = palette
-        if not self._url:
+        if str(self._config.get("mode") or "widget") != "account":
             self._rebuild()
-
-    def _rebuild(self) -> None:
-        child = self.get_first_child()
-        if child is not None:
-            self.remove(child)
-        self.append(make_chart_widget(self._url, self._palette))
-
-    def update(self, snap) -> None:
-        """Webinhalt laedt sich selbst — keine Sensordaten noetig."""
 
 
 register(ModuleSpec(
@@ -286,8 +306,52 @@ register(ModuleSpec(
     factory=WebModule,
     schema=(
         Field("url", "Adresse", "text", default="",
-              help="Leer = eingebettetes TradingView-Widget ohne Login. "
-                   "\"Anmelden / Chart waehlen\" traegt die URL des eigenen Charts ein."),
+              help="Vollstaendige Adresse mit https://. Die Seite laeuft in einem "
+                   "eigenen WebKit-Prozess (rund 150-300 MB) und behaelt ihren "
+                   "Login ueber Neustarts hinweg."),
+    ),
+))
+
+register(ModuleSpec(
+    type_id="tradingview",
+    label="TradingView",
+    factory=TradingViewModule,
+    schema=(
+        Field("mode", "Quelle", "select", default="widget",
+              options=(("widget", "Eingebettetes Widget"),
+                       ("account", "Eigener Chart (Login)")),
+              help="Das Widget kennt keinen Account und keine gespeicherten "
+                   "Layouts; der eigene Chart kostet rund 1 GB Speicher."),
+        Field("url", "Chart-Adresse", "text", default="",
+              show_if=("mode", ("account",)),
+              help="Traegt \"Anmelden / Chart waehlen\" ein, laesst sich aber "
+                   "auch von Hand eintragen."),
+        # Die folgenden gelten nur fuers Widget: der eigene Chart bringt Symbol,
+        # Intervall und Indikatoren aus dem Account mit. Deshalb sind sie bei
+        # "Eigener Chart" ganz weg und sonst hinter einem Aufklapper — sieben
+        # Felder auf einmal waren mehr, als der erste Blick vertraegt.
+        Field("symbol", "Symbol", "text", default=chart_mod.TV_DEFAULTS["symbol"],
+              group=WIDGET_GROUP, show_if=("mode", ("widget",)),
+              help="Boerse und Kuerzel, z.B. BINANCE:BTCUSDT, NASDAQ:AAPL, SIX:NESN."),
+        Field("interval", "Intervall", "select",
+              default=chart_mod.TV_DEFAULTS["interval"],
+              options=chart_mod.TV_INTERVALS,
+              group=WIDGET_GROUP, show_if=("mode", ("widget",))),
+        Field("timezone", "Zeitzone", "text",
+              default=chart_mod.TV_DEFAULTS["timezone"],
+              group=WIDGET_GROUP, show_if=("mode", ("widget",)),
+              help="Zone wie in /usr/share/zoneinfo, z.B. Europe/Zurich, "
+                   "America/New_York."),
+        Field("studies", "Indikatoren", "list",
+              default=list(chart_mod.TV_DEFAULTS["studies"]),
+              options=chart_mod.TV_STUDIES,
+              group=WIDGET_GROUP, show_if=("mode", ("widget",)),
+              help=f"Hoechstens {chart_mod.TV_MAX_STUDIES} Stueck (Volumen zaehlt "
+                   "nicht mit) — mehr nimmt das kostenlose Widget nicht an."),
+        Field("toolbars", "Werkzeugleisten anzeigen", "bool", default=True,
+              group=WIDGET_GROUP, show_if=("mode", ("widget",)),
+              help="Symbolwahl und Zeichenwerkzeuge. Ohne Tastatur am Streifen "
+                   "oft nur im Weg."),
     ),
 ))
 
