@@ -157,20 +157,37 @@ class EditorWindow(Gtk.ApplicationWindow):
     # ----- Datei-Picker fuer Deck-Kommandos -----
 
     def _browse(self, target: str = "program") -> None:
-        """``target="file"`` waehlt eine Datei im Home (Notizen-Modul),
-        alles andere ein Programm in /usr/bin (Deck-Kommandos)."""
+        """``target="dir"`` waehlt einen Ordner im Home (Musikordner),
+        ``"file"`` eine Datei im Home (Notizen-Modul), alles andere ein
+        Programm in /usr/bin (Deck-Kommandos)."""
         dialog = Gtk.FileDialog.new()
+        home = Gio.File.new_for_path(GLib.get_home_dir())
+        if target == "dir":
+            dialog.set_title("Ordner waehlen")
+            dialog.set_initial_folder(home)
+            dialog.select_folder(self, None, self._on_folder_browsed)
+            return
         if target == "file":
             dialog.set_title("Datei waehlen")
-            dialog.set_initial_folder(Gio.File.new_for_path(GLib.get_home_dir()))
+            dialog.set_initial_folder(home)
         else:
             dialog.set_title("Programm waehlen")
             dialog.set_initial_folder(Gio.File.new_for_path("/usr/bin"))
         dialog.open(self, None, self._on_browsed)
 
     def _on_browsed(self, dialog, result) -> None:
+        self._deliver(dialog.open_finish, result)
+
+    def _on_folder_browsed(self, dialog, result) -> None:
+        self._deliver(dialog.select_folder_finish, result)
+
+    def _deliver(self, finish, result) -> None:
+        """Ergebnis eines Dateidialogs an die Seite geben.
+
+        Abbrechen wirft — und ist kein Fehler, sondern die haeufigste Antwort.
+        """
         try:
-            file = dialog.open_finish(result)
+            file = finish(result)
         except Exception:
             return
         path = file.get_path() if file is not None else None

@@ -239,6 +239,11 @@ Streifen keine Tastatur haengt, und zeigt den Streifen als Buehne in echter
 Proportion: oben die Topbar mit drei Slots, darunter die Spalten. Ein Klick
 auf ein Modul, ein Topbar-Widget oder eine Spaltenbreite zeigt rechts die
 zugehoerigen Einstellungen — das Formular kommt aus dem `schema` des Moduls.
+Es zeigt nur, was im aktuellen Modus etwas bewirkt: die Zeitzonen-Liste der Uhr
+erscheint erst bei Darstellung *Zeitzonen*, *Zufaellige Reihenfolge* erst mit
+gesetztem Musikordner, und die Widget-Optionen von TradingView verschwinden
+ganz, sobald der eigene Chart laeuft. Laengere Bloecke stehen hinter einem
+Aufklapper (`group` im Schema), zugeklappt.
 Das Launch-Deck erscheint dort als 3×6-Raster: Platz anklicken, Felder
 darunter, Plaetze per Ziehen tauschen. *Einstellungen* in der Kopfleiste
 zeigt Theme, Zielmonitor, Autostart, Hold-to-confirm, isolierte Starts und
@@ -246,9 +251,13 @@ den Speicherdeckel. *Speichern* schreibt `layout.json`, `settings.json` und
 `apps.json`; das laufende Dashboard beobachtet alle drei und uebernimmt die
 Aenderung sofort. Module, deren Typ und Config gleich bleiben, werden dabei
 wiederverwendet — der Chart laedt nicht neu, nur weil eine Spalte breiter
-wurde. Liegen mehrere Module in einer Spalte, laesst sich die Kante zwischen
-ihnen ziehen (`height` in Prozent am Modul); die Prozessliste zeigt dann so
-viele Zeilen, wie in ihre Hoehe passen. Jedes Deck-Pad hat eine eigene Farbe
+wurde. Beim Ziehen einer Spaltenkante rastet die Breite in **10-px-Schritten**
+— der Streifen ist im Editor gut vier Mal kleiner gezeichnet, ein
+Bildschirmpixel waeren also mehrere echte, und runde Zahlen kamen nur mit
+Glueck heraus; das Zahlenfeld im Inspektor nimmt weiterhin jeden Wert. Liegen
+mehrere Module in einer Spalte, laesst sich die Kante zwischen ihnen ziehen
+(`height` in Prozent am Modul); die Prozessliste zeigt dann so viele Zeilen,
+wie in ihre Hoehe passen. Jedes Deck-Pad hat eine eigene Farbe
 (`accent` in `apps.json`, Farbpunkt auf dem Pad im Editor): die untere
 Rahmenlinie des Pads auf dem Streifen.
 

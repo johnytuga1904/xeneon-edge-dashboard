@@ -227,8 +227,9 @@ register(ModuleSpec(
         Field("seconds", "Sekunden anzeigen", "bool", default=False),
         Field("zones", "Zeitzonen", "text",
               default="London=Europe/London, New York=America/New_York, Tokyo=Asia/Tokyo",
-              help="Nur fuer \"Zeitzonen\". Form: Name=Zone, getrennt durch Komma. "
-                   "Zonen wie in /usr/share/zoneinfo, z.B. Europe/Zurich."),
+              show_if=("mode", ("zones",)),
+              help="Form: Name=Zone, getrennt durch Komma. Zonen wie in "
+                   "/usr/share/zoneinfo, z.B. Europe/Zurich."),
     ),
 ))
 

@@ -433,6 +433,31 @@ main { flex: 1; display: flex; min-height: 0; }
 .with-btn { display: flex; gap: 6px; }
 .with-btn input { flex: 1; min-width: 0; }
 
+/* Aufklappbarer Block fuer Felder, die nur in einem Modus zaehlen. Ein
+   <details> statt eines eigenen Umschalters: es merkt sich seinen Zustand
+   selbst und laesst sich mit der Tastatur bedienen. */
+.group { border: 1px solid var(--edge); background: var(--raised); }
+.group > summary {
+  padding: 7px 9px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--label);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+.group > summary::-webkit-details-marker { display: none; }
+/* Eigenes Dreieck, damit es links steht und die Farbe des Textes hat. */
+.group > summary::before { content: "\25B8 "; color: var(--muted); }
+.group[open] > summary::before { content: "\25BE "; }
+.group > summary:hover { color: var(--text); }
+.group[open] > summary { border-bottom: 1px solid var(--edge); }
+.group > .field { padding: 0 9px; }
+.group > .field:first-of-type { padding-top: 9px; }
+.group > .field:last-of-type { padding-bottom: 9px; }
+.group > .field + .field { padding-top: 9px; }
+
 /* Deck: Abbild des 3x6-Rasters */
 .deck {
   display: grid;

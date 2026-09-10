@@ -29,8 +29,20 @@ from gi.repository import Gtk  # noqa: E402
 class Field:
     """Ein Einstellungsfeld eines Moduls — Bauplan fuer das Editor-Formular.
 
-    ``kind``: "text" | "int" | "float" | "bool" | "list" | "select".
+    ``kind``: "text" | "int" | "float" | "bool" | "list" | "select" |
+    "path" (Datei-Picker) | "dir" (Ordner-Picker).
     ``options`` (fuer list/select): (wert, anzeige)-Paare.
+
+    ``group``: Ueberschrift eines aufklappbaren Blocks. Aufeinanderfolgende
+    Felder mit derselben Gruppe landen zusammen darin, zugeklappt. Fuer
+    Module, deren Formular sonst laenger ist, als der erste Blick vertraegt.
+
+    ``show_if``: ``(schluessel, erlaubte_werte)`` — das Feld erscheint nur,
+    wenn das Feld ``schluessel`` desselben Formulars einen dieser Werte hat.
+    Eine leere Werteliste heisst "irgendein nicht-leerer Wert". So bleibt aus
+    dem Formular draussen, was im aktuellen Modus ohnehin nichts tut: die
+    Zeitzonen-Liste der Uhr, wenn sie gar keine Zonen zeigt, oder die
+    Widget-Optionen von TradingView, wenn der eigene Chart laeuft.
     """
 
     key: str
@@ -41,6 +53,8 @@ class Field:
     options: tuple[tuple[str, str], ...] = ()
     min: float | None = None
     max: float | None = None
+    group: str = ""
+    show_if: tuple[str, tuple[Any, ...]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,6 +62,9 @@ class Field:
             "default": self.default, "help": self.help,
             "options": [list(o) for o in self.options],
             "min": self.min, "max": self.max,
+            "group": self.group,
+            "show_if": ([self.show_if[0], list(self.show_if[1])]
+                        if self.show_if else None),
         }
 
 

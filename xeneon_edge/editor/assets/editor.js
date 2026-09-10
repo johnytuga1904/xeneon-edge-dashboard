@@ -322,22 +322,42 @@ function describeConfig(mod) {
 
 /* ---------- Hoehenanteile gestapelter Module ---------- */
 
-/* Prozentanteile der Module einer Spalte; ohne Angaben gleich verteilt. */
+/* Prozentanteile der Module einer Spalte; ohne Angaben gleich verteilt.
+ *
+ * Der Ersatzwert fuer ein Modul ohne eigenen Anteil muss *vor* dem Normieren
+ * in die Summe: sonst wird durch eine zu kleine Summe geteilt. Ein Modul mit
+ * height 25 neben einem ohne ergab so 200 und -100 — und layout_store lehnte
+ * das Layout beim Speichern ab ("height 200 liegt nicht in 5..95"). Genau das
+ * passiert beim Verschieben eines Moduls in eine Spalte, deren Module noch
+ * keine Anteile haben. */
 function heights(col) {
   const n = col.modules.length;
   if (!n) return [];
-  const raw = col.modules.map((m) => Number(m.height) || 0);
-  if (!raw.some((h) => h > 0)) return raw.map(() => 100 / n);
+  const even = 100 / n;
+  const raw = col.modules.map((m) => {
+    const h = Number(m.height);
+    return Number.isFinite(h) && h > 0 ? h : even;
+  });
   const sum = raw.reduce((a, b) => a + b, 0) || 1;
-  return raw.map((h) => (h > 0 ? h : 100 / n) * 100 / sum);
+  return raw.map((h) => h * 100 / sum);
 }
 
-/* Beim Speichern: Anteile als ganze Prozent, Summe 100; Einzelmodule ohne. */
+/* Was layout_store durchlaesst. */
+const clampPct = (h) => Math.max(5, Math.min(95, Math.round(h)));
+
+/* Beim Speichern: Anteile als ganze Prozent, Summe 100; Einzelmodule ohne.
+ * Der Rundungsrest wandert von hinten nach vorn zum ersten Modul, bei dem er
+ * noch in 5..95 passt — ihn stur dem letzten aufzuschlagen konnte es aus dem
+ * erlaubten Bereich schieben. */
 function normaliseHeights(col) {
   if (col.modules.length < 2) { col.modules.forEach((m) => delete m.height); return; }
-  const hs = heights(col).map((h) => Math.max(5, Math.round(h)));
-  const diff = 100 - hs.reduce((a, b) => a + b, 0);
-  hs[hs.length - 1] += diff;
+  const hs = heights(col).map(clampPct);
+  let rest = 100 - hs.reduce((a, b) => a + b, 0);
+  for (let i = hs.length - 1; i >= 0 && rest !== 0; i--) {
+    const next = clampPct(hs[i] + rest);
+    rest -= next - hs[i];
+    hs[i] = next;
+  }
   col.modules.forEach((m, i) => { m.height = hs[i]; });
 }
 
@@ -384,6 +404,14 @@ function setFlexColumn(ci) {
 
 /* ---------- Ziehen: Spaltenbreite ---------- */
 
+/* Beim Ziehen rastet die Breite in 10-px-Schritten. Pixelgenau war beim
+ * Ziehen unbrauchbar: eine Spalte auf einem 2560er Streifen ist im Editor
+ * gut vier Mal kleiner gezeichnet, ein Bildschirmpixel also mehrere echte —
+ * runde Zahlen kamen nur mit Glueck heraus. Ueber das Zahlenfeld im
+ * Inspektor bleibt jeder Wert eingebbar. */
+const SNAP_PX = 10;
+const snapPx = (v) => Math.round(v / SNAP_PX) * SNAP_PX;
+
 function startResize(ev, leftIndex) {
   ev.preventDefault();
   const host = $("columns");
@@ -405,15 +433,18 @@ function startResize(ev, leftIndex) {
   function onMove(e) {
     const delta = Math.round((e.clientX - startX) * pxPerScreenPx);
     if (left.width !== FLEX && right.width !== FLEX) {
-      const l = startLeft + delta, r = startRight - delta;
+      /* Beide fest: die Breite wandert nur von einer zur anderen, die Summe
+       * bleibt — sonst ruecken alle uebrigen Spalten mit. Deshalb rastet die
+       * linke, und die rechte ergibt sich daraus. */
+      const l = snapPx(startLeft + delta), r = startLeft + startRight - l;
       if (l < 80 || r < 80) return;
       left.width = l; right.width = r;
     } else if (left.width !== FLEX) {
-      const l = startLeft + delta;
+      const l = snapPx(startLeft + delta);
       if (l < 80 || STAGE.width - (fixedTotal() - left.width + l) < 80) return;
       left.width = l;
     } else {
-      const r = startRight - delta;
+      const r = snapPx(startRight - delta);
       if (r < 80 || STAGE.width - (fixedTotal() - right.width + r) < 80) return;
       right.width = r;
     }
@@ -578,12 +609,72 @@ function select(ci, mi) {
 
 /* ---------- Formulare aus dem Schema ---------- */
 
+/* Welche Gruppen aufgeklappt sind. Ausserhalb von renderForm, damit ein neu
+ * gezeichneter Inspektor nicht alles wieder zuklappt. */
+const openGroups = new Set();
+
+/* Wert eines Feldes, wie ihn das Formular sieht: das Gespeicherte, sonst der
+ * Default aus dem Schema. Ohne den Default waere ein Feld mit
+ * show_if ("mode" = "widget") unsichtbar, solange niemand die Auswahl
+ * einmal angefasst hat — der Default ist ja gerade "widget". */
+function effectiveValue(schema, values, key) {
+  if (values[key] !== undefined && values[key] !== null) return values[key];
+  const field = schema.find((f) => f.key === key);
+  return field ? field.default : undefined;
+}
+
+/* Erfuellt das Feld seine show_if-Bedingung? Leere Werteliste heisst
+ * "irgendein nicht-leerer Wert". */
+function fieldVisible(f, schema, values) {
+  if (!f.show_if) return true;
+  const [key, allowed] = f.show_if;
+  const value = effectiveValue(schema, values, key);
+  if (!allowed || !allowed.length) {
+    return Array.isArray(value) ? value.length > 0
+                                : value !== undefined && value !== null && value !== "";
+  }
+  return allowed.some((v) => String(v) === String(value));
+}
+
+/* Schluessel, von denen die Sichtbarkeit anderer Felder abhaengt — aendert
+ * sich so einer, muss der Inspektor neu gezeichnet werden. */
+function visibilityKeys(schema) {
+  return new Set(schema.filter((f) => f.show_if).map((f) => f.show_if[0]));
+}
+
 /* Ein Formular fuer eine Feldliste. onChange(key, value) wird bei jeder
  * Aenderung gerufen; das Formular selbst wird dabei nicht neu gebaut, sonst
- * fiele der Fokus aus dem Feld. */
+ * fiele der Fokus aus dem Feld. Felder mit `group` landen in einem
+ * aufklappbaren Block, Felder mit unerfuellter `show_if` gar nicht. */
 function renderForm(schema, values, onChange) {
   const form = el("div", "form");
+  /* Ziel des naechsten Feldes: das Formular selbst, oder der Inhalt der
+   * gerade offenen Gruppe. */
+  let target = form;
+  let group = "";
+
   for (const f of schema) {
+    if (!fieldVisible(f, schema, values)) continue;
+
+    const wanted = f.group || "";
+    if (wanted !== group) {
+      group = wanted;
+      target = form;
+      if (wanted) {
+        const count = schema.filter((g) => (g.group || "") === wanted
+                                           && fieldVisible(g, schema, values)).length;
+        const box = el("details", "group");
+        box.open = openGroups.has(wanted);
+        const head = el("summary", null, `${wanted} (${count})`);
+        box.appendChild(head);
+        box.addEventListener("toggle", () => {
+          if (box.open) openGroups.add(wanted); else openGroups.delete(wanted);
+        });
+        form.appendChild(box);
+        target = box;
+      }
+    }
+
     const field = el("div", "field");
     const label = el("label", null, f.label);
     const current = values[f.key] !== undefined && values[f.key] !== null ? values[f.key] : f.default;
@@ -646,17 +737,17 @@ function renderForm(schema, values, onChange) {
         if ((f.kind === "int" || f.kind === "float") && v !== null && !Number.isFinite(v)) return;
         onChange(f.key, v);
       });
-      if (f.kind === "path") {
+      if (f.kind === "path" || f.kind === "dir") {
         /* Tippen geht auch — der Editor laeuft am Rechner mit Tastatur —,
          * aber einen Pfad abzutippen ist fehlertraechtig. Derselbe Knopf und
          * dieselbe Verdrahtung wie beim Deck-Kommando, nur oeffnet der Picker
          * im Home statt in /usr/bin. */
         const wrap = el("div", "with-btn");
         const browse = el("button", "ghost", "…");
-        browse.title = "Datei waehlen";
+        browse.title = f.kind === "dir" ? "Ordner waehlen" : "Datei waehlen";
         browse.addEventListener("click", () => {
           pendingBrowse = input;
-          post({ action: "browse", target: "file" });
+          post({ action: "browse", target: f.kind === "dir" ? "dir" : "file" });
         });
         wrap.appendChild(input);
         wrap.appendChild(browse);
@@ -666,7 +757,7 @@ function renderForm(schema, values, onChange) {
       }
     }
     if (f.help) field.appendChild(el("div", "help", f.help));
-    form.appendChild(field);
+    target.appendChild(field);
   }
   return form;
 }
@@ -743,9 +834,11 @@ function renderTopbarInspector(box, title) {
   title.textContent = `Topbar · ${topbarLabelFor(w.type)}`;
   w.config = w.config || {};
   if (spec && spec.schema.length) {
+    const gates = visibilityKeys(spec.schema);
     box.appendChild(renderForm(spec.schema, w.config, (key, value) => {
       if (value === null || value === "") delete w.config[key]; else w.config[key] = value;
       markDirty();
+      if (gates.has(key)) renderInspector();
     }));
   } else {
     box.appendChild(el("p", "muted", "Dieses Widget hat keine Einstellungen."));
@@ -763,16 +856,21 @@ function renderModuleInspector(box, title) {
   if (mod.type === "deck") return renderDeckEditor(box);
 
   if (spec && spec.schema.length) {
+    const gates = visibilityKeys(spec.schema);
     box.appendChild(renderForm(spec.schema, mod.config, (key, value) => {
       if (value === null || value === "") delete mod.config[key]; else mod.config[key] = value;
       markDirty();
       renderColumns();
+      // Haengt die Sichtbarkeit anderer Felder an diesem, muss das Formular
+      // neu gebaut werden — sonst bleiben Felder stehen, die im neuen Modus
+      // nichts mehr tun.
+      if (gates.has(key)) renderInspector();
     }));
   } else {
     box.appendChild(el("p", "muted", "Dieses Modul hat keine Einstellungen."));
   }
 
-  if (mod.type === "web") {
+  if (mod.type === "tradingview") {
     const btns = el("div", "row-btns");
     const login = el("button", "ghost", "Anmelden / Chart waehlen…");
     login.title = "Oeffnet ein Browser-Fenster: dort anmelden, Chart oeffnen, „Als Chart uebernehmen“";
