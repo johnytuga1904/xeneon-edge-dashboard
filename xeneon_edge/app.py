@@ -13,7 +13,7 @@ from . import theme as theme_mod
 from .sensors import Aggregator
 from .ui.window import MainWindow
 from .ui.monitors import find_target_monitor, describe
-from . import config_store, layout_store
+from . import config_store, launcher, layout_store
 
 # Der Omarchy-Symlink wird beim Theme-Wechsel mehrfach angefasst — buendeln.
 _THEME_RELOAD_DELAY_MS = 300
@@ -142,7 +142,8 @@ class XeneonEdgeApp(Adw.Application):
         if new.get("theme") != old.get("theme"):
             self.apply_theme(new.get("theme"))
         if any(new.get(k) != old.get(k)
-               for k in ("deck_app_slots", "hold_to_confirm", "isolate_launches")):
+               for k in ("deck_app_slots", "hold_to_confirm", "isolate_launches",
+                         "launch_monitor")):
             self._refresh_deck()
         if any(new.get(k) != old.get(k) for k in ("target_monitor", "fullscreen_on_target")):
             self._target_monitor()
@@ -247,6 +248,7 @@ class XeneonEdgeApp(Adw.Application):
             hold_to_confirm=settings.get("hold_to_confirm", True),
             isolate=settings.get("isolate_launches", True),
             app_slots=app_slots,
+            monitor=str(settings.get("launch_monitor", "") or ""),
         )
 
     def _open_editor(self) -> None:
@@ -263,6 +265,11 @@ class XeneonEdgeApp(Adw.Application):
         if not script.exists():
             print(f"[xeneon-edge] Editor fehlt: {script}")
             return
+        # Wie beim Deck: erst den Zielmonitor fokussieren, sonst geht der
+        # Editor dort auf, wo zuletzt der Fokus lag — im schlimmsten Fall auf
+        # dem Streifen, wo keine Tastatur haengt.
+        launcher.focus_monitor(
+            str(config_store.load_settings().get("launch_monitor", "") or ""))
         argv = [sys.executable, str(script)]
         if shutil.which("systemd-run"):
             argv = ["systemd-run", "--user", "--scope", "--quiet", "--collect",

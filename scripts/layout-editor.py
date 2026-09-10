@@ -220,7 +220,8 @@ def main() -> int:
 
         win = EditorWindow(a, WebKit, page)
         win.present()
-        monitors.move_off_dashboard(win, preferred)
+        monitors.move_off_dashboard(
+            win, preferred, str(settings.get("launch_monitor", "") or ""))
 
     app.connect("activate", on_activate)
     return app.run([])

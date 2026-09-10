@@ -1,10 +1,11 @@
 """Main window: topbar + column grid, both built from layout.json."""
 from __future__ import annotations
 import json
+import os
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw, GLib  # noqa: E402
+from gi.repository import Gtk, Gdk, Adw, GLib  # noqa: E402
 
 from .layout import FixedWidth, WeightedColumn
 from .topbar import ActionsWidget
@@ -42,6 +43,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._palette = palette
         self.set_default_size(1480, 900)
         self.set_title("Xeneon Edge Dashboard")
+        if os.environ.get("XENEON_DEBUG_INPUT"):
+            self._install_input_debug()
 
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         outer.set_margin_top(6); outer.set_margin_bottom(6)
@@ -243,12 +246,62 @@ class MainWindow(Adw.ApplicationWindow):
 
     def populate_deck(self, apps: list[dict], macros: list[dict], *,
                       hold_to_confirm: bool, isolate: bool = True,
-                      app_slots: int = 9) -> None:
+                      app_slots: int = 9, monitor: str = "") -> None:
         deck = self.find_module("deck")
         if deck is None:
             return
         deck.populate(apps, macros, hold_to_confirm=hold_to_confirm,
-                      isolate=isolate, app_slots=app_slots)
+                      isolate=isolate, app_slots=app_slots, monitor=monitor)
+
+    def _install_input_debug(self) -> None:
+        """Jeden Druck mitschreiben: Koordinate und getroffenes Widget.
+
+        Nur mit XENEON_DEBUG_INPUT=1. Der Streifen laeuft ohne Tastatur und
+        ohne sichtbaren Zeiger — wenn eine Taste "nicht geht", ist die erste
+        Frage, ob das Ereignis ueberhaupt ankommt und wo. Der Controller
+        haengt in der CAPTURE-Phase am Fenster, sieht also alles, bevor es ein
+        Kind verarbeitet, und verbraucht nichts.
+        """
+        controller = Gtk.EventControllerLegacy()
+        controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        interesting = {
+            Gdk.EventType.BUTTON_PRESS, Gdk.EventType.BUTTON_RELEASE,
+            Gdk.EventType.TOUCH_BEGIN, Gdk.EventType.TOUCH_END,
+            Gdk.EventType.ENTER_NOTIFY,
+        }
+
+        def on_event(controller, event=None) -> bool:
+            # Nichts hier darf das Ereignis aufhalten: eine Ausnahme im
+            # Handler wuerde als "verarbeitet" durchgehen koennen und die
+            # Eingabe im ganzen Fenster verschlucken. Deshalb alles in try.
+            try:
+                if event is None:
+                    event = controller.get_current_event()
+                if event is None:
+                    return False
+                kind = event.get_event_type()
+                if kind not in interesting:
+                    return False
+                ok, x, y = event.get_position()
+                target = self.pick(x, y, Gtk.PickFlags.DEFAULT) if ok else None
+                name = type(target).__name__ if target is not None else "—"
+                extra = ""
+                if isinstance(target, Gtk.Label):
+                    extra = f" text={target.get_label()!r}"
+                button = target.get_ancestor(Gtk.Button) if target is not None else None
+                source = event.get_device()
+                print(f"[input] {kind.value_nick} bei ({x:.0f},{y:.0f}) "
+                      f"Fenster {self.get_width()}x{self.get_height()} "
+                      f"-> {name}{extra} "
+                      f"button={type(button).__name__ if button else None} "
+                      f"geraet={source.get_name() if source else '?'}", flush=True)
+            except Exception as e:                       # pragma: no cover
+                print(f"[input] Mitschnitt-Fehler: {e}", flush=True)
+            return False
+
+        controller.connect("event", on_event)
+        self.add_controller(controller)
+        print("[input] Mitschnitt aktiv (XENEON_DEBUG_INPUT)", flush=True)
 
     def apply_palette(self, palette) -> None:
         """Theme-Wechsel zur Laufzeit: Widgets, die Farben selbst rendern, informieren."""

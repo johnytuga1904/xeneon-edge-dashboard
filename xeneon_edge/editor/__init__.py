@@ -26,8 +26,9 @@ FALLBACK_STAGE = {"width": 2560, "height": 720, "connector": ""}
 # Was die Seite an settings.json aendern darf. Alles andere (chart_url, das
 # der Login schreibt) bleibt, wie es ist.
 SETTINGS_KEYS = (
-    "theme", "target_monitor", "fullscreen_on_target", "auto_start",
-    "hold_to_confirm", "isolate_launches", "deck_app_slots", "web_memory_limit_mb",
+    "theme", "target_monitor", "launch_monitor", "fullscreen_on_target",
+    "auto_start", "hold_to_confirm", "isolate_launches", "deck_app_slots",
+    "web_memory_limit_mb",
 )
 
 # Formular fuer die globalen Einstellungen — dieselbe Feldbeschreibung wie bei
@@ -38,6 +39,11 @@ SETTINGS_SCHEMA = (
     modules.Field("target_monitor", "Zielmonitor", "select", default="",
                   help="Leer = einen 2560x720-Monitor automatisch suchen"),
     modules.Field("fullscreen_on_target", "Vollbild auf dem Zielmonitor", "bool", default=True),
+    modules.Field("launch_monitor", "Monitor fuer gestartete Fenster", "select", default="",
+                  help="Wohin alles geht, was das Dashboard oeffnet: Deck-Eintraege, "
+                       "dieser Editor, das TradingView-Login. Leer = der Compositor "
+                       "entscheidet, in der Praxis der zuletzt fokussierte Monitor — "
+                       "auch der Streifen selbst, wo keine Tastatur haengt."),
     modules.Field("auto_start", "Mit der Sitzung starten", "bool", default=False,
                   help="Schreibt ~/.config/autostart/xeneon-edge.desktop"),
     modules.Field("hold_to_confirm", "Gefaehrliche Macros gedrueckt halten", "bool", default=True,
@@ -71,6 +77,9 @@ def payload(stage: dict | None = None, palette: theme.Palette | None = None,
             d["options"] = [list(t) for t in theme.available()]
         elif f.key == "target_monitor":
             d["options"] = [["", "automatisch (2560x720 suchen)"]] + \
+                           [[c, label] for c, label in (monitors or [])]
+        elif f.key == "launch_monitor":
+            d["options"] = [["", "Compositor entscheidet"]] + \
                            [[c, label] for c, label in (monitors or [])]
         schema.append(d)
     return {

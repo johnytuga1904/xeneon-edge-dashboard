@@ -161,6 +161,89 @@ Rundungen, Abdunkeln im Hintergrund. Auf den Zielmonitor legt sich das
 Dashboard selbst (`target_monitor` + `fullscreen_on_monitor`) — die
 `monitor`-Regel steht auskommentiert daneben, falls das mal nicht greift.
 
+### Wohin gestartete Fenster gehen
+
+Einstellung *Monitor fuer gestartete Fenster* (`launch_monitor`), im Editor
+unter *Einstellungen*. Sie gilt fuer alles, was das Dashboard oeffnet: die
+Deck-Eintraege, den Editor selbst und das TradingView-Login.
+
+Ohne sie entscheidet der Compositor, und das heisst in der Praxis: der zuletzt
+fokussierte Monitor. Wird das Dashboard per Finger bedient, ist das mitunter
+der Streifen selbst — dort liegt das Dashboard im Vollbild davor und es haengt
+keine Tastatur, das Fenster ist also gestartet, aber unerreichbar.
+
+Technisch wird vor dem Start der Zielmonitor fokussiert (neue Fenster gehen auf
+dem fokussierten Ausgang auf). Es gibt dafuer zwei `hyprctl`-Schreibweisen, und
+das Dashboard probiert beide durch:
+
+| Konfiguration | Aufruf |
+|---------------|--------|
+| klassisch | `hyprctl dispatch focusmonitor DP-4` |
+| Lua (Omarchy) | `hyprctl dispatch 'hl.dsp.focus({ monitor = "DP-4" })'` |
+
+Der klassische Aufruf scheitert unter Omarchy, weil dort ein Lua-Parser die
+Argumente liest und `DP-4` als Rechnung „DP minus 4" versteht
+(`')' expected near 'DP'`). Welche Form geht, entscheidet der erste Aufruf.
+Laeuft kein Hyprland, bleibt es beim Standardverhalten — die Einstellung ist
+best effort und haelt einen Start nie auf.
+
+### Touchscreen dem Streifen zuordnen
+
+**Der haeufigste Grund dafuer, dass "keine Taste im Dashboard reagiert".**
+
+Ein Touchscreen ohne Ausgangszuordnung wird von Hyprland auf die *Gesamt*flaeche
+aller Monitore abgebildet, nicht auf den eigenen. Bei drei Monitoren
+(5120 x 2160 gesamt) landet ein Tipp auf den Streifen dann proportional
+umgerechnet irgendwo auf dem Hauptmonitor: Workspaces wechseln, Text wird
+kopiert, fremde Fenster bekommen Klicks — und das Dashboard bekommt *gar kein*
+Ereignis. Es sieht aus wie ein kaputtes Dashboard und ist eine Eingabe, die nie
+ankommt.
+
+Pruefen:
+
+```bash
+hyprctl getoption input:touchdevice:output   # "[[Auto]]" = nicht zugeordnet
+hyprctl devices | sed -n '/Touch Device/,/^$/p'
+hyprctl monitors -j | jq -r '.[] | "\(.name) \(.width)x\(.height)"'
+```
+
+Zuordnen — Lua-Konfiguration (Omarchy), in `~/.config/hypr/input.lua`:
+
+```lua
+hl.device({ name = "wch.cn-touchscreen-1", output = "DP-5" })
+hl.device({ name = "wch.cn-touchscreen",   output = "DP-5" })
+```
+
+Klassische Konfiguration:
+
+```
+device {
+    name = wch.cn-touchscreen-1
+    output = DP-5
+}
+```
+
+Geraetenamen kommen aus `hyprctl devices`, der Connector aus `hyprctl monitors`
+— beides ist von Rechner zu Rechner verschieden. Zwei Regeln, weil dieselbe
+Platte oft zwei Geraete meldet: den Touchscreen und einen absoluten Zeiger
+dazu. Zum Testen ohne Reload:
+
+```bash
+hyprctl dispatch 'hl.device({ name = "wch.cn-touchscreen-1", output = "DP-5" })'
+```
+
+Kommt eine Beruehrung an, laesst sich das ohne Raten nachsehen — das Dashboard
+schreibt mit `XENEON_DEBUG_INPUT=1` jeden Druck mit Koordinate und getroffenem
+Widget ins Journal:
+
+```bash
+XENEON_DEBUG_INPUT=1 ./run.sh
+# [input] touch-begin bei (2215,142) Fenster 2560x720 -> Label 'Terminal' button=DeckButton
+```
+
+Steht dort nichts, kommt die Beruehrung nicht an und die Ursache liegt im
+Compositor, nicht im Dashboard.
+
 ### Deck-Vorlage
 
 Die mitgelieferte `config/apps.json` ist KDE-lastig (`konsole`, `dolphin`,
@@ -380,13 +463,14 @@ Die Dateien:
 - `config/apps.json` — Default-Apps und -Macros (im Repo, dient als Vorlage)
 - `~/.config/xeneon-edge/apps.json` — User-Override (der Editor schreibt hierhin)
 - `~/.config/xeneon-edge/settings.json` — `auto_start`, `hold_to_confirm`,
-  `isolate_launches`, `deck_app_slots`, `target_monitor`, `fullscreen_on_target`,
-  `chart_url`, `theme`, `web_memory_limit_mb`
-- `~/.config/xeneon-edge/layout.json` — Version 2: Profile mit `topbar`
+  `isolate_launches`, `deck_app_slots`, `target_monitor`, `launch_monitor`,
+  `fullscreen_on_target`, `chart_url`, `theme`, `web_memory_limit_mb`
+- `~/.config/xeneon-edge/layout.json` — Version 3: Profile mit `topbar`
   (Slots `left`/`center`/`right`, je eine Liste `{type, config}`) und
   `columns` (Breite + Module). Topbar-Widgets: `brand`, `status`, `net`,
   `clock`, `weather` (`lat`, `lon`, `label`), `match` (`league`, `team`,
-  `short` — ESPN-Codes). Eine Version-1-Datei wird beim Laden umgebaut.
+  `short` — ESPN-Codes). Dateien der Versionen 1 und 2 werden beim Laden
+  umgebaut: 1 → Topbar-Slots, 2 → TradingView als eigenes Modul.
   Was kein sichtbares Modul braucht, liest der Aggregator auch nicht: ohne
   Prozess-Modul kein psutil-Durchlauf, ohne Wetter-Widget kein Open-Meteo.
 

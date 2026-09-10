@@ -25,6 +25,7 @@ Abschalten global ueber Settings (``isolate_launches``) oder pro Eintrag mit
 Kind des Dashboards bleiben muss.
 """
 from __future__ import annotations
+import os
 import re
 import shlex
 import shutil
@@ -87,11 +88,66 @@ def _use_systemd(entry: dict, isolate: bool) -> bool:
     return isolate and shutil.which("systemd-run") is not None
 
 
-def launch(entry: dict, *, isolate: bool = True, slot: int | None = None) -> None:
+# Welche der beiden hyprctl-Schreibweisen dieser Rechner versteht. None =
+# noch nicht ausprobiert. Siehe focus_monitor().
+_FOCUS_FORM: str | None = None
+
+
+def _focus_argv(form: str, connector: str) -> list[str]:
+    if form == "lua":
+        return ["hyprctl", "dispatch", f'hl.dsp.focus({{ monitor = "{connector}" }})']
+    return ["hyprctl", "dispatch", "focusmonitor", connector]
+
+
+def focus_monitor(connector: str) -> None:
+    """Den Compositor auf ``connector`` fokussieren, bevor etwas startet.
+
+    Neue Fenster gehen auf dem fokussierten Ausgang auf. Ohne diesen Schritt
+    landet ein Deck-Start dort, wo zuletzt der Fokus lag — mitunter auf dem
+    Streifen selbst, wo das Dashboard im Vollbild davorliegt und keine
+    Tastatur haengt. Das Fenster ist dann gestartet, aber unerreichbar.
+
+    Zwei Schreibweisen, weil es zwei hyprctl gibt: die klassische
+    (``dispatch focusmonitor DP-4``) und die neuere mit Lua-Konfiguration, wie
+    Omarchy sie mitbringt — dort zerlegt ein Lua-Parser die Argumente und
+    ``DP-4`` wird als Rechnung "DP minus 4" gelesen ("')' expected near 'DP'").
+    Welche Form geht, entscheidet der erste Aufruf; danach steht sie fest.
+
+    Nur Hyprland, und nur best effort: fehlt ``hyprctl`` oder laeuft ein
+    anderer Compositor, bleibt es beim Standardverhalten. Ein Fehlschlag darf
+    den Start nie verhindern — lieber ein Fenster auf dem falschen Monitor als
+    gar keines.
+    """
+    global _FOCUS_FORM
+    if not connector or not shutil.which("hyprctl"):
+        return
+
+    forms = [_FOCUS_FORM] if _FOCUS_FORM else ["classic", "lua"]
+    for form in forms:
+        try:
+            done = subprocess.run(_focus_argv(form, connector),
+                                  capture_output=True, text=True,
+                                  timeout=1, check=False)
+        except (OSError, subprocess.SubprocessError) as e:
+            print(f"[xeneon-edge] focusmonitor {connector} fehlgeschlagen: {e}")
+            return
+        # hyprctl meldet einen Fehler im Text, nicht immer im Exitcode.
+        output = (done.stdout or "") + (done.stderr or "")
+        if done.returncode == 0 and "error" not in output.lower():
+            _FOCUS_FORM = form
+            return
+    print(f"[xeneon-edge] Monitor {connector} liess sich nicht fokussieren "
+          f"— Fenster gehen dort auf, wo der Compositor sie hinlegt")
+
+
+def launch(entry: dict, *, isolate: bool = True, slot: int | None = None,
+           monitor: str = "") -> None:
     _reap()
     argv = _argv(entry)
     if argv is None:
         return
+
+    focus_monitor(monitor)
 
     label = entry.get("label") or entry.get("id") or argv[0]
 

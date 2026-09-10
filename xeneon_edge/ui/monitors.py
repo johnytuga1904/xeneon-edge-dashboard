@@ -54,8 +54,9 @@ def find_target_monitor(display: Gdk.Display, preferred_connector: str = "") -> 
     return None
 
 
-def find_login_monitor(display: Gdk.Display, dashboard_connector: str = "") -> Gdk.Monitor | None:
-    """Der groesste Monitor, der *nicht* der Dashboard-Streifen ist.
+def find_login_monitor(display: Gdk.Display, dashboard_connector: str = "",
+                       preferred_connector: str = "") -> Gdk.Monitor | None:
+    """Der eingestellte Monitor, sonst der groesste ausser dem Streifen.
 
     Fuer Fenster, die Tastatur brauchen — bislang nur das TradingView-Login.
     Am 2560x720-Streifen haengt keine, und das Dashboard liegt dort im Vollbild
@@ -71,6 +72,13 @@ def find_login_monitor(display: Gdk.Display, dashboard_connector: str = "") -> G
     others = [m for m in _all_monitors(display) if _connector_name(m) != dashboard]
     if not others:
         return None
+    # launch_monitor aus den Settings geht vor: der Nutzer hat gesagt, wo
+    # Fenster des Dashboards aufgehen sollen. Ist der Anschluss gerade nicht
+    # da (Monitor aus, Kabel um), bleibt es beim groessten anderen.
+    if preferred_connector:
+        for m in others:
+            if _connector_name(m) == preferred_connector:
+                return m
     return max(others, key=lambda m: m.get_geometry().width * m.get_geometry().height)
 
 
@@ -82,7 +90,8 @@ def list_monitors_for_settings(display: Gdk.Display) -> list[tuple[str, str]]:
     return out
 
 
-def move_off_dashboard(win: Gtk.Window, dashboard_connector: str = "") -> None:
+def move_off_dashboard(win: Gtk.Window, dashboard_connector: str = "",
+                       preferred_connector: str = "") -> None:
     """Ein Fenster auf einen Monitor mit Tastatur legen.
 
     Fuer alles, was Eingaben braucht — das TradingView-Login und der
@@ -101,7 +110,7 @@ def move_off_dashboard(win: Gtk.Window, dashboard_connector: str = "") -> None:
     display = win.get_display()
     if display is None:
         return
-    monitor = find_login_monitor(display, dashboard_connector)
+    monitor = find_login_monitor(display, dashboard_connector, preferred_connector)
     if monitor is None:
         return
     try:

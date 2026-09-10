@@ -138,8 +138,11 @@ def main() -> int:
             return
         win = LoginWindow(a, WebKit, session, url)
         win.present()
+        settings = config_store.load_settings()
         monitors.move_off_dashboard(
-            win, str(config_store.load_settings().get("target_monitor", "") or ""))
+            win,
+            str(settings.get("target_monitor", "") or ""),
+            str(settings.get("launch_monitor", "") or ""))
 
     app.connect("activate", on_activate)
     return app.run([])

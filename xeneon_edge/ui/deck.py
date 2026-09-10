@@ -68,10 +68,12 @@ class DeckButton(Gtk.Button):
     __gtype_name__ = "XeDeckButton"
 
     def __init__(self, entry: dict, *, hold_to_confirm: bool = True,
-                 isolate: bool = True, slot: int | None = None):
+                 isolate: bool = True, slot: int | None = None,
+                 monitor: str = ""):
         super().__init__()
         self._entry = entry
         self._isolate = isolate
+        self._monitor = monitor
         self._slot = slot
         self._hold = bool(entry.get("confirm")) and hold_to_confirm
         self.add_css_class("deck-btn")
@@ -146,7 +148,8 @@ class DeckButton(Gtk.Button):
             self.connect("clicked", lambda *_: self._fire())
 
     def _fire(self) -> None:
-        _launch(self._entry, isolate=self._isolate, slot=self._slot)
+        _launch(self._entry, isolate=self._isolate, slot=self._slot,
+                monitor=self._monitor)
 
     def _on_long_pressed(self, _gesture, _x, _y) -> None:
         # animate confirm flash, then launch
@@ -179,7 +182,7 @@ class LaunchDeck(Gtk.Box):
 
     def populate(self, apps: list[dict], macros: list[dict], *,
                  hold_to_confirm: bool, isolate: bool = True,
-                 app_slots: int = 9) -> None:
+                 app_slots: int = 9, monitor: str = "") -> None:
         # clear
         child = self.grid.get_first_child()
         while child is not None:
@@ -203,5 +206,6 @@ class LaunchDeck(Gtk.Box):
         _apply_pad_colours({c for c in (pad_colour(e) for e in entries) if c})
         for i, entry in enumerate(entries[:DECK_SLOTS]):
             self.grid.attach(DeckButton(entry, hold_to_confirm=hold_to_confirm,
-                                        isolate=isolate, slot=i),
+                                        isolate=isolate, slot=i,
+                                        monitor=monitor),
                              i % DECK_COLS, i // DECK_COLS, 1, 1)

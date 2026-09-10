@@ -16,6 +16,12 @@ _DEFAULT_SETTINGS = {
     # Deck-Eintraege ueber `systemd-run --user` in eigene transiente Units
     # starten statt als Kindprozess des Dashboards. Siehe launcher.py.
     "isolate_launches": True,
+    # Auf welchem Monitor Fenster aufgehen sollen, die das Dashboard startet —
+    # Deck-Eintraege wie auch Editor und Login. Leer = der Compositor
+    # entscheidet, und das heisst in der Praxis: der zuletzt fokussierte
+    # Monitor, also je nach Zufall auch der Streifen selbst. Connector-Name
+    # wie in `hyprctl monitors` (z.B. "DP-4"). Siehe launcher.py.
+    "launch_monitor": "",
     # Leer = eingebettetes TradingView-Widget (kein Login, kein Account).
     # Eine URL wie "https://www.tradingview.com/chart/AbCdEf12/" laedt
     # stattdessen die echte Chart-Seite mit der gespeicherten Session, also mit
