@@ -124,7 +124,7 @@ def main() -> int:
     url = sys.argv[1] if len(sys.argv) > 1 else (
         config_store.load_settings().get("chart_url") or START_URL)
 
-    app = Gtk.Application(application_id="ch.xeneon.edge.login")
+    app = Gtk.Application(application_id="io.github.johnytuga1904.XeneonEdge.Login")
     session = make_session(WebKit)
 
     def on_activate(a):

@@ -21,7 +21,7 @@ _THEME_RELOAD_DELAY_MS = 300
 
 class XeneonEdgeApp(Adw.Application):
     def __init__(self):
-        super().__init__(application_id="ch.xeneon.edge")
+        super().__init__(application_id="io.github.johnytuga1904.XeneonEdge")
         self._aggregator: Aggregator | None = None
         self._window: MainWindow | None = None
         # layout.json, settings.json, apps.json: der Editor schreibt sie, das

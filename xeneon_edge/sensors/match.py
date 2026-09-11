@@ -3,7 +3,7 @@
 Port of WidgetsSource.cs TryFetchNextMatch(): hits the league scoreboard
 with a ±-day window and picks the upcoming match (or, if nothing is
 scheduled, the most recent past one with score). League code and team ID
-are ESPN's (e.g. "por.1" and "1929"); both come from the topbar widget
+are ESPN's (e.g. "eng.1" and "359"); both come from the topbar widget
 config, nothing is hard-wired here any more.
 """
 from __future__ import annotations
@@ -54,8 +54,8 @@ def fetch_next_match(league: str, team_id: str, timeout: float = 4.0) -> dict | 
 
         opponent = "?"
         home = True
-        is_benfica = False
-        slb_score: str | None = None
+        found_team = False
+        team_score: str | None = None
         opp_score: str | None = None
 
         comps = ev.get("competitions") or []
@@ -70,15 +70,15 @@ def fetch_next_match(league: str, team_id: str, timeout: float = 4.0) -> dict | 
                 sc = str(sc) if sc is not None else None
                 if tid == team_id:
                     home = side == "home"
-                    slb_score = sc
-                    is_benfica = True
+                    team_score = sc
+                    found_team = True
                 else:
                     name = (t.get("team") or {}).get("displayName")
                     if name:
                         opponent = name
                     opp_score = sc
 
-        if not is_benfica:
+        if not found_team:
             continue
 
         competition = "Match"
@@ -102,8 +102,8 @@ def fetch_next_match(league: str, team_id: str, timeout: float = 4.0) -> dict | 
                 }
         else:
             score = None
-            if slb_score is not None and opp_score is not None:
-                score = f"{slb_score}-{opp_score}" if home else f"{opp_score}-{slb_score}"
+            if team_score is not None and opp_score is not None:
+                score = f"{team_score}-{opp_score}" if home else f"{opp_score}-{team_score}"
             if last_past is None or when > datetime.fromisoformat(last_past["kickoff_utc"]):
                 last_past = {
                     "opponent": opponent,

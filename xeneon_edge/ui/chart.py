@@ -23,6 +23,7 @@ zurueck.
 """
 from __future__ import annotations
 import json
+import os
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib  # noqa: E402
@@ -48,12 +49,29 @@ _HTML = """<!doctype html><html><head><meta charset='utf-8'>
 </div>
 </body></html>"""
 
+def system_timezone() -> str:
+    """IANA-Name der Systemzeitzone (/etc/localtime), sonst Etc/UTC.
+
+    Das Widget will einen IANA-Namen; TZ aus der Umgebung ist meist leer, und
+    ein fest eingetragener Ort waere auf jedem anderen Rechner falsch.
+    """
+    tz = os.environ.get("TZ", "").lstrip(":")
+    if tz and "/" in tz:
+        return tz
+    try:
+        target = os.path.realpath("/etc/localtime")
+    except OSError:
+        return "Etc/UTC"
+    _, sep, name = target.partition("/zoneinfo/")
+    return name if sep and name else "Etc/UTC"
+
+
 # Voreinstellung des Widgets, wenn das Modul nichts anderes sagt. Bis Schritt 6
 # stand das alles fest im HTML.
 TV_DEFAULTS = {
     "symbol": "BINANCE:BTCUSDT",
     "interval": "240",
-    "timezone": "Europe/Zurich",
+    "timezone": system_timezone(),
     "toolbars": True,
     "studies": ["STD;Divergence%1Indicator"],
 }

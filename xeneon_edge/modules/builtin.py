@@ -393,9 +393,9 @@ register_topbar(ModuleSpec(
     type_id="match", label="Naechstes Spiel", factory=topbar.MatchPill,
     schema=(
         Field("league", "Liga (ESPN-Code)", "text", default="",
-              help="por.1, eng.1, ger.1, esp.1, ita.1, uefa.champions ..."),
+              help="eng.1, ger.1, esp.1, ita.1, por.1, uefa.champions ..."),
         Field("team", "Team-ID (ESPN)", "text", default="",
-              help="Zahl aus der ESPN-URL des Teams, z.B. 1929"),
-        Field("short", "Kuerzel", "text", default="", help="Steht gross in der Pille, z.B. SLB"),
+              help="Zahl aus der ESPN-URL des Teams, z.B. 359 fuer Arsenal"),
+        Field("short", "Kuerzel", "text", default="", help="Steht gross in der Pille, z.B. ARS"),
     ),
 ))

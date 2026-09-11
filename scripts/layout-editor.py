@@ -232,7 +232,7 @@ def main() -> int:
         return 1
 
     settings = config_store.load_settings()
-    app = Gtk.Application(application_id="ch.xeneon.edge.layout")
+    app = Gtk.Application(application_id="io.github.johnytuga1904.XeneonEdge.Editor")
 
     def on_activate(a):
         display = Gdk.Display.get_default()

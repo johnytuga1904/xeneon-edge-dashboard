@@ -9,7 +9,7 @@ Linux-Port des Windows-Desktop-Dashboards — native GTK4-Oberfläche, Sensoren 
 - RAM, Netzwerk, Lüfter (alle hwmon-Sensoren)
 - Top-Prozesse (psutil) — `×` gedrückt halten beendet den Prozess (SIGTERM)
 - Audio: PipeWire-Lautstärke + Mute + Default-Device-Auswahl (`pactl` / `wpctl`)
-- Wetter (open-meteo, Wohlen CH)
+- Wetter (Open-Meteo, Ort im Editor einstellbar) und nächstes Spiel eines Teams (ESPN)
 - TradingView-Modul (WebKitGTK) — wahlweise das anonyme Widget mit
   einstellbarem Symbol, Intervall und Indikatoren oder die echte Chart-Seite
   mit dem eigenen Account und gespeichertem Layout

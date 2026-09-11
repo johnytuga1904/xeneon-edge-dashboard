@@ -295,7 +295,7 @@ if (( DO_HYPR )) && command -v hyprctl >/dev/null 2>&1; then
 -- tauscht Fenster) zieht es auf den Hauptmonitor. Bedient wird per Touch, und
 -- Touch- wie Zeigerereignisse gehen an die Flaeche unter dem Finger statt an
 -- das Fokusfenster — die Deck-Buttons reagieren weiter.
-o.window("^(ch\\.xeneon\\.edge)$", {
+o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge)$", {
   tag = "-default-opacity",
   opacity = "1 1",
   border_size = 0,
@@ -308,13 +308,13 @@ o.window("^(ch\\.xeneon\\.edge)$", {
 -- auf dem richtigen Monitor landet, oder ein Dispatcher es doch verschiebt.
 -- Der Connector heisst auf jedem Rechner anders, deshalb nur als Beispiel —
 -- und in eine Datei, die dieses Skript nicht ueberschreibt.
--- o.window("^(ch\\.xeneon\\.edge)$", { monitor = "DP-2" })
+-- o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge)$", { monitor = "DP-2" })
 
 -- Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf
 -- den richtigen Monitor legt sich das Fenster selbst (find_login_monitor in
 -- ui/monitors.py); hier steht nur, dass es schweben soll statt sich in den
 -- Workspace zu kacheln.
-o.window("^(ch\\.xeneon\\.edge\\.login)$", {
+o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge\\.Login)$", {
   float = true,
   size = "1400 900",
   center = true,
@@ -324,7 +324,7 @@ o.window("^(ch\\.xeneon\\.edge\\.login)$", {
 -- Grund auf dem Hauptmonitor. Ohne eigene Regel bekaeme er Omarchys
 -- Standard-Transparenz — durch einen Editor auf den Desktop zu schauen macht
 -- das Beurteilen von Farben unmoeglich.
-o.window("^(ch\\.xeneon\\.edge\\.layout)$", {
+o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge\\.Editor)$", {
   tag = "-default-opacity",
   opacity = "1 1",
   float = true,
@@ -353,34 +353,34 @@ LUA
 # tauscht Fenster) zieht es auf den Hauptmonitor. Bedient wird per Touch, und
 # Touch- wie Zeigerereignisse gehen an die Flaeche unter dem Finger statt an
 # das Fokusfenster — die Deck-Buttons reagieren weiter.
-windowrule = tag -default-opacity, match:class ^(ch\.xeneon\.edge)$
-windowrule = opacity 1 1,          match:class ^(ch\.xeneon\.edge)$
-windowrule = border_size 0,        match:class ^(ch\.xeneon\.edge)$
-windowrule = rounding 0,           match:class ^(ch\.xeneon\.edge)$
-windowrule = no_dim on,            match:class ^(ch\.xeneon\.edge)$
-windowrule = no_focus on,          match:class ^(ch\.xeneon\.edge)$
+windowrule = tag -default-opacity, match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
+windowrule = opacity 1 1,          match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
+windowrule = border_size 0,        match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
+windowrule = rounding 0,           match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
+windowrule = no_dim on,            match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
+windowrule = no_focus on,          match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 
 # Optional: Connector hart pinnen, falls der Vollbild-Wunsch der App mal nicht
 # auf dem richtigen Monitor landet, oder ein Dispatcher es doch verschiebt.
 # Der Connector heisst auf jedem Rechner anders, deshalb nur als Beispiel —
 # und in eine Datei, die dieses Skript nicht ueberschreibt.
-# windowrule = monitor DP-2, match:class ^(ch\.xeneon\.edge)$
+# windowrule = monitor DP-2, match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 
 # Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf den
 # richtigen Monitor legt sich das Fenster selbst (find_login_monitor in
 # ui/monitors.py); hier steht nur, dass es schweben soll statt sich in den
 # Workspace zu kacheln.
-windowrule = float,             match:class ^(ch\.xeneon\.edge\.login)$
-windowrule = size 1400 900,     match:class ^(ch\.xeneon\.edge\.login)$
-windowrule = center,            match:class ^(ch\.xeneon\.edge\.login)$
+windowrule = float,             match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Login)$
+windowrule = size 1400 900,     match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Login)$
+windowrule = center,            match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Login)$
 
 # Der Layout-Editor braucht ebenfalls eine Tastatur. Ohne eigene Regel bekaeme
 # er die Standard-Transparenz — durch einen Editor auf den Desktop zu schauen
 # macht das Beurteilen von Farben unmoeglich.
-windowrule = opacity 1 1,       match:class ^(ch\.xeneon\.edge\.layout)$
-windowrule = float,             match:class ^(ch\.xeneon\.edge\.layout)$
-windowrule = size 1800 640,     match:class ^(ch\.xeneon\.edge\.layout)$
-windowrule = center,            match:class ^(ch\.xeneon\.edge\.layout)$
+windowrule = opacity 1 1,       match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Editor)$
+windowrule = float,             match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Editor)$
+windowrule = size 1800 640,     match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Editor)$
+windowrule = center,            match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Editor)$
 CONF
   fi
   ok "$SNIP"

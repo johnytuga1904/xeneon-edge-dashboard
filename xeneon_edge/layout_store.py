@@ -188,8 +188,8 @@ def _topbar_from_v1(old: Any) -> dict[str, Any]:
         team = str(match["team"])
         center.append({"type": "match", "config": {
             "league": str(match["league"]), "team": team,
-            # Das Kuerzel stand vorher fest im Code.
-            "short": "SLB" if team == "1929" else ""}})
+            # Das Kuerzel gab es in Version 1 noch nicht; im Editor nachtragen.
+            "short": ""}})
     return {
         "left": [{"type": "brand", "config": {}}, {"type": "status", "config": {}},
                  {"type": "net", "config": {}}],

@@ -100,7 +100,7 @@ box.topbar-pill {
   border-top: 2px solid @accent;
 }
 
-/* SLB match widget */
+/* match widget (topbar) */
 box.match-widget { min-width: 180px; }
 label.match-team {
   color: @accent;
