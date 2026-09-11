@@ -25,7 +25,6 @@ Abschalten global ueber Settings (``isolate_launches``) oder pro Eintrag mit
 Kind des Dashboards bleiben muss.
 """
 from __future__ import annotations
-import os
 import re
 import shlex
 import shutil

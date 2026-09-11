@@ -13,7 +13,7 @@ MPRIS sie nicht meldet (``Seeked`` kommt nur beim Springen). Das kostet einen
 D-Bus-Aufruf pro Sekunde und nur, solange etwas laeuft.
 """
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import gi
 gi.require_version("Gio", "2.0")

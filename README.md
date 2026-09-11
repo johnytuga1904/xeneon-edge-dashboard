@@ -1,96 +1,51 @@
-# Xeneon Edge Dashboard — Linux/GTK4
+# Xeneon Edge Dashboard — Linux / GTK4
 
-Linux-Port des Windows-Desktop-Dashboards — native GTK4-Oberfläche, Sensoren direkt aus `/proc` und `/sys`, kein .NET, kein WPF.
+*Deutsche Fassung: [README.de.md](README.de.md)*
+
+Linux port of the dashboard: a native GTK4 window, sensors read straight from
+`/proc` and `/sys`, no .NET, no WPF. Built for a 2560×720 strip such as the
+Corsair Xeneon Edge, driven by touch, configured from a monitor that has a
+keyboard.
 
 ## Features
 
-- CPU: Last, Temperatur, Takt
-- GPU: AMD (über `/sys/class/drm`) **und** NVIDIA (über `nvidia-smi`) gleichzeitig
-- RAM, Netzwerk, Lüfter (alle hwmon-Sensoren)
-- Top-Prozesse (psutil) — `×` gedrückt halten beendet den Prozess (SIGTERM)
-- Audio: PipeWire-Lautstärke + Mute + Default-Device-Auswahl (`pactl` / `wpctl`)
-- Wetter (Open-Meteo, Ort im Editor einstellbar) und nächstes Spiel eines Teams (ESPN)
-- TradingView-Modul (WebKitGTK) — wahlweise das anonyme Widget mit
-  einstellbarem Symbol, Intervall und Indikatoren oder die echte Chart-Seite
-  mit dem eigenen Account und gespeichertem Layout
-- Wiedergabe: was gerade spielt (MPRIS), oder ein eigener Musikordner, den
-  das Dashboard selbst abspielt
-- 3×6 Launch-Deck (18 Buttons) mit frei einstellbarer Aufteilung Apps/Macros,
-  Hold-to-confirm für `poweroff`/`reboot`/etc.
-- Auto-Start via `~/.config/autostart`
+- CPU: load, temperature, clock
+- GPU: AMD (`/sys/class/drm`) **and** NVIDIA (NVML or `nvidia-smi`) side by side
+- RAM, network throughput, fans (every hwmon fan)
+- Top processes (psutil) — hold `×` to send SIGTERM
+- Audio: PipeWire volume, mute and default-device switching (`pactl` / `wpctl`)
+- Weather (Open-Meteo, location set in the editor) and the next fixture of a
+  configured team (ESPN)
+- TradingView module (WebKitGTK) — the anonymous widget with symbol, interval
+  and indicators, or the real chart page with your own account and saved layout
+- Playback: whatever is playing (MPRIS), or a music folder the dashboard plays
+  itself
+- 3×6 launch deck (18 pads), free split between apps and macros,
+  hold-to-confirm for `poweroff`, `reboot` and friends
+- Clock, calendar, notes modules; five colour themes plus one that follows
+  the active Omarchy palette
+- Everything laid out from `layout.json` through a graphical editor
+- Autostart through `~/.config/autostart`
 
-## Voraussetzungen (Fedora / Nobara)
+## Requirements
 
-System-Pakete (auf Nobara 43 ist das meiste schon da):
+### Arch / Omarchy
 
-```bash
-sudo dnf install gtk4 libadwaita python3-gobject \
-                 lm_sensors pipewire-utils \
-                 webkitgtk6.0          # für das TradingView-Chart
-sudo dnf install gstreamer1-plugins-good   # autoaudiosink — sonst Absturz beim Login
-sudo dnf install nvidia-smi             # nur falls NVIDIA-GPU genutzt wird
-```
-
-Python-Abhängigkeiten (empfohlen: System-Python, kein venv — wegen GTK):
+One script — packages, verification, settings, deck template, autostart,
+Hyprland window rules:
 
 ```bash
-pip install --user -r requirements.txt   # psutil, requests
+cd linux && ./scripts/install-arch.sh
 ```
 
-## Voraussetzungen (Debian 13 / trixie)
+Options: `--monitor DP-2` (pin a connector instead of auto-detecting),
+`--no-autostart`, `--no-fullscreen`, `--yes` (no questions),
+`--no-packages` (only rewrite settings and autostart), `--check` (verify
+only), `--deck omarchy` (pre-fill the deck with Omarchy commands), `--no-hypr`
+(do not write the window-rule snippet). Run it as your normal user, not with
+`sudo`; it calls `sudo pacman` itself.
 
-Alles auf einmal — installiert Pakete, verifiziert, schreibt Settings + Autostart:
-
-```bash
-./scripts/install-debian.sh
-```
-
-Optionen: `--monitor DP-2` (Connector fest pinnen statt Auto-Erkennung),
-`--no-autostart`, `--no-fullscreen`, `--yes` (nicht nachfragen),
-`--no-packages` (nur Settings/Autostart neu schreiben), `--check` (nur prüfen,
-nichts installieren).
-
-Von Hand entspricht das:
-
-```bash
-sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
-                 gir1.2-webkit-6.0 python3-psutil python3-requests \
-                 lm-sensors pulseaudio-utils wireplumber \
-                 gstreamer1.0-plugins-good
-sudo apt install nvidia-smi          # nur bei NVIDIA; liegt in 'non-free'
-```
-
-Debian-spezifisch zu beachten:
-
-- **Kein `pip install --user`.** Debian markiert sein Python als *externally
-  managed* (PEP 668) — pip bricht mit `externally-managed-environment` ab.
-  `psutil` und `requests` kommen deshalb aus apt, nicht aus `requirements.txt`.
-- **`gir1.2-webkit-6.0`** ist das GTK4-WebKit (trixie: 2.52). Fehlt es, zeigt
-  die Chart-Spalte nur den Platzhalter — der Rest läuft normal weiter.
-- **`nvidia-smi`** liegt in der `non-free`-Komponente. Falls apt es nicht
-  findet, in `/etc/apt/sources.list.d/debian.sources` bei `Components:`
-  `contrib non-free non-free-firmware` ergänzen.
-- **Der Repo-Pfad enthält ein Leerzeichen** (`Monitor dashboard`). Beim
-  Kopieren auf den anderen Rechner Anführungszeichen nicht vergessen; der
-  Autostart-Eintrag quotet `Exec=` bereits korrekt.
-- **Kein 2560×720-Monitor?** Dann findet die Auto-Erkennung nichts und die App
-  startet im normalen Fenster auf dem Standard-Display. Zielmonitor entweder
-  mit `--monitor <Connector>` setzen oder später im Editor (Einstellungen → Zielmonitor) wählen.
-
-## Voraussetzungen (Arch / Omarchy)
-
-Alles auf einmal — Pakete, Verify, Settings, Deck, Autostart, Hyprland-Regeln:
-
-```bash
-./scripts/install-arch.sh
-```
-
-Optionen wie beim Debian-Skript (`--monitor DP-2`, `--no-autostart`,
-`--no-fullscreen`, `--yes`, `--no-packages`, `--check`), dazu
-`--deck omarchy` (Deck mit Omarchy-Kommandos vorbelegen) und `--no-hypr`
-(kein Fensterregel-Snippet schreiben).
-
-Von Hand entspricht das:
+By hand, the same thing is:
 
 ```bash
 sudo pacman -S --needed python-gobject python-cairo gtk4 libadwaita \
@@ -100,121 +55,191 @@ sudo pacman -S --needed python-gobject python-cairo gtk4 libadwaita \
                         gst-plugins-good
 ```
 
-Alles liegt in `[core]`/`[extra]`, ein AUR-Helper ist nicht noetig.
-`nvidia-smi` kommt aus `nvidia-utils` und haengt am Treiberpaket
-(`nvidia`/`nvidia-open`/`-dkms`) — das Skript installiert es deshalb nicht
-selbst, sondern meldet nur, wenn eine NVIDIA-Karte ohne `nvidia-smi` steckt
-(auf Omarchy: `omarchy-install-nvidia`).
+Everything is in `[core]`/`[extra]`; no AUR helper needed. `nvidia-smi` ships
+with `nvidia-utils` and is tied to the driver package
+(`nvidia`/`nvidia-open`/`-dkms`), so the script does not install it — it only
+reports an NVIDIA card without `nvidia-smi` (Omarchy: `omarchy-install-nvidia`).
+`python-nvidia-ml-py` is optional and replaces one `nvidia-smi` process per
+tick (~28 ms) with an in-process NVML call (0.1 ms).
 
-Arch-spezifisch zu beachten:
+Arch specifics:
 
-- **`gst-plugins-good`.** WebKitGTK baut fuer jedes `<audio>` und jeden
-  AudioContext eine GStreamer-Pipeline und verlangt darin `autoaudiosink`
-  namentlich. Bei `webkitgtk-6.0` ist das Paket nur eine *optionale*
-  Abhaengigkeit, fehlt also auf einer frischen Installation. WebKit bekommt
-  dann `NULL` zurueck, haengt trotzdem einen Signal-Handler daran und bricht ab
-  — der `WebKitWebProcess` stirbt reproduzierbar mit SIGABRT, sobald
-  TradingView Ton anfasst. Ein vorhandenes `pipewiresink` hilft nicht, der Name
-  wird hart gesucht.
-- **Kein `pip install --user`** — wie Debian markiert Arch sein Python als
-  *externally managed* (PEP 668). `psutil` und `requests` kommen aus pacman,
-  `requirements.txt` bleibt fuer venv-Setups liegen.
-- **Kein `pacman -Sy <paket>`.** Ein Teil-Upgrade ist auf Arch der uebliche Weg
-  in kaputte Abhaengigkeiten; das Skript installiert mit `-S --needed` gegen die
-  vorhandene Datenbank und verweist bei einem Fehlschlag auf `sudo pacman -Syu`.
-- **`GDK_SCALE`.** Omarchy setzt in `~/.config/hypr/monitors.conf`
-  session-weit `env = GDK_SCALE,2` (bzw. `hl.env("GDK_SCALE", ...)` in der
-  Lua-Variante). Die Spaltenbreiten des Dashboards sind harte Pixel fuer
-  2560x720 — bei Buffer-Scale 2 ist nur noch ein Viertel des Layouts im Bild.
-  `run.sh` exportiert deshalb `GDK_SCALE=1` fuer den eigenen Prozess;
-  ueberschreibbar mit `XENEON_GDK_SCALE=2 ./run.sh`.
-- **Monitor-Scale.** Der Xeneon Edge selbst will 1x. In
-  `~/.config/hypr/monitors.conf`:
-  `monitor = DP-2, 2560x720@60, auto, 1` (die anderen Monitore behalten ihre
-  Skalierung).
-- **Waybar** liegt per Default auf *jedem* Monitor und frisst ~30px des
-  720px-Streifens. In `~/.config/waybar/config.jsonc` `"output"` auf die
-  anderen Connectoren begrenzen — oder `SUPER+SHIFT+SPACE`.
+- **`gst-plugins-good`.** WebKitGTK builds a GStreamer pipeline for every
+  `<audio>` element and every AudioContext and asks for `autoaudiosink` by
+  name. For `webkitgtk-6.0` that package is only an *optional* dependency, so
+  it is missing on a fresh install. WebKit then gets `NULL`, attaches a signal
+  handler to it anyway and aborts — `WebKitWebProcess` dies with SIGABRT the
+  moment TradingView touches audio. A present `pipewiresink` does not help;
+  the name is looked up literally.
+- **No `pip install --user`.** Arch marks its Python as *externally managed*
+  (PEP 668). `psutil` and `requests` come from pacman; `requirements.txt` and
+  `pyproject.toml` stay for venv setups.
+- **No `pacman -Sy <package>`.** A partial upgrade is the usual road to broken
+  dependencies on Arch; the script installs with `-S --needed` against the
+  existing database and points to `sudo pacman -Syu` on failure.
+- **`GDK_SCALE`.** Omarchy sets `env = GDK_SCALE,2` session-wide in
+  `~/.config/hypr/monitors.conf` (or `hl.env("GDK_SCALE", ...)` in the Lua
+  variant). The dashboard's column widths are hard pixels for 2560×720 — at
+  buffer scale 2 only a quarter of the layout is visible. `run.sh` therefore
+  exports `GDK_SCALE=1` for its own process; override with
+  `XENEON_GDK_SCALE=2 ./run.sh`.
+- **Monitor scale.** The strip itself wants 1×. In
+  `~/.config/hypr/monitors.conf`: `monitor = DP-2, 2560x720@60, auto, 1` (the
+  other monitors keep their scale).
+- **Waybar** sits on *every* monitor by default and eats ~30 px of the 720 px
+  strip. Restrict `"output"` in `~/.config/waybar/config.jsonc` to the other
+  connectors — or `SUPER+SHIFT+SPACE`.
 
-### Autostart unter Hyprland
-
-Bleibt der normale XDG-Eintrag in `~/.config/autostart` — kein `exec-once`.
-Omarchy startet Hyprland ueber **uwsm**, und uwsm laesst systemd die
-`.desktop`-Dateien in `app-*@autostart.service` uebersetzen und mit
-`graphical-session.target` starten. Damit bleibt der Schalter *„Start with
-der Sitzung starten"* im Editor die einzige Stelle, die den Autostart an-
-und abschaltet; ein zusaetzliches `exec-once` wuerde das Dashboard doppelt
-starten. Ohne uwsm (Hyprland direkt von der TTY) stattdessen in
-`~/.config/hypr/autostart.conf`:
-
-```
-exec-once = uwsm-app -- "/pfad/zu/linux/run.sh"
-```
-
-### Fensterregeln
-
-`install-arch.sh` schreibt `~/.config/hypr/xeneon-edge.conf` (bzw. `.lua`, wenn
-die Omarchy-Konfiguration bereits auf Lua umgestellt ist) und bindet es in
-`~/.config/hypr/autostart.conf` ein. Darin steht nur, was die Omarchy-Defaults
-einem Status-Streifen antun wuerden: die globale 0.985-Transparenz, Rahmen,
-Rundungen, Abdunkeln im Hintergrund. Auf den Zielmonitor legt sich das
-Dashboard selbst (`target_monitor` + `fullscreen_on_monitor`) — die
-`monitor`-Regel steht auskommentiert daneben, falls das mal nicht greift.
-
-### Wohin gestartete Fenster gehen
-
-Einstellung *Monitor fuer gestartete Fenster* (`launch_monitor`), im Editor
-unter *Einstellungen*. Sie gilt fuer alles, was das Dashboard oeffnet: die
-Deck-Eintraege, den Editor selbst und das TradingView-Login.
-
-Ohne sie entscheidet der Compositor, und das heisst in der Praxis: der zuletzt
-fokussierte Monitor. Wird das Dashboard per Finger bedient, ist das mitunter
-der Streifen selbst — dort liegt das Dashboard im Vollbild davor und es haengt
-keine Tastatur, das Fenster ist also gestartet, aber unerreichbar.
-
-Technisch wird vor dem Start der Zielmonitor fokussiert (neue Fenster gehen auf
-dem fokussierten Ausgang auf). Es gibt dafuer zwei `hyprctl`-Schreibweisen, und
-das Dashboard probiert beide durch:
-
-| Konfiguration | Aufruf |
-|---------------|--------|
-| klassisch | `hyprctl dispatch focusmonitor DP-4` |
-| Lua (Omarchy) | `hyprctl dispatch 'hl.dsp.focus({ monitor = "DP-4" })'` |
-
-Der klassische Aufruf scheitert unter Omarchy, weil dort ein Lua-Parser die
-Argumente liest und `DP-4` als Rechnung „DP minus 4" versteht
-(`')' expected near 'DP'`). Welche Form geht, entscheidet der erste Aufruf.
-Laeuft kein Hyprland, bleibt es beim Standardverhalten — die Einstellung ist
-best effort und haelt einen Start nie auf.
-
-### Touchscreen dem Streifen zuordnen
-
-**Der haeufigste Grund dafuer, dass "keine Taste im Dashboard reagiert".**
-
-Ein Touchscreen ohne Ausgangszuordnung wird von Hyprland auf die *Gesamt*flaeche
-aller Monitore abgebildet, nicht auf den eigenen. Bei drei Monitoren
-(5120 x 2160 gesamt) landet ein Tipp auf den Streifen dann proportional
-umgerechnet irgendwo auf dem Hauptmonitor: Workspaces wechseln, Text wird
-kopiert, fremde Fenster bekommen Klicks — und das Dashboard bekommt *gar kein*
-Ereignis. Es sieht aus wie ein kaputtes Dashboard und ist eine Eingabe, die nie
-ankommt.
-
-Pruefen:
+### Debian 13 (trixie)
 
 ```bash
-hyprctl getoption input:touchdevice:output   # "[[Auto]]" = nicht zugeordnet
+cd linux && ./scripts/install-debian.sh
+```
+
+Same options as the Arch script minus `--deck` and `--no-hypr`. By hand:
+
+```bash
+sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
+                 gir1.2-webkit-6.0 python3-psutil python3-requests \
+                 lm-sensors pulseaudio-utils wireplumber \
+                 gstreamer1.0-plugins-good libgtk-4-media-gstreamer
+sudo apt install nvidia-smi python3-pynvml   # NVIDIA only; both in 'non-free'
+```
+
+Debian specifics:
+
+- **No `pip install --user`** — same PEP 668 situation as Arch; `psutil` and
+  `requests` come from apt.
+- **`gir1.2-webkit-6.0`** is the GTK4 WebKit (trixie: 2.52). Without it the
+  chart column shows a placeholder; everything else keeps running.
+- **`libgtk-4-media-gstreamer`** is the media backend behind `Gtk.MediaFile`.
+  Without it the playback module cannot play a music folder and says so.
+- **`nvidia-smi`** lives in `non-free`. If apt cannot find it, add
+  `contrib non-free non-free-firmware` to `Components:` in
+  `/etc/apt/sources.list.d/debian.sources`.
+- **No 2560×720 monitor?** Auto-detection finds nothing and the app opens as
+  a normal window on the default display. Set the target with
+  `--monitor <connector>` or later in the editor (Settings → target monitor).
+
+### Fedora / Nobara
+
+No installer script yet; the packages are:
+
+```bash
+sudo dnf install gtk4 libadwaita python3-gobject python3-psutil python3-requests \
+                 lm_sensors pipewire-utils webkitgtk6.0 gstreamer1-plugins-good
+sudo dnf install nvidia-smi python3-nvidia-ml-py    # NVIDIA only
+```
+
+## Running
+
+```bash
+./run.sh            # sets GDK_SCALE=1, the WebKit DMABUF fallback and unbuffered stdout
+python3 -m xeneon_edge
+```
+
+`run.sh` exports `WEBKIT_DISABLE_DMABUF_RENDERER=1`: on some multi-GPU
+systems (AMD output next to an NVIDIA card) WebKitGTK does not hand its DMABUF
+buffer through and the chart column stays black. The fallback renderer costs
+nothing for one chart; `XENEON_WEBKIT_DMABUF=1` re-enables the default.
+
+### Autostart
+
+Either through the editor (gear → Settings → *Start with the session*) or:
+
+```bash
+./scripts/install-autostart.sh
+```
+
+Both write an XDG entry to `~/.config/autostart/xeneon-edge.desktop`. Under
+Hyprland that is the whole story when the session is started through
+**uwsm** (Omarchy does): systemd turns the `.desktop` file into
+`app-xeneon\x2dedge@autostart.service` and starts it with
+`graphical-session.target`. Do not add an `exec-once` on top — the dashboard
+would start twice. Without uwsm (Hyprland straight from a TTY) XDG autostart
+is not honoured; use `~/.config/hypr/autostart.conf` instead:
+
+```
+exec-once = uwsm-app -- "/path/to/linux/run.sh"
+```
+
+The journal of the running dashboard:
+
+```bash
+journalctl --user -u 'app-xeneon\x2dedge@autostart.service' -f
+```
+
+## Hyprland
+
+### Window rules
+
+`install-arch.sh` writes `~/.config/hypr/xeneon-edge.conf` (or `.lua` when the
+Omarchy configuration has moved to Lua) and includes it from
+`~/.config/hypr/autostart.conf` / `.lua`. It only undoes what the Omarchy
+defaults would do to a status strip: the global 0.985 opacity, borders,
+rounding, dimming in the background, and it sets `no_focus` so a SUPER+arrow
+never lands on the strip and a window dispatcher never drags the dashboard
+onto the main monitor. Touch and pointer events go to the surface under the
+finger regardless of focus, so the deck keeps working.
+
+The rules match the application id: `io.github.johnytuga1904.XeneonEdge`
+(dashboard), `.Login` (TradingView login) and `.Editor` (layout editor). The
+dashboard places itself on the target monitor (`target_monitor` +
+`fullscreen_on_target` in `settings.json`); a commented `monitor` rule sits
+next to the others in case that ever fails.
+
+### Where launched windows go
+
+Setting *Monitor for launched windows* (`launch_monitor`) in the editor. It
+applies to everything the dashboard opens: deck entries, the editor itself and
+the TradingView login.
+
+Without it the compositor decides, which in practice means the last focused
+monitor. When the dashboard is used by touch that is sometimes the strip
+itself — where the dashboard sits fullscreen in front and no keyboard is
+attached, so the window is open but unreachable.
+
+Technically the target monitor is focused right before the launch (new windows
+open on the focused output). There are two `hyprctl` spellings and the
+dashboard tries both:
+
+| Configuration | Call |
+|---|---|
+| classic | `hyprctl dispatch focusmonitor DP-4` |
+| Lua (Omarchy) | `hyprctl dispatch 'hl.dsp.focus({ monitor = "DP-4" })'` |
+
+The classic call fails under Omarchy because a Lua parser reads the arguments
+and takes `DP-4` for the expression "DP minus 4". Whichever form works first
+is remembered. Without Hyprland the default behaviour stays; the setting is
+best effort and never blocks a launch.
+
+### Map the touchscreen to the strip
+
+**The most common reason for "no button in the dashboard reacts".**
+
+A touchscreen without an output mapping is projected by Hyprland onto the
+*combined* area of all monitors, not onto its own. With three monitors
+(5120×2160 in total) a tap on the strip lands, scaled, somewhere on the main
+monitor: workspaces switch, text gets copied, other windows receive clicks —
+and the dashboard gets *no* event at all. It looks like a broken dashboard and
+is an input that never arrives.
+
+Check:
+
+```bash
+hyprctl getoption input:touchdevice:output   # "[[Auto]]" = not mapped
 hyprctl devices | sed -n '/Touch Device/,/^$/p'
 hyprctl monitors -j | jq -r '.[] | "\(.name) \(.width)x\(.height)"'
 ```
 
-Zuordnen — Lua-Konfiguration (Omarchy), in `~/.config/hypr/input.lua`:
+Map it — Lua configuration (Omarchy), in `~/.config/hypr/input.lua`:
 
 ```lua
 hl.device({ name = "wch.cn-touchscreen-1", output = "DP-5" })
 hl.device({ name = "wch.cn-touchscreen",   output = "DP-5" })
 ```
 
-Klassische Konfiguration:
+Classic configuration:
 
 ```
 device {
@@ -223,544 +248,510 @@ device {
 }
 ```
 
-Geraetenamen kommen aus `hyprctl devices`, der Connector aus `hyprctl monitors`
-— beides ist von Rechner zu Rechner verschieden. Zwei Regeln, weil dieselbe
-Platte oft zwei Geraete meldet: den Touchscreen und einen absoluten Zeiger
-dazu. Zum Testen ohne Reload:
+Device names come from `hyprctl devices`, the connector from
+`hyprctl monitors` — both differ from machine to machine. Two rules because the
+same panel often reports two devices: the touchscreen and an absolute pointer.
+To test without a reload:
 
 ```bash
 hyprctl dispatch 'hl.device({ name = "wch.cn-touchscreen-1", output = "DP-5" })'
 ```
 
-Kommt eine Beruehrung an, laesst sich das ohne Raten nachsehen — das Dashboard
-schreibt mit `XENEON_DEBUG_INPUT=1` jeden Druck mit Koordinate und getroffenem
-Widget ins Journal:
+Whether a touch arrives can be checked without guessing — with
+`XENEON_DEBUG_INPUT=1` the dashboard logs every press with its coordinate and
+the widget it hit:
 
 ```bash
 XENEON_DEBUG_INPUT=1 ./run.sh
 # [input] touch-begin bei (2215,142) Fenster 2560x720 -> Label 'Terminal' button=DeckButton
 ```
 
-Steht dort nichts, kommt die Beruehrung nicht an und die Ursache liegt im
-Compositor, nicht im Dashboard.
+If nothing shows up there, the touch never reaches the dashboard and the cause
+is in the compositor.
 
-### Deck-Vorlage
+### Deck template
 
-Die mitgelieferte `config/apps.json` ist KDE-lastig (`konsole`, `dolphin`,
-`plasma-systemmonitor`). Fuer Omarchy liegt `config/apps.omarchy.json` daneben
-— `xdg-terminal-exec`, `omarchy-launch-browser`, `nautilus`, `omarchy-menu`,
-`omarchy-launch-audio`, `hyprctl reload`, `omarchy-toggle-waybar`. Das Skript
-kopiert sie nur, wenn `~/.config/xeneon-edge/apps.json` noch nicht existiert.
+The packaged `config/apps.json` is KDE-flavoured (`konsole`, `dolphin`,
+`plasma-systemmonitor`). `config/apps.omarchy.json` sits next to it —
+`xdg-terminal-exec`, `omarchy-launch-browser`, `nautilus`, `omarchy-menu`,
+`omarchy-launch-audio`, `hyprctl reload`, `omarchy-toggle-waybar`. The
+installer copies it only when `~/.config/xeneon-edge/apps.json` does not exist
+yet.
 
-### Notifications
+### Notifications (Omarchy)
 
-Omarchy legt seine Toasts auf *jeden* Output (`Variants { model:
-Quickshell.screens }`), also auch auf den Streifen — dort direkt ueber den
-Deck-Buttons, und weggeklickt bekommt man sie da ohnehin schlecht. Separates
-Skript, weil es die Notifications der ganzen Session umbaut und nicht als
-stiller Nebeneffekt einer Dashboard-Installation passieren soll:
+Omarchy puts its toasts on *every* output (`Variants { model:
+Quickshell.screens }`), so also on the strip — right above the deck pads, where
+dismissing them is awkward. A separate script, because it rewires the
+notifications of the whole session and should not happen as a silent side
+effect of installing a dashboard:
 
 ```bash
 ./scripts/install-omarchy-notifications.py --only DP-4
 ```
 
-Es macht zwei Dinge:
+It does two things:
 
-- **Toasts vom Dashboard-Monitor fernhalten.** Welcher das ist, kommt aus
-  `target_monitor` in `settings.json` (`--monitor` ueberschreibt). Ohne
-  `--only` gehen sie auf alle uebrigen Outputs, mit `--only DP-4` fest auf
-  diesen einen — dann aber mit Rueckfallebene: haengt DP-4 nicht dran, gehen
-  sie auf alles ausser dem Streifen, statt ganz auszubleiben.
-- **Ein Schliess-`x` oben rechts auf die Karte.** Das Signal dahinter
-  (`closeRequested` -> `dismissPopup`) ist in Omarchy schon verdrahtet, es gab
-  nur keinen sichtbaren Knopf — geschlossen wurde per Rechtsklick. Der Knopf
-  wird nach `mainColumn` deklariert und liegt damit ueber der kartenweiten
-  `MouseArea`; sonst faellt der Klick durch auf `onCardClicked` und loest die
-  Default-Aktion der Notification aus, statt sie zu schliessen.
+- **Keep toasts off the dashboard monitor.** Which one that is comes from
+  `target_monitor` in `settings.json` (`--monitor` overrides). Without
+  `--only` they go to all remaining outputs; with `--only DP-4` to that one
+  output, with a fallback: if DP-4 is not connected they go everywhere except
+  the strip rather than nowhere.
+- **A close `×` in the top-right corner of the card.** The signal behind it
+  (`closeRequested` → `dismissPopup`) is already wired in Omarchy; there was
+  just no visible button, closing worked by right-click. The button is
+  declared after `mainColumn` so it sits above the card-wide `MouseArea`;
+  otherwise the click falls through to `onCardClicked` and triggers the
+  notification's default action instead of closing it.
 
-Gearbeitet wird auf einem Klon des Plugins in
-`~/.config/omarchy/plugins/<user>.notifications/` (`omarchy plugin clone`), das
-Original unter `/usr/share/omarchy` bleibt unangetastet. `--check` zeigt nur,
-was passieren wuerde, `--revert` nimmt alles zurueck.
+The script works on a clone of the plugin in
+`~/.config/omarchy/plugins/<user>.notifications/` (`omarchy plugin clone`);
+the original under `/usr/share/omarchy` is untouched. `--check` shows what
+would happen, `--revert` takes everything back.
 
-Der Klon friert allerdings den Omarchy-Stand ein, aus dem er geklont wurde —
-Bugfixes am Notification-Plugin kommen nicht mehr an. Nach einem groesseren
-Omarchy-Update also `--revert` und das Skript neu laufen lassen. Passt dann ein
-Anker nicht mehr, bricht es mit genau dieser Stelle ab statt still etwas
-Halbes zu hinterlassen.
+The clone freezes the Omarchy state it was cloned from — fixes to the
+notification plugin no longer arrive. After a larger Omarchy update run
+`--revert` and the script again. If an anchor no longer matches, it aborts at
+exactly that spot instead of leaving something half-patched.
 
-Nicht geklont werden darf uebrigens `omarchy.bar` — schon der unveraenderte
-Klon laesst die Bar auf allen Monitoren verschwinden. `omarchy plugin clone`
-traegt fuer `service`- und `bar-widget`-Plugins, fuer das `bar`-Plugin selbst
-nicht. Noetig ist es auch nicht: Hyprland ueberspringt `top`-Layer auf einem
-Workspace mit Vollbildfenster, die Bar ist auf dem Streifen also unsichtbar.
-Nur nach einem `omarchy restart shell` legt sie sich ueber den Header, bis das
-Dashboard einmal neu startet.
+Do **not** clone `omarchy.bar`: even the unmodified clone makes the bar vanish
+on all monitors. `omarchy plugin clone` works for `service` and `bar-widget`
+plugins, not for the `bar` plugin. It is not needed either: Hyprland skips
+`top` layers on a workspace with a fullscreen window, so the bar is invisible
+on the strip. Only after `omarchy restart shell` does it sit over the header
+until the dashboard restarts once.
 
-## Starten
+## Configuration
 
-```bash
-./run.sh
-```
+Everything goes through the **editor** (`./scripts/layout-editor.py`, or the
+gear on the strip). It opens on the main monitor because the strip has no
+keyboard, and shows the strip as a stage in true proportion: the topbar with
+its three slots on top, the columns below. Clicking a module, a topbar widget
+or a column width shows the matching settings on the right — the form is
+rendered from the module's `schema`. It shows only what has an effect in the
+current mode: the clock's time-zone list appears only in the *Time zones*
+display, *Shuffle* only with a music folder set, and the TradingView widget
+options disappear entirely once your own chart is loaded. Longer blocks sit
+behind a collapsed expander (`group` in the schema).
 
-oder
+The launch deck appears as a 3×6 grid: click a pad, fields below, drag pads to
+swap them. *Settings* in the header bar holds theme, target monitor,
+autostart, hold-to-confirm, isolated launches and the memory cap. *Save*
+writes `layout.json`, `settings.json` and `apps.json`; the running dashboard
+watches all three and applies the change immediately. Modules whose type and
+config are unchanged are reused — the chart does not reload because a column
+got wider. Dragging a column edge snaps the width to **10 px steps** (the
+strip is drawn about four times smaller in the editor, so one screen pixel is
+several real ones and round numbers would be luck); the number field in the
+inspector still takes any value. With several modules in one column the edge
+between them can be dragged (`height` in percent per module); the process list
+then shows as many rows as fit. Every deck pad has its own colour (`accent` in
+`apps.json`, a colour dot on the pad in the editor): the bottom border line of
+the pad on the strip.
 
-```bash
-python3 -m xeneon_edge
-```
+### Modules
 
-## Auto-Start einrichten
+| Module | Shows | Settings |
+|---|---|---|
+| Sensors | CPU, GPU, RAM, fans | which of them (`metrics`) |
+| Processes | top processes by CPU | number of rows |
+| Audio | output/input, volume | — |
+| Launch deck | 3×6 grid of apps and macros | in the editor under *Launch deck* |
+| Web panel | a WebKit view on an address | address |
+| TradingView | chart widget or your own chart | source, symbol, interval, time zone, indicators, toolbars |
+| Clock | time, large | display, seconds, time zones |
+| Calendar | the current month | week start, week numbers |
+| Playback | what is playing, with buttons | player, cover on/off, music folder, shuffle |
+| Notes | one file, read-only | file |
 
-Entweder über den Editor (Zahnrad → Einstellungen → „Mit der Sitzung starten") oder manuell:
-
-```bash
-./scripts/install-autostart.sh
-```
-
-## Konfiguration
-
-Alles laeuft ueber den **Editor** (`./scripts/layout-editor.py`, oder das
-Zahnrad auf dem Streifen). Er oeffnet sich auf dem Hauptmonitor, weil am
-Streifen keine Tastatur haengt, und zeigt den Streifen als Buehne in echter
-Proportion: oben die Topbar mit drei Slots, darunter die Spalten. Ein Klick
-auf ein Modul, ein Topbar-Widget oder eine Spaltenbreite zeigt rechts die
-zugehoerigen Einstellungen — das Formular kommt aus dem `schema` des Moduls.
-Es zeigt nur, was im aktuellen Modus etwas bewirkt: die Zeitzonen-Liste der Uhr
-erscheint erst bei Darstellung *Zeitzonen*, *Zufaellige Reihenfolge* erst mit
-gesetztem Musikordner, und die Widget-Optionen von TradingView verschwinden
-ganz, sobald der eigene Chart laeuft. Laengere Bloecke stehen hinter einem
-Aufklapper (`group` im Schema), zugeklappt.
-Das Launch-Deck erscheint dort als 3×6-Raster: Platz anklicken, Felder
-darunter, Plaetze per Ziehen tauschen. *Einstellungen* in der Kopfleiste
-zeigt Theme, Zielmonitor, Autostart, Hold-to-confirm, isolierte Starts und
-den Speicherdeckel. *Speichern* schreibt `layout.json`, `settings.json` und
-`apps.json`; das laufende Dashboard beobachtet alle drei und uebernimmt die
-Aenderung sofort. Module, deren Typ und Config gleich bleiben, werden dabei
-wiederverwendet — der Chart laedt nicht neu, nur weil eine Spalte breiter
-wurde. Beim Ziehen einer Spaltenkante rastet die Breite in **10-px-Schritten**
-— der Streifen ist im Editor gut vier Mal kleiner gezeichnet, ein
-Bildschirmpixel waeren also mehrere echte, und runde Zahlen kamen nur mit
-Glueck heraus; das Zahlenfeld im Inspektor nimmt weiterhin jeden Wert. Liegen
-mehrere Module in einer Spalte, laesst sich die Kante zwischen ihnen ziehen
-(`height` in Prozent am Modul); die Prozessliste zeigt dann so viele Zeilen,
-wie in ihre Hoehe passen. Jedes Deck-Pad hat eine eigene Farbe
-(`accent` in `apps.json`, Farbpunkt auf dem Pad im Editor): die untere
-Rahmenlinie des Pads auf dem Streifen.
-
-### Module
-
-| Modul | Was es zeigt | Einstellungen |
-|-------|--------------|---------------|
-| Sensoren | CPU, GPU, RAM, Luefter | welche davon (`metrics`) |
-| Prozesse | Top-Prozesse nach CPU | Anzahl Zeilen |
-| Audio | Ausgabe/Eingabe, Lautstaerke | — |
-| Launch-Deck | 3x6-Raster mit Apps und Macros | im Editor unter *Launch-Deck* |
-| Web-Panel | WebKit-View auf eine Adresse | Adresse |
-| TradingView | Chart-Widget oder eigener Chart | Quelle, Symbol, Intervall, Zeitzone, Indikatoren, Werkzeugleisten |
-| Uhr | Zeit gross | Darstellung, Sekunden, Zeitzonen |
-| Kalender | den laufenden Monat | Wochenstart, Kalenderwochen |
-| Wiedergabe | was gerade spielt, mit Tasten | Player, Cover an/aus, Musikordner, Zufall |
-| Notizen | eine Datei, lesend | Datei |
-
-**Uhr.** Drei Darstellungen: *Zeit und Datum*, *Nur Zeit*, *Zeitzonen*. Die
-Ziffern skalieren auf die Flaeche, die das Modul im Layout bekommt — eine
-schmale Spalte zeigt sie kleiner, der ganze Streifen macht daraus eine
-Wanduhr. Bei *Zeitzonen* steht pro Zeile eine Zone; das Feld nimmt
-`Name=Zone`, durch Komma getrennt:
+**Clock.** Three displays: *Time and date*, *Time only*, *Time zones*. The
+digits scale to the area the module gets in the layout — a narrow column shows
+them small, the whole strip makes a wall clock. In *Time zones* each line is
+one zone; the field takes `Name=Zone`, comma-separated:
 
 ```
 London=Europe/London, New York=America/New_York, Tokyo=Asia/Tokyo
 ```
 
-Die Zonennamen sind die aus `/usr/share/zoneinfo`. Steht kein `=` da, gilt
-der Eintrag als Zone und der letzte Pfadteil als Beschriftung
-(`America/New_York` → `NEW YORK`). Eine unbekannte Zone wird uebersprungen
-und im Journal gemeldet, die uebrigen Zeilen bleiben stehen.
+Zone names are those in `/usr/share/zoneinfo`. Without `=` the entry is the
+zone and the last path element becomes the label (`America/New_York` →
+`NEW YORK`). An unknown zone is skipped and logged; the other lines stay.
 
-**Kalender.** Der laufende Monat als Raster, heute farbig hervorgehoben,
-Tage der Nachbarmonate gedaempft. Bewusst **ohne Termine und ohne Verbindung
-nach draussen** — es geht darum, nachzusehen, welcher Wochentag der 23. ist.
-Einstellbar ist, ob die Woche am Montag oder Sonntag beginnt und ob die
-Kalenderwochen mitlaufen. Die Namen der Wochentage und des Monats folgen der
-Spracheinstellung des Systems, wie das Datum im Uhr-Modul.
+**Calendar.** The current month as a grid, today highlighted, days of the
+neighbouring months dimmed. Deliberately **without appointments and without a
+network connection** — it exists to look up which weekday the 23rd is. Week
+start (Monday or Sunday) and ISO week numbers are configurable. Weekday and
+month names follow the system locale, like the date in the clock module.
 
-**Wiedergabe.** Zeigt Titel, Kuenstler, Cover und Fortschritt des gerade
-laufenden Players und bietet Zurueck / Play-Pause / Weiter. Das geht ueber
-**MPRIS**, die D-Bus-Schnittstelle, die unter Linux praktisch jeder Player
-bedient — Spotify, YouTube im Browser, mpv, VLC. Es muss nichts eingerichtet
-werden: laeuft ein Player, ist er da.
+**Playback.** Title, artist, cover and progress of the player that is
+currently running, with previous / play-pause / next. This goes through
+**MPRIS**, the D-Bus interface practically every Linux player speaks — Spotify,
+YouTube in a browser, mpv, VLC. Nothing to set up: if a player runs, it is
+there.
 
-Das Feld *Player* bleibt normalerweise leer, dann wird der genommen, der
-gerade spielt. Traegt man etwas ein (`spotify`, `mpv`, `firefox`), gilt *nur*
-dieser — laeuft er nicht, sagt das Modul das auch, statt ersatzweise einen
-anderen zu zeigen.
+The *Player* field is normally empty, then whichever is playing is taken.
+With a value (`spotify`, `mpv`, `firefox`) *only* that one counts — if it is
+not running the module says so instead of showing a different one.
 
-Das Modul richtet sich nach seiner Groesse: Titel, Kuenstler und die Tasten
-sind immer da, Cover und Fortschrittsbalken kommen dazu, wenn Platz ist. Bei
-einem Live-Stream gibt es keinen Balken — der meldet keine Dauer. Tasten, die
-der Player nicht unterstuetzt, sind ausgegraut.
+The module adapts to its size: title, artist and buttons are always present,
+cover and progress bar appear when there is room. A live stream has no bar
+(it reports no duration). Buttons the player does not support are greyed out.
 
-Mit der Maus geht es bequemer ueber die Omarchy-Bar: `omarchy bar put
-omarchy.media` legt dasselbe als Bar-Widget auf den Hauptmonitor
-(Linksklick Play/Pause, Mitte weiter, Scrollen vor/zurueck, Rechtsklick
-Cover-Popup).
+With a mouse the Omarchy bar is more convenient: `omarchy bar put
+omarchy.media` puts the same thing as a bar widget on the main monitor.
 
-**Musikordner: das Modul spielt selbst.** Steht im Feld *Musikordner* ein
-Pfad, braucht es gar keinen fremden Player mehr. Der Ordner wird mitsamt
-Unterordnern nach Audiodateien durchsucht (`.mp3 .flac .ogg .opus .m4a .aac
-.wav .wma` und einige mehr, hoechstens 5000 Stueck), und die Play-Taste
-startet ihn. Weiter und Zurueck blaettern, am Ende der Liste hoert es auf.
-*Zufaellige Reihenfolge* mischt einmalig beim Start.
+**Music folder: the module plays itself.** With a path in *Music folder* no
+external player is needed. The folder is scanned recursively for audio files
+(`.mp3 .flac .ogg .opus .m4a .aac .wav .wma` and a few more, at most 5000)
+and the play button starts it. Next and previous page through, the list stops
+at its end. *Shuffle* mixes once at start.
 
-Abgespielt wird ueber `Gtk.MediaFile`, also GStreamer — dieselbe Maschinerie,
-mit der GTK jedes Video abspielt. Fehlen `gst-plugins-base` und
-`gst-plugins-good`, sagt das Modul das im Klartext, statt stumm zu bleiben.
+Playback goes through `Gtk.MediaFile`, i.e. GStreamer — the same machinery
+GTK uses for any video. Without a media backend (`gst-plugins-base` and
+`gst-plugins-good`; Debian: `libgtk-4-media-gstreamer`) the module says so in
+plain text instead of staying silent.
 
-Titel und Kuenstler kommen aus dem **Dateinamen** und dem Ordner darueber,
-nicht aus den Tags — bei der ueblichen Ablage `Kuenstler/Album/01 Titel.flac`
-steht damit das Richtige da. Als Cover wird eine Bilddatei im selben Ordner
-genommen (`cover`, `folder`, `front`, `album`, `albumart` als `.jpg`, `.png`
-oder `.webp`); ein in die Datei eingebettetes Bild wird *nicht* gelesen.
+Title and artist come from the **file name** and the folder above it, not from
+tags — with the usual `Artist/Album/01 Title.flac` layout that is right. The
+cover is an image in the same folder (`cover`, `folder`, `front`, `album`,
+`albumart` as `.jpg`, `.png` or `.webp`); embedded artwork is *not* read.
 
-Beide Quellen teilen sich die drei Tasten. Wer gewinnt: der eigene Player,
-solange er laeuft. Pausiert tritt er zurueck, sobald irgendwo sonst etwas
-spielt — startet man Spotify, uebernimmt Spotify die Anzeige, ohne dass der
-eigene Titel verloren geht.
+Both sources share the three buttons. The own player wins while it is playing;
+paused, it steps back as soon as something else plays — start Spotify and
+Spotify takes over the display without the own track being lost.
 
-**Nur Ton, kein Bild.** Das Modul zeigt Cover als Standbild, mehr nicht. Ein
-YouTube-Video laeuft im Browser und bleibt dort: MPRIS liefert Metadaten,
-kein Bild, und unter Wayland laesst sich das Fenster eines fremden Programms
-nicht in den Streifen holen. Wer Bewegtbild auf dem Streifen will, nimmt ein
-**Web-Panel** mit der YouTube-Adresse (siehe unten) — das kostet dann aber
-einen eigenen WebKit-Prozess.
+**Audio only, no video.** The module shows covers as still images, nothing
+more. A YouTube video runs in the browser and stays there: MPRIS delivers
+metadata, not pictures, and under Wayland another program's window cannot be
+pulled onto the strip. For moving pictures on the strip use a **web panel**
+with the YouTube address — at the price of a separate WebKit process.
 
-**Video im Web-Panel.** Ein Web-Panel nimmt jede Adresse, also auch YouTube.
-Damit WebKit das Bild dekodiert, braucht es allerdings mehr als
-`gst-plugins-good`:
+**Video in a web panel.** A web panel takes any address, YouTube included. For
+WebKit to decode the picture it needs more than `gst-plugins-good`:
 
 ```bash
 sudo pacman -S --needed gst-plugins-bad gst-plugins-ugly gst-libav
 ```
 
-Zu bedenken: jedes Web-Panel kostet einen eigenen WebKit-Prozess, und Video
-ist teuer. Der Spotify-Web-Player funktioniert *nicht* — er braucht
-Widevine-DRM, das WebKitGTK nicht mitbringt. Fuer Spotify also der
-Desktop-Client plus das Wiedergabe-Modul.
+Every web panel costs its own WebKit process and video is expensive. The
+Spotify web player does *not* work — it needs Widevine DRM, which WebKitGTK
+does not ship. For Spotify use the desktop client plus the playback module.
 
-**Notizen.** Zeigt eine `.txt`-, `.md`- oder `.json`-Datei und laedt sie neu,
-sobald sie sich aendert — geschrieben wird sie woanders, am Rechner mit
-Tastatur. JSON wird beim Anzeigen eingerueckt; ist es kaputt, bleibt es roh
-stehen. Markdown wird **nicht** formatiert, sondern als Klartext gezeigt.
+**Notes.** Shows a `.txt`, `.md` or `.json` file and reloads it when it
+changes — it is written elsewhere, on the machine with the keyboard. JSON is
+pretty-printed; broken JSON stays raw. Markdown is **not** rendered, it is
+shown as plain text.
 
-Bedient wird das Modul mit dem Finger: scrollen durch Wischen, und ein Tipp
-auf eine Zeile legt sie in die Zwischenablage — die Zeile leuchtet kurz in
-der Akzentfarbe auf. Ohne Tastatur am Streifen ist das der einzige Weg,
-etwas aus der Datei herauszubekommen. Angezeigt werden hoechstens 1500
-Zeilen; was darueber liegt, meldet die letzte Zeile.
+The module is used by finger: swipe to scroll, tap a line to copy it to the
+clipboard — the line flashes briefly in the accent colour. Without a keyboard
+on the strip that is the only way to get something out of the file. At most
+1500 lines are shown; the last line reports the rest.
 
-Die Dateien:
+### Files
 
-- `config/apps.json` — Default-Apps und -Macros (im Repo, dient als Vorlage)
-- `~/.config/xeneon-edge/apps.json` — User-Override (der Editor schreibt hierhin)
+- `config/apps.json` — default apps and macros (in the repo, a template)
+- `~/.config/xeneon-edge/apps.json` — user override (the editor writes here)
 - `~/.config/xeneon-edge/settings.json` — `auto_start`, `hold_to_confirm`,
   `isolate_launches`, `deck_app_slots`, `target_monitor`, `launch_monitor`,
   `fullscreen_on_target`, `chart_url`, `theme`, `web_memory_limit_mb`
-- `~/.config/xeneon-edge/layout.json` — Version 3: Profile mit `topbar`
-  (Slots `left`/`center`/`right`, je eine Liste `{type, config}`) und
-  `columns` (Breite + Module). Topbar-Widgets: `brand`, `status`, `net`,
+- `~/.config/xeneon-edge/layout.json` — version 3: profiles with `topbar`
+  (slots `left`/`center`/`right`, each a list of `{type, config}`) and
+  `columns` (width + modules). Topbar widgets: `brand`, `status`, `net`,
   `clock`, `weather` (`lat`, `lon`, `label`), `match` (`league`, `team`,
-  `short` — ESPN-Codes). Dateien der Versionen 1 und 2 werden beim Laden
-  umgebaut: 1 → Topbar-Slots, 2 → TradingView als eigenes Modul.
-  Was kein sichtbares Modul braucht, liest der Aggregator auch nicht: ohne
-  Prozess-Modul kein psutil-Durchlauf, ohne Wetter-Widget kein Open-Meteo.
+  `short` — ESPN codes). Version 1 and 2 files are migrated on load:
+  1 → topbar slots, 2 → TradingView as its own module. What no visible
+  module needs, the aggregator does not read: no process module, no psutil
+  pass; no weather widget, no Open-Meteo request.
+- `~/.local/share/xeneon-edge/webkit/` — the WebKit profile of the chart
+  (cookies, local storage), created 0700 on first use.
 
-### Farbthemes
+### Colour themes
 
-`theme` in `settings.json` bzw. Editor → Einstellungen → *Farbthema*; der
-Wechsel wirkt sofort, ohne Neustart. Mitgeliefert in `xeneon_edge/themes/`:
+`theme` in `settings.json`, or editor → Settings → *Colour theme*; the switch
+applies immediately. Shipped in `xeneon_edge/themes/`:
 
-| `theme`   | Look                                              |
-|-----------|---------------------------------------------------|
-| `crimson` | Rot auf Schwarz (Default, der bisherige Look)     |
-| `ember`   | Orange auf Schwarz                                |
-| `ice`     | Cyan auf Schwarz                                  |
-| `matrix`  | Gruen auf Schwarz                                 |
-| `nord`    | Grau-Blau, kein reines Schwarz                    |
-| `omarchy` | folgt der aktiven Omarchy-Palette (siehe unten)   |
+| `theme` | Look |
+|---|---|
+| `crimson` | red on black (default) |
+| `ember` | orange on black |
+| `ice` | cyan on black |
+| `matrix` | green on black |
+| `nord` | grey-blue, no pure black |
+| `omarchy` | follows the active Omarchy palette |
 
-Ein eigenes Theme ist eine weitere `.toml` in diesem Ordner — `crimson.toml`
-kopieren, die 13 Farben aendern, fertig; der Dateiname ist der Wert fuer
-`theme`. `style.css` enthaelt keine Farbwerte mehr, nur Namen (`@accent`,
-`@bg`, …), die `theme.py` aus der Palette davor definiert. Das anonyme
-TradingView-Widget bekommt Hintergrund und Grid aus derselben Palette; die
-volle Chart-Seite mit Account bringt ihr eigenes Theme mit.
+A custom theme is another `.toml` in that folder — copy `crimson.toml`, change
+the 13 colours, done; the file name is the value for `theme`. `style.css`
+contains no colour values, only names (`@accent`, `@bg`, …) that `theme.py`
+defines from the palette in front of it. The anonymous TradingView widget
+takes background and grid from the same palette; the full chart page with an
+account brings its own theme.
 
-`omarchy` liest `~/.local/state/omarchy/current/theme/colors.toml` und
-beobachtet das Verzeichnis: `omarchy-theme-set` faerbt das Dashboard mit um.
-Der Eintrag erscheint nur, wenn diese Datei existiert — auf Fedora/KDE fehlt
-er. Die Zuordnung (Omarchy-`accent` → Akzent, `red` → heiss, `yellow` → warm,
-drei Hintergrundstufen → Fenster/Panel/Buttons) steht in `theme.py`.
+`omarchy` reads `~/.local/state/omarchy/current/theme/colors.toml` and watches
+the directory: `omarchy-theme-set` recolours the dashboard along. The entry
+appears only when that file exists — on Fedora/KDE it is absent. The mapping
+(Omarchy `accent` → accent, `red` → hot, `yellow` → warm, three background
+levels → window/panel/buttons) is in `theme.py`.
 
-### Deck-Aufteilung
+### Deck split
 
-Das Deck hat fest 18 Plätze (3 Spalten × 6 Zeilen, `DECK_*` in
-`config_store.py` — die Buttonhöhe ist auf die 660px Inhaltsfläche des Xeneon
-Edge abgestimmt). `deck_app_slots` (Editor → Launch-Deck → *Plaetze fuer
-Apps*, 0–18) legt fest, wie viele davon an Apps gehen; der Rest geht an
-Macros:
+The deck has a fixed 18 pads (3 columns × 6 rows, `DECK_*` in
+`config_store.py` — the pad height is tuned to the 660 px content area of the
+strip). `deck_app_slots` (editor → Launch deck → *Slots for apps*, 0–18) says
+how many go to apps; the rest are macros:
 
-| `deck_app_slots` | Deck                                     |
-|------------------|------------------------------------------|
-| `0`              | alle 18 Buttons sind Macros              |
-| `9` (Default)    | Zeile 1–3 Apps, Zeile 4–6 Macros         |
-| `18`             | alle 18 Buttons sind Apps                |
+| `deck_app_slots` | Deck |
+|---|---|
+| `0` | all 18 pads are macros |
+| `9` (default) | rows 1–3 apps, rows 4–6 macros |
+| `18` | all 18 pads are apps |
 
-Gefüllt wird slotweise, nicht zeilenweise: bei `4` teilen sich Apps und Macros
-die zweite Zeile. Die Apps-/Macros-Tabs zeigen jeweils exakt so viele Slots,
-wie das Deck von dieser Kategorie auch rendert — was dort steht, landet auch
-auf dem Display.
+Pads are filled slot by slot, not row by row: with `4`, apps and macros share
+the second row. The Apps/Macros tabs show exactly as many slots as the deck
+renders for that category — what is there ends up on the display.
 
-Einträge, die über das aktuelle Kontingent hinausgehen, bleiben in `apps.json`
-erhalten: den Regler runter- und wieder hochdrehen bringt sie unverändert
-zurück.
+Entries beyond the current quota are kept in `apps.json`: moving the slider
+down and up again brings them back unchanged.
 
-Ein Slot mit Kommando, aber ohne Label, beschriftet sich selbst mit dem
-Dateinamen des Kommandos (`display_label()` in `ui/deck.py`). Vorher sah so ein
-Slot leer aus, löste beim Antippen aber trotzdem aus.
+A slot with a command but no label labels itself with the command's file name
+(`display_label()` in `ui/deck.py`); such a slot used to look empty and still
+fire on tap. Labels wrap to two lines (11 px, minimal letter spacing).
 
-Beschriftungen brechen auf zwei Zeilen um (11px, minimale Sperrung). Gemessen
-mit Pango bei der realen Buttonbreite passt damit alles bis
-`g1_gemma-4-e4b_128k` vollständig auf den Button; vorher wurde schon
-„qwen 96k vision" gekürzt.
+### Launching deck entries
 
-### TradingView
+Default (`isolate_launches: true`) is `systemd-run --user`: every entry gets
+its own transient unit `xeneon-deck-<slot>-<id>.service` (e.g.
+`xeneon-deck-02-macro2`) and with it its own cgroup under `app.slice`. The
+slot number is part of the name because `id` is not unique — entries move when
+reordered, their `id` stays.
 
-TradingView ist ein **eigenes Modul**, getrennt vom Web-Panel. Das Web-Panel
-fragt nur nach einer Adresse; TradingView fragt, *wie* — Feld *Quelle*:
+This is not cosmetic. Started with `subprocess.Popen`, the process would stay
+a child of the dashboard and live in *its* unit — for a local llama.cpp server
+with `--threads 16` that means UI and model share CPU weight and memory
+reclaim, and the dashboard stutters while the model loads and during
+inference. On top, a `systemctl --user restart` of the dashboard would take
+the model server with it (`KillMode=control-group`), and stop scripts that
+derive the unit from `/proc/PID/cgroup` would hit the dashboard unit.
 
-| Quelle (`mode`)      | Was laeuft                                       |
-|----------------------|--------------------------------------------------|
-| `widget` (Default)   | *Advanced Chart*-Widget, anonym, konfigurierbar   |
-| `account`            | die echte Chart-Seite mit deinem gespeicherten Layout, aus `url` |
+In practice:
 
-Bis Layout-Version 2 war beides ein Web-Panel: leere Adresse hiess „Widget",
-eine `tradingview.com`-Adresse hiess „eigener Chart". Bestehende Layouts
-werden beim Laden umgestellt, es ist nichts von Hand zu tun.
+```bash
+systemctl --user list-units 'xeneon-deck-*'        # what is running?
+systemctl --user stop     xeneon-deck-02-macro2    # stop cleanly
+journalctl --user -u      xeneon-deck-02-macro2 -f # the script's output
+```
 
-**Das Widget einstellen.** Im Editor hinter dem Aufklapper
-*Widget-Einstellungen* — bei Quelle *Eigener Chart* ist der Block gar nicht da,
-dort gilt ohnehin das Layout aus dem Account. Symbol (`BINANCE:BTCUSDT`,
-`NASDAQ:AAPL`, `SIX:NESN` …), Intervall, Zeitzone, Werkzeugleisten an/aus und
-die Indikatoren zum Anklicken:
+A second tap on a running entry does not start a second instance; it fails
+with "unit already exists", logged in the dashboard's journal.
 
-| Anzeige | Kennung |
-|---------|---------|
-| Volumen | eigene Widget-Option (`hide_volume`), zaehlt nicht ins Limit |
+Single entries opt out with `"launch": "direct"` in `apps.json`; the switch in
+the editor (Settings) reverts globally to the plain Popen behaviour.
+
+### Icons
+
+The `icon` field of an entry accepts three forms, tried in this order:
+
+1. **Bundled icon** from `xeneon_edge/icons/` by name — extension and
+   `-symbolic` optional, `llm-start` finds `llm-start-symbolic.svg`
+2. **Absolute path** to an SVG or PNG
+3. **Icon-theme name** (`utilities-terminal`, `system-run-symbolic`, …)
+
+Three matching chip symbols for local LLM servers are bundled:
+
+| Name | Symbol | Meant for |
+|---|---|---|
+| `llm-start` | chip with ▶ | start the model server |
+| `llm-vision` | chip with an eye | multimodal model |
+| `llm-stop` | chip with ■ | stop the server |
+
+Without an `icon` field the automatic lookup runs: macro-id keyword
+(`shutdown`, `lock`, …) → matching `.desktop` file → theme name → category
+fallback. Theme names are checked with `has_icon()` before being returned;
+otherwise every shell script ended up at "command name as icon name" and all
+script macros showed the same "no entry" symbol.
+
+## TradingView
+
+TradingView is a **module of its own**, separate from the web panel. The web
+panel only asks for an address; TradingView asks *how* — field *Source*:
+
+| Source (`mode`) | What runs |
+|---|---|
+| `widget` (default) | the *Advanced Chart* widget, anonymous, configurable |
+| `account` | the real chart page with your saved layout, from `url` |
+
+Up to layout version 2 both were a web panel: an empty address meant
+"widget", a `tradingview.com` address meant "own chart". Existing layouts are
+converted on load.
+
+**Configuring the widget.** In the editor behind the *Widget settings*
+expander — with source *Own chart* the block is absent, the account layout
+applies there anyway. Symbol (`BINANCE:BTCUSDT`, `NASDAQ:AAPL`, `SIX:NESN` …),
+interval, time zone (defaults to the system zone), toolbars on/off and the
+indicators to tick:
+
+| Display | Id |
+|---|---|
+| Volume | widget option (`hide_volume`), does not count towards the limit |
 | RSI | `STD;RSI` |
 | MACD | `STD;MACD` |
-| Bollinger-Baender | `STD;Bollinger_Bands` |
+| Bollinger Bands | `STD;Bollinger_Bands` |
 | EMA / SMA | `STD;EMA`, `STD;SMA` |
 | VWAP | `STD;VWAP` |
 | Stochastic RSI | `STD;Stochastic_RSI` |
-| Ichimoku-Wolke | `STD;Ichimoku%1Cloud` |
+| Ichimoku Cloud | `STD;Ichimoku%1Cloud` |
 | Supertrend | `STD;Supertrend` |
-| RSI-Divergenz | `STD;Divergence%1Indicator` |
+| RSI Divergence | `STD;Divergence%1Indicator` |
 
-Zwei Dinge, die man nur durch Nachmessen erfaehrt — das Widget meldet
-naemlich **keinen Fehler**, es laesst den Indikator einfach weg:
+Two things you only learn by measuring — the widget reports **no error**, it
+simply drops the indicator:
 
-- **Hoechstens fuenf Indikatoren.** Alles darueber wird stillschweigend
-  verworfen, und zwar die *letzten* der Liste. Das Modul kappt deshalb selbst
-  bei fuenf (`TV_MAX_STUDIES` in `ui/chart.py`).
-- **Die Liste ist die vollstaendige.** ATR, OBV, ADX, MFI und Awesome
-  Oscillator wurden in mehreren Schreibweisen probiert und von keiner
-  erkannt; sie stehen deshalb nicht zur Auswahl, statt einen Haken
-  anzubieten, der nichts bewirkt. Wer sie braucht, nimmt den eigenen Chart —
-  der bringt die Indikatoren aus dem Account mit.
+- **At most five indicators.** Anything beyond is silently discarded, and it
+  is the *last* ones in the list. The module therefore caps at five itself
+  (`TV_MAX_STUDIES` in `ui/chart.py`).
+- **The list is complete.** ATR, OBV, ADX, MFI and Awesome Oscillator were
+  tried in several spellings and recognised by none; they are not offered
+  rather than showing a checkbox that does nothing. If you need them, use
+  your own chart — it brings the indicators from the account.
 
-Das eingebettete Widget kann gespeicherte Layouts **nicht** laden — es ist
-account-los und nimmt nur die Parameter oben. Wer seine Zeichnungen und
-Templates sehen will, muss die richtige Seite laden und dort angemeldet sein.
+The embedded widget **cannot** load saved layouts — it has no account and
+takes only the parameters above. To see your drawings and templates you load
+the real page and are signed in there.
 
-Angemeldet wird ueber den Editor: TradingView-Modul anklicken → **Anmelden /
-Chart waehlen**. Der Button startet dasselbe Skript auch von Hand:
+**Signing in** happens through the editor: click the TradingView module →
+**Sign in / choose chart**. The button runs the same script you can start by
+hand:
 
 ```bash
 ./scripts/tradingview-login.py
 ```
 
-Das oeffnet dieselbe Browser-Session in einem normalen 1400x900-Fenster auf dem
-Hauptmonitor — am 2560x720-Streifen haengt ueblicherweise keine Tastatur.
+It opens the same browser session in a normal 1400×900 window on the main
+monitor — the strip usually has no keyboard. It does not land there by
+itself: Hyprland puts new windows on the focused workspace, and that is the
+strip exactly when the login was started by touch from the dashboard. So the
+window picks its monitor itself (`find_login_monitor` in `ui/monitors.py`,
+the largest output other than `target_monitor`). GTK4 cannot position a window
+on Wayland — `fullscreen_on_monitor()` is the only API that takes a monitor at
+all. So it goes fullscreen there for one frame and leaves fullscreen again;
+the compositor then already has the window on the right output. That it
+floats instead of tiling is the rule from `install-arch.sh`.
 
-Von allein landet es dort nicht: Hyprland legt neue Fenster auf den
-fokussierten Workspace, und der ist genau dann der Streifen, wenn das Login per
-Touch aus dem Dashboard heraus gestartet wurde. Dann ging es hinter dem
-Vollbild-Dashboard auf und war weder sichtbar noch bedienbar. Deshalb sucht
-sich das Fenster seinen Monitor selbst (`find_login_monitor` in
-`ui/monitors.py`, groesster Ausgang ausser `target_monitor`). GTK4 kann ein
-Fenster auf Wayland nicht positionieren — `fullscreen_on_monitor()` ist die
-einzige API, die ueberhaupt einen Monitor annimmt. Also einmal dort Vollbild
-anmelden und im naechsten Frame wieder verlassen; der Compositor hat das
-Fenster dann schon auf dem richtigen Ausgang. Dass es dort schwebt statt zu
-kacheln, macht die Regel aus `install-arch.sh`. Dort
-anmelden, den gewuenschten gespeicherten Chart oeffnen, *Als Chart uebernehmen*
-druecken: das schreibt die aktuelle URL nach `chart_url` und beendet das
-Fenster. Login ueber Google/Apple oeffnet ein Popup — das Skript faengt es ab
-und zeigt es in einem eigenen Fenster (ohne diesen Handler passiert beim Klick
-gar nichts).
+Sign in there, open the saved chart you want, press *Use as chart*: that
+writes the current URL to `chart_url` and closes the window. Login through
+Google or Apple opens a popup — the script catches it and shows it in its own
+window (without that handler nothing happens on click).
 
-Das Profil liegt in `~/.local/share/xeneon-edge/webkit/` (Cookies als
-`cookies.sqlite`, dazu LocalStorage). Persistent ist es nur, weil die
-`NetworkSession` explizit mit diesem Verzeichnis gebaut wird — eine
-Default-`WebKit.WebView()` haelt ihren Cookie-Jar im Speicher, der Login waere
-nach jedem Neustart weg.
+The profile lives in `~/.local/share/xeneon-edge/webkit/` (`cookies.sqlite`
+plus local storage). It is persistent only because the `NetworkSession` is
+built explicitly with that directory — a default `WebKit.WebView()` keeps its
+cookie jar in memory and the login would be gone after every restart.
 
-Zu beachten:
+Things to know:
 
-- **Kein Neustart noetig.** Der Editor wartet auf das Ende des Login-Fensters,
-  traegt die URL ins Feld *Chart-Adresse* ein und stellt *Quelle* auf
-  „Eigener Chart"; nach *Speichern* haengt sich das Panel im laufenden
-  Dashboard um. Der Button *Zurueck zum Widget* daneben stellt die Quelle
-  wieder um und laesst die Adresse stehen. Die Adresse laesst sich auch von
-  Hand eintippen — der Editor laeuft ja auf dem Monitor mit Tastatur.
-- **Der erste Aufbau dauert.** Das Panel bleibt einige Sekunden leer, bis
-  Layout und Indikatoren geladen sind — beim anonymen Widget steht der Chart
-  fast sofort. Das ist kein Fehler, sondern der Preis des eigenen Layouts.
-- **Telemetrie-Requests scheitern** (`telemetry.tradingview.com`, `TypeError:
-  Load failed`), wenn ein Adblocker oder DNS-Filter aktiv ist. Ohne Folgen —
-  der Chart laedt vollstaendig.
-- **Die volle Seite kostet mehr** als das Widget — eigener Web-Prozess, mehr
-  RAM, mehr CPU. Bei einem Panel, das durchlaeuft, merkbar: frisch geladen
-  rund 1 GB RSS und 5 % eines Kerns, und die Seite waechst ueber Stunden
-  (3,7 GB Spitze der Dashboard-Unit gemessen). Deshalb haengt am Web-Prozess
-  ein Deckel, `web_memory_limit_mb` in `settings.json` (Default 1536, 0 =
-  aus, gemessen als RSS des Web-Prozesses): ab 70 % gibt WebKit Caches
-  frei, am Limit beendet es den
-  Web-Prozess, und das Panel laedt die Seite drei Sekunden spaeter neu —
-  sichtbar als kurz leeres Panel, im Journal als „Web-Prozess des Charts
-  beendet (exceeded-memory-limit)“. Dasselbe passiert nach einem Absturz des
-  Web-Prozesses; vorher blieb das Panel dann bis zum Neustart leer.
-- **Die Session kann ablaufen.** Dann steht im Panel die Login-Wand statt eines
-  Charts; im Editor beim TradingView-Modul erneut *Anmelden / Chart waehlen*.
-- **Das Login-Fenster hat keinen Speicherdeckel.** Der Google-Login oeffnet
-  ein Popup im selben Web-Prozess, zusammen lagen die beiden bei 1,6 GB —
-  mit dem Deckel des Chart-Panels wurde der Prozess nach 30 s gekillt und
-  das Fenster nahm keine Eingabe mehr an. Ein zweiter Start holt das
-  vorhandene Fenster nach vorn statt ein zweites darueberzulegen.
-- Automatisiertes Einloggen waere gegen die TradingView-ToS — deshalb ein
-  Fenster zum Selbst-Anmelden und kein Skript, das Zugangsdaten eintippt.
+- **No restart needed.** The editor waits for the login window to close,
+  enters the URL into *Chart address* and sets *Source* to *Own chart*; after
+  *Save* the panel in the running dashboard switches over. Closing the window
+  without *Use as chart* changes nothing. The *Back to widget* button switches
+  the source back and leaves the address in place. The address can also be
+  typed by hand — the editor runs on the monitor with a keyboard.
+- **The first build takes a while.** The panel stays empty for a few seconds
+  until layout and indicators are loaded — the anonymous widget is up almost
+  immediately. Not a bug, the price of your own layout.
+- **Telemetry requests fail** (`telemetry.tradingview.com`, `TypeError: Load
+  failed`) with an ad blocker or DNS filter active. No consequences — the
+  chart loads completely.
+- **The full page costs more** than the widget: its own web process, more
+  RAM, more CPU. For a panel that runs all day it is noticeable — freshly
+  loaded about **1 GB RSS and 5 % of one core**, and the page grows over hours
+  (3.7 GB peak of the dashboard unit was measured). That is why the web
+  process has a cap, `web_memory_limit_mb` in `settings.json` (default 1536,
+  0 = off, measured as the web process's RSS): at 70 % WebKit releases caches,
+  at the limit it terminates the web process and the panel reloads the page
+  three seconds later — visible as a briefly empty panel, logged as "web
+  process terminated (exceeded-memory-limit)". The same reload path covers a
+  crashed web process; before, the panel stayed blank until a restart.
+- **The session can expire.** The panel then shows the login wall instead of
+  a chart; in the editor, click *Sign in / choose chart* again.
+- **The login window has no memory cap.** The Google login opens a popup in
+  the same web process; together the two reached 1.6 GB — with the chart
+  panel's cap the process was killed after 30 s and the window stopped taking
+  input. A second start brings the existing window to the front instead of
+  opening a second one.
+- Automated sign-in would be against the TradingView terms of service — hence
+  a window to sign in yourself and no script that types credentials.
 
-### Icons
+## Controls
 
-Das Feld `icon` eines Eintrags akzeptiert drei Formen, in dieser Reihenfolge:
+- Gear: opens the editor on the main monitor — layout, module settings, deck
+  and all settings in one place
+- `FS`: toggle fullscreen
+- `X`: quit
+- Macros with `confirm: true`: hold the pad about 1 s until it lights up red
+- `×` in a process row: hold ~0.8 s (the button fills red) → SIGTERM. A short
+  tap does nothing; while holding, the list freezes so a reorder cannot push
+  the wrong process under your finger.
 
-1. **Mitgeliefertes Icon** aus `xeneon_edge/icons/` per Name — Endung und
-   `-symbolic` optional, `llm-start` findet `llm-start-symbolic.svg`
-2. **absoluter Dateipfad** zu einem SVG/PNG
-3. **Name aus dem Icon-Theme** (`utilities-terminal`, `system-run-symbolic`, …)
+## Under the hood
 
-Mitgeliefert sind drei zusammengehörige Chip-Symbole für lokale LLM-Server:
+| Area | Source |
+|---|---|
+| CPU load | `/proc/stat` |
+| CPU clock | `/proc/cpuinfo` |
+| CPU temp | `/sys/class/hwmon/*` (k10temp/coretemp) |
+| RAM | `/proc/meminfo` |
+| Network | `/proc/net/dev` |
+| Fans | `/sys/class/hwmon/*/fan*_input` |
+| AMD GPU | `/sys/class/drm/cardX/device/{gpu_busy_percent,mem_info_vram_*}` + hwmon |
+| NVIDIA | NVML (`pynvml`), fallback `nvidia-smi --query-gpu=...` |
+| Audio | `pactl get/set-sink-volume`, `set-default-sink`, `wpctl`; re-read only on an event from `pactl subscribe` |
 
-| Name          | Symbol           | gedacht für            |
-|---------------|------------------|------------------------|
-| `llm-start`   | Chip mit ▶       | Modellserver starten   |
-| `llm-vision`  | Chip mit Auge    | multimodales Modell    |
-| `llm-stop`    | Chip mit ■       | Server stoppen         |
+No administrator rights are needed (unlike the Windows version). The sensor
+thread polls once a second and only what a visible module declares in
+`needs`; snapshots reach the UI through `GLib.idle_add`.
 
-Ohne `icon`-Feld greift die Automatik: Macro-ID-Schlüsselwort (`shutdown`,
-`lock`, …) → passende `.desktop`-Datei → Theme-Name → Kategorie-Fallback.
-Theme-Namen werden vor der Rückgabe mit `has_icon()` geprüft — sonst landete
-jedes Shell-Script bei Schritt „Kommandoname als Icon-Name" und alle
-Script-Macros zeigten dasselbe „kein Eintrag"-Symbol.
+## Known limitations
 
-### Wie Deck-Einträge gestartet werden
+- The AMD GPU name is derived from `modalias` and generic ("AMD GPU
+  (Radeon)"); a nicer name would need `lspci`.
+- Without `pynvml` (Arch `python-nvidia-ml-py`, Debian `python3-pynvml`) the
+  NVIDIA values come from `nvidia-smi`, one process start per tick (~28 ms).
+  With NVML it is 0.1 ms; the status pill does not show which path is active,
+  `verify-install.py` does.
+- If `pactl subscribe` cannot run (no sound server yet), audio is polled every
+  2 s and the watcher is retried every 30 s; with events it is read only on
+  change plus every 30 s as a safety net.
+- Autostart is an XDG entry: honoured by GNOME, KDE and any session started
+  through uwsm, not by a bare Hyprland session.
+- MPRIS property reads are synchronous D-Bus calls on the main loop with a
+  500 ms timeout; a hung player can stall the UI briefly.
 
-Default (`isolate_launches: true`) ist `systemd-run --user`: jeder Eintrag
-bekommt eine eigene transiente Unit `xeneon-deck-<slot>-<id>.service` (z.B.
-`xeneon-deck-02-macro2`) und damit eine eigene cgroup unter `app.slice`. Die
-Slotnummer steht mit drin, weil `id` nicht eindeutig ist — beim Umsortieren
-wandern die Einträge, ihre `id` bleibt stehen.
-
-Das ist kein Kosmetik-Detail. Per `subprocess.Popen` gestartet bliebe der
-Prozess Kind des Dashboards und liefe in *dessen* Unit — bei einem lokalen
-llama.cpp-Server mit `--threads 16` heißt das: CPU-Weight und Memory-Reclaim
-teilen sich UI und Modell, das Dashboard ruckelt beim Laden und während der
-Inferenz. Dazu käme, dass ein `systemctl --user restart` des Dashboards den
-Modellserver mitreißt (`KillMode=control-group`) und dass Stop-Skripte, die die
-Unit aus `/proc/PID/cgroup` ableiten, die Dashboard-Unit erwischen.
-
-Praktische Folgen:
-
-```bash
-systemctl --user list-units 'xeneon-deck-*'        # was läuft gerade?
-systemctl --user stop     xeneon-deck-02-macro2    # sauber beenden
-journalctl --user -u      xeneon-deck-02-macro2 -f # Ausgabe des Scripts
-```
-
-Ein zweiter Klick auf einen bereits laufenden Eintrag startet keine zweite
-Instanz, sondern scheitert an „unit already exists“ — die Meldung landet im
-Journal der Dashboard-Unit (`journalctl --user -u xeneon-edge`).
-
-Einzelne Einträge lassen sich mit `"launch": "direct"` in `apps.json` davon
-ausnehmen; der Schalter im Editor (Einstellungen) stellt global auf das alte
-Popen-Verhalten zurück.
-
-## Tastatur / Bedienung
-
-- Zahnrad-Button: oeffnet den Editor auf dem Hauptmonitor (siehe unten) —
-  Layout, Modul-Einstellungen, Deck und alle Settings an einem Ort
-- `FS`: Vollbild umschalten
-- `X`: Beenden
-- Macros mit `confirm: true`: Button gedrückt halten (1 s) bis er rot aufleuchtet
-- `×` in einer Prozess-Zeile: ~0,8 s halten (Button füllt sich rot) → SIGTERM.
-  Kurzer Klick macht nichts; während des Haltens friert die Liste ein, damit
-  kein Reorder den falschen Prozess unter den Cursor schiebt.
-
-## Was unter der Haube läuft
-
-| Bereich   | Quelle                                                                     |
-|-----------|-----------------------------------------------------------------------------|
-| CPU-Last  | `/proc/stat`                                                                |
-| CPU-Takt  | `/proc/cpuinfo`                                                             |
-| CPU-Temp  | `/sys/class/hwmon/*` (k10temp/coretemp)                                     |
-| RAM       | `/proc/meminfo`                                                             |
-| Netzwerk  | `/proc/net/dev`                                                             |
-| Lüfter    | `/sys/class/hwmon/*/fan*_input`                                             |
-| AMD-GPU   | `/sys/class/drm/cardX/device/{gpu_busy_percent,mem_info_vram_*}` + hwmon    |
-| NVIDIA    | NVML (`pynvml`), Fallback `nvidia-smi --query-gpu=...`                      |
-| Audio     | `pactl get/set-sink-volume`, `set-default-sink`, `wpctl`; neu gelesen nur bei Ereignis aus `pactl subscribe` |
-
-Keine Admin-Rechte nötig (im Gegensatz zur Windows-Version).
-
-## Bekannte Einschränkungen
-
-- AMD-GPU-Name wird aus `modalias` abgeleitet — generisch („AMD GPU (Radeon)"). Für den schöneren Namen müsste man `lspci` oder `pciutils` parsen.
-- Ohne `pynvml` (Arch `python-nvidia-ml-py`, Debian `python3-pynvml`) kommen die NVIDIA-Werte aus `nvidia-smi`, ein Prozessstart pro Tick (~28 ms). Mit NVML sind es 0,1 ms; die Statuspille zeigt nicht, welcher Weg läuft, `verify-install.py` schon.
-- Läuft `pactl subscribe` nicht (kein Server), wird Audio wie früher alle 2 s gepollt; sonst nur bei Änderung und alle 30 s zur Sicherheit.
-
-## Verzeichnisstruktur
+## Directory layout
 
 ```
 linux/
-  run.sh
-  requirements.txt
-  config/apps.json
-  config/apps.omarchy.json
-  scripts/install-autostart.sh
-  scripts/install-debian.sh    # Debian-13-Setup: Pakete, Verify, Settings, Autostart
-  scripts/install-arch.sh      # Arch/Omarchy-Setup: + Deck-Vorlage, Hyprland-Regeln
-  scripts/verify-install.py    # Abhaengigkeits-Check, von beiden Installern benutzt
-  scripts/tradingview-login.py # Einmal-Login fuer das Chart-Panel (eigene Session)
+  run.sh                       # GDK_SCALE=1, WebKit DMABUF fallback, unbuffered stdout
+  pyproject.toml               # metadata, ruff config
+  requirements.txt             # for venv setups only; distros use their packages
+  config/apps.json             # deck template (KDE-flavoured)
+  config/apps.omarchy.json     # deck template for Omarchy
+  scripts/install-arch.sh      # Arch/Omarchy setup: packages, verify, settings, deck, Hyprland rules
+  scripts/install-debian.sh    # Debian 13 setup: packages, verify, settings, autostart
+  scripts/install-autostart.sh # writes the XDG autostart entry
+  scripts/verify-install.py    # dependency check used by both installers
+  scripts/layout-editor.py     # the editor window (WebKit page + GTK bridge)
+  scripts/tradingview-login.py # one-off login for the chart panel (own session)
+  scripts/install-omarchy-notifications.py
   xeneon_edge/
-    app.py             # Adw.Application + CSS + Aggregator-Wiring
+    app.py             # Adw.Application, CSS, file watchers, aggregator wiring
     config_store.py    # settings.json + apps.json + autostart .desktop
-    paths.py
-    style.css          # GTK4-Stylesheet, farbfrei — Farben kommen aus theme.py
-    theme.py           # Paletten laden (themes/*.toml, Omarchy), @define-color erzeugen
+    layout_store.py    # layout.json: profiles, topbar, columns, migrations
+    launcher.py        # deck launches via systemd-run, monitor focusing
+    theme.py           # palettes (themes/*.toml, Omarchy) → @define-color
     themes/            # crimson, ember, ice, matrix, nord
-    layout_store.py    # layout.json: Spalten, Module, Breiten
-    modules/           # Modul-Register + mitgelieferte Module
-    sensors/           # CPU/GPU/RAM/Net/Fans/Audio/Weather/Aggregator
-    ui/                # Window + Panels + Deck + AudioPanel + Chart + Settings
-      layout.py        # FixedWidth — harte Spaltenbreiten (Werte dürfen nicht schieben)
+    style.css          # GTK4 stylesheet, colour names only
+    icons/             # bundled symbolic icons
+    editor/            # editor page (assets/) and the message handler
+    modules/           # module registry + the bundled modules
+    sensors/           # cpu, gpu_amd, gpu_nvidia, ram, net, fans, audio, processes, mpris, weather, match, aggregator
+    ui/                # window, panels, gauges, deck, chart, clock, calendar, notes, media player, layout helpers
 ```

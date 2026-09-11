@@ -285,7 +285,7 @@ if (( DO_HYPR )) && command -v hyprctl >/dev/null 2>&1; then
 -- die Datei.
 --
 -- Auf den Zielmonitor legt sich das Dashboard selbst (target_monitor in
--- ~/.config/xeneon-edge/settings.json, fullscreen_on_monitor). Hier stehen nur
+-- ~/.config/xeneon-edge/settings.json, fullscreen_on_target). Hier stehen nur
 -- die Omarchy-Defaults, die ein 2560x720-Streifen nicht will: 0.985 Opacity
 -- auf jedem Fenster, Rahmen, Rundungen, Abdunkeln im Hintergrund.
 --
@@ -343,7 +343,7 @@ LUA
 # die Datei. Syntax: Hyprland 0.53+ (windowrule = <regel>, match:...).
 #
 # Auf den Zielmonitor legt sich das Dashboard selbst (target_monitor in
-# ~/.config/xeneon-edge/settings.json, fullscreen_on_monitor). Hier stehen nur
+# ~/.config/xeneon-edge/settings.json, fullscreen_on_target). Hier stehen nur
 # die Omarchy-Defaults, die ein 2560x720-Streifen nicht will: 0.985 Opacity auf
 # jedem Fenster, Rahmen, Rundungen, Abdunkeln im Hintergrund.
 #

@@ -13,7 +13,7 @@ import json
 from typing import Any
 
 from .paths import USER_CONFIG_DIR
-from . import modules
+from . import modules  # noqa: F401 — laedt das Modul-Register vor validate()
 
 LAYOUT_FILE = USER_CONFIG_DIR / "layout.json"
 

@@ -1,0 +1,73 @@
+# Packaging metadata and tool configuration for the Linux port.
+#
+# The dashboard runs from a checkout (`./run.sh` or `python3 -m xeneon_edge`):
+# paths.py resolves config/, scripts/ and the packaged assets relative to the
+# source tree. GTK4, libadwaita and WebKitGTK come from the distribution, not
+# from pip — PyGObject is listed for completeness, but on Arch, Debian and
+# Fedora the installers pull python-gobject from the package manager and
+# never call pip (PEP 668).
+#
+# `pip install -e .` inside a venv created with --system-site-packages works
+# for development; a plain venv lacks the GI typelibs.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xeneon-edge-dashboard"
+dynamic = ["version"]
+description = "GTK4 status dashboard for a 2560x720 secondary monitor — sensors from /proc and /sys, launch deck, TradingView, MPRIS playback"
+readme = "README.md"
+license = { file = "../LICENSE" }
+requires-python = ">=3.11"   # tomllib, zoneinfo
+authors = [{ name = "johnytuga" }]
+keywords = ["gtk4", "dashboard", "hyprland", "omarchy", "sensors", "xeneon-edge"]
+classifiers = [
+  "Environment :: X11 Applications :: GTK",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: System :: Monitoring",
+]
+dependencies = [
+  "PyGObject>=3.50",
+  "psutil>=5.9",
+  "requests>=2.31",
+]
+
+[project.optional-dependencies]
+# NVML bindings: 0.1 ms per tick instead of one nvidia-smi process (~28 ms).
+nvidia = ["nvidia-ml-py>=12"]
+dev = ["ruff>=0.5"]
+
+[project.urls]
+Homepage = "https://github.com/johnytuga1904/xeneon-edge-dashboard"
+Issues = "https://github.com/johnytuga1904/xeneon-edge-dashboard/issues"
+
+[tool.setuptools]
+packages = ["xeneon_edge", "xeneon_edge.editor", "xeneon_edge.modules",
+            "xeneon_edge.sensors", "xeneon_edge.ui"]
+
+[tool.setuptools.dynamic]
+version = { attr = "xeneon_edge.__version__" }
+
+[tool.setuptools.package-data]
+xeneon_edge = ["style.css", "themes/*.toml", "icons/*.svg", "editor/assets/*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = ["editor/assets"]
+
+[tool.ruff.lint]
+# F: pyflakes, E9: syntax errors, B: bugbear, PLE: pylint errors.
+select = ["F", "E9", "B", "PLE"]
+ignore = [
+  "B904",  # raise ... from err inside except — the messages already carry the cause
+  "B905",  # zip(strict=) — the paired lists are built together, lengths match by construction
+]
+
+[tool.ruff.lint.per-file-ignores]
+# GTK requires gi.require_version() before the gi.repository import.
+"*.py" = ["E402"]
