@@ -143,7 +143,7 @@ class RamPanel(Gtk.Box):
         total = ram.get("total_gb")
         load = ram.get("load_pct")
         if total:
-            self.sub.set_label(f"{total:.0f} GB DDR5")
+            self.sub.set_label(f"{total:.0f} GB")
         if used is not None and total:
             self.load_val.set_label(f"{used:.1f} / {total:.1f} GB")
         else:

@@ -194,6 +194,20 @@ class MainWindow(Adw.ApplicationWindow):
         if old is not None:
             self.grid_holder.remove(old)
         self.grid_holder.append(grid)
+
+        # Was aus dem alten Stand nicht wiederverwendet wurde, ausdruecklich
+        # abbauen. Auf do_dispose allein ist kein Verlass: eine D-Bus-
+        # Subscription (Wiedergabe-Modul) haelt das Widget von der C-Seite
+        # her fest, es wuerde nie freigegeben und weiter auf Signale reagieren.
+        for leftovers in pool.values():
+            for widget in leftovers:
+                teardown = getattr(widget, "teardown", None)
+                if teardown is None:
+                    continue
+                try:
+                    teardown()
+                except Exception as e:
+                    print(f"[xeneon-edge] Modul-Abbau fehlgeschlagen: {e}")
         self._modules = modules_built
         self._widgets = widgets
         self._keys = keys

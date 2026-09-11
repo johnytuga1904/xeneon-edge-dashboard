@@ -58,7 +58,10 @@ def gpu_amd_metrics() -> list[dict]:
                 t = _read_int(h / "temp1_input")
                 if t is not None:
                     temp_c = t / 1000.0
+                # RDNA2 meldet power1_average, RDNA3 (gfx11) nur power1_input.
                 p = _read_int(h / "power1_average")
+                if p is None:
+                    p = _read_int(h / "power1_input")
                 if p is not None:
                     power_w = p / 1_000_000.0
                 # freq labels: sclk = core, mclk = memory (in Hz)

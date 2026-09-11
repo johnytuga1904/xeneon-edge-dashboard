@@ -117,8 +117,14 @@ def make_session(WebKit):
     Wird von scripts/tradingview-login.py mitbenutzt — beide muessen exakt
     dieselben Verzeichnisse nehmen, sonst teilen sie den Login nicht.
     """
-    WEBKIT_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    WEBKIT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    # 0700: in cookies.sqlite liegt die TradingView-Session. Bestehende
+    # Verzeichnisse werden nachgezogen, mkdir allein laesst sie unveraendert.
+    for d in (WEBKIT_DATA_DIR, WEBKIT_CACHE_DIR):
+        d.mkdir(parents=True, exist_ok=True, mode=0o700)
+        try:
+            d.chmod(0o700)
+        except OSError:
+            pass
     session = WebKit.NetworkSession.new(str(WEBKIT_DATA_DIR), str(WEBKIT_CACHE_DIR))
     session.get_cookie_manager().set_persistent_storage(
         str(WEBKIT_DATA_DIR / "cookies.sqlite"), WebKit.CookiePersistentStorage.SQLITE

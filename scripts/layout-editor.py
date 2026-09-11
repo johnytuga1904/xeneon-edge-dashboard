@@ -78,6 +78,10 @@ class EditorWindow(Gtk.ApplicationWindow):
         # Kein network_session: der Editor laedt nichts nach und soll sich
         # nicht in das Browserprofil des Chart-Panels einmischen.
         self.view.load_html(page, "xeneon-edge:editor")
+        # Laufendes Login-Fenster und der Stand von chart_url davor, damit
+        # Abbrechen nicht wie Erfolg aussieht.
+        self._login_proc: Gio.Subprocess | None = None
+        self._login_before: tuple[str, float] = ("", 0.0)
 
     # ----- Seite -> Python -----
 
@@ -135,6 +139,10 @@ class EditorWindow(Gtk.ApplicationWindow):
         if not script.exists():
             self._call("__login_done", "", f"Skript fehlt: {script}")
             return
+        if self._login_proc is not None:
+            self._call("__login_done", "", "Das Login-Fenster ist schon offen")
+            return
+        self._login_before = self._chart_url_state()
         argv = [sys.executable, str(script)]
         if shutil.which("systemd-run"):
             argv = ["systemd-run", "--user", "--scope", "--quiet", "--collect",
@@ -144,15 +152,34 @@ class EditorWindow(Gtk.ApplicationWindow):
         except GLib.Error as e:
             self._call("__login_done", "", f"Start fehlgeschlagen: {e.message}")
             return
+        self._login_proc = proc
         proc.wait_async(None, self._on_login_done)
 
+    @staticmethod
+    def _chart_url_state() -> tuple[str, float]:
+        """chart_url und Aenderungszeit von settings.json."""
+        url = str(config_store.load_settings().get("chart_url") or "")
+        try:
+            mtime = config_store.USER_SETTINGS_FILE.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        return url, mtime
+
     def _on_login_done(self, proc, result) -> None:
+        self._login_proc = None
         try:
             proc.wait_finish(result)
         except GLib.Error:
             pass
-        url = str(config_store.load_settings().get("chart_url") or "")
-        self._call("__login_done", url, "" if url else "Kein Chart uebernommen")
+        # Nur ein *neu geschriebener* chart_url zaehlt. Vorher stand hier
+        # einfach der alte Wert aus settings.json — das Fenster schliessen
+        # ohne "Als Chart uebernehmen" schaltete das Modul trotzdem um.
+        url, mtime = self._chart_url_state()
+        before_url, before_mtime = self._login_before
+        if url and (url != before_url or mtime != before_mtime):
+            self._call("__login_done", url, "")
+        else:
+            self._call("__login_done", "", "Kein Chart uebernommen")
 
     # ----- Datei-Picker fuer Deck-Kommandos -----
 

@@ -410,11 +410,17 @@ class MediaPlayerModule(Gtk.Box):
     def update(self, snap) -> None:
         """Kommt vom Player ueber D-Bus, nicht aus dem Sensor-Snapshot."""
 
-    def do_dispose(self):  # type: ignore[override]
+    def teardown(self) -> None:
+        """Quellen und Abonnements loslassen — vom Fenster gerufen, wenn das
+        Modul aus dem Layout faellt. Mehrfach aufrufbar."""
         if self._refresh_source:
             GLib.source_remove(self._refresh_source)
             self._refresh_source = 0
         self._watcher.stop()
         if self._local is not None:
             self._local.close()
+            self._local = None
+
+    def do_dispose(self):  # type: ignore[override]
+        self.teardown()
         Gtk.Box.do_dispose(self)

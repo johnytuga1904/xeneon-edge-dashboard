@@ -9,7 +9,7 @@ ihn ohne fremdes Programm.
 Abgespielt wird ueber ``Gtk.MediaFile``, also GStreamer — dieselbe Maschinerie,
 die GTK fuer jedes Video benutzt. Keine neue Abhaengigkeit: wer GTK4 hat, hat
 in aller Regel auch ``gst-plugins-base`` und ``-good``. Fehlt das Backend,
-liefert GTK ein ``GtkNothingMedia``; das wird erkannt und gemeldet, statt
+liefert GTK ein ``GtkNoMediaFile``; das wird erkannt und gemeldet, statt
 stumm nichts zu tun.
 
 Titel und Kuenstler kommen aus dem Dateinamen und dem Ordner darueber, nicht
@@ -27,7 +27,10 @@ from pathlib import Path
 
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gio, GLib  # noqa: E402
+from gi.repository import Gtk, Gio, GLib, GObject  # noqa: E402
+
+# GType-Namen des Platzhalters, den Gtk.MediaFile ohne Media-Backend liefert.
+_NO_BACKEND_TYPES = ("GtkNoMediaFile", "GtkNothingMedia")
 
 # Was gaengige Sammlungen enthalten. Alles davon spielt GStreamer mit den
 # Basis-Plugins; exotischere Formate schaden nicht, sie werden beim Abspielen
@@ -214,10 +217,17 @@ class LocalPlayer:
             self._notify()
             return
         media = Gtk.MediaFile.new_for_file(Gio.File.new_for_path(str(track)))
-        if type(media).__name__ == "GtkNothingMedia":
+        # GTK liefert ohne Backend ein GtkNoMediaFile (aeltere Versionen:
+        # GtkNothingMedia). Davor die Instanz gebaut und erst am Fehlertext
+        # gescheitert — der Player lief dann durch alle Titel, jeder mit
+        # einem Fehler im Log.
+        if GObject.type_name(media) in _NO_BACKEND_TYPES:
             self.available = False
             print("[xeneon-edge] Kein GTK-Media-Backend — fuer den Musikordner "
-                  "fehlen gst-plugins-base und gst-plugins-good")
+                  "fehlen gst-plugins-base und gst-plugins-good "
+                  "(Debian: libgtk-4-media-gstreamer)")
+            self._drop_media()
+            self._pos = -1
             self._notify()
             return
         self._media = media

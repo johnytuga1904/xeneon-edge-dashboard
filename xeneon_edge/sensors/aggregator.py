@@ -2,8 +2,9 @@
 
 Gelesen wird nur, was ein sichtbares Modul braucht (``needs``, siehe
 modules/): wer die Luefter ausblendet, spart das hwmon-Polling; ohne
-Prozess-Modul entfaellt der psutil-Durchlauf. Netz, Wetter und Spiel haengen
-an der Topbar und werden immer gelesen.
+Prozess-Modul entfaellt der psutil-Durchlauf. Netz haengt an der Topbar und
+wird immer gelesen; Wetter und Spiel nur, wenn ein Topbar-Widget sie ueber
+``feeds`` anfordert.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -49,6 +50,15 @@ ALL_NEEDS = frozenset({"cpu", "gpu", "ram", "fans", "processes", "audio"})
 # Audio ohne Ereignisse: alte Rate. Mit Ereignissen: nur zur Sicherheit.
 _AUDIO_POLL_S = 2.0
 _AUDIO_SAFETY_S = 30.0
+# Wenn `pactl subscribe` nicht laeuft (Server beim Autostart noch nicht da),
+# so oft einen neuen Versuch starten, statt fuer immer zu pollen.
+_AUDIO_WATCH_RETRY_S = 30.0
+
+# Zeitstempel fuer "noch nie geholt"; vergleicht sich mit time.monotonic().
+_NEVER = float("-inf")
+
+# Mehr Zeilen, als ein Prozess-Modul anzeigen kann (builtin.py: count <= 20).
+_PROCESS_ROWS = 20
 
 
 class Aggregator:
@@ -67,13 +77,17 @@ class Aggregator:
         # Was die Topbar aus dem Netz braucht: {"weather": {lat, lon},
         # "match": {league, team}} — gesetzt vom Fenster nach dem Layout.
         self.feeds: dict = {}
-        self._weather_last_fetch = 0.0
+        # -inf statt 0.0: time.monotonic() zaehlt unter Linux ab dem Boot, und
+        # mit 0.0 als Startwert waere "laenger als 10 min her" erst nach zehn
+        # Minuten Uptime wahr — beim Autostart blieben Wetter und Spiel leer.
+        self._weather_last_fetch = _NEVER
         self._weather_cache: dict | None = None
         self._weather_key: tuple | None = None
         self._audio_skip_until = 0.0  # Polling-Rueckfall, wenn pactl subscribe nicht laeuft
         self._audio_last_read = 0.0
+        self._audio_watch_retry_at = 0.0
         self._audio_watch = audio_mod.AudioWatcher()
-        self._match_last_fetch = 0.0
+        self._match_last_fetch = _NEVER
         self._match_cache: dict | None = None
         self._match_key: tuple | None = None
 
@@ -144,10 +158,13 @@ class Aggregator:
                 snap.sources["nvidia"] = nv_src
 
         if "processes" in needs:
-            snap.processes = proc_mod.top_processes(14)
+            snap.processes = proc_mod.top_processes(_PROCESS_ROWS)
 
         now = time.monotonic()
         if "audio" in needs:
+            if not self._audio_watch.alive and now >= self._audio_watch_retry_at:
+                self._audio_watch_retry_at = now + _AUDIO_WATCH_RETRY_S
+                self._audio_watch.start()
             if self._audio_watch.alive:
                 refresh = (self._audio_watch.consume()
                            or now - self._audio_last_read >= _AUDIO_SAFETY_S)
@@ -168,7 +185,7 @@ class Aggregator:
         if weather:
             key = (weather.get("lat"), weather.get("lon"))
             if key != self._weather_key:
-                self._weather_key, self._weather_cache, self._weather_last_fetch = key, None, 0.0
+                self._weather_key, self._weather_cache, self._weather_last_fetch = key, None, _NEVER
             if now - self._weather_last_fetch > 600:  # 10 min
                 try:
                     self._weather_cache = weather_mod.fetch_weather(key[0], key[1])
@@ -185,7 +202,7 @@ class Aggregator:
         if match:
             key = (match.get("league"), match.get("team"))
             if key != self._match_key:
-                self._match_key, self._match_cache, self._match_last_fetch = key, None, 0.0
+                self._match_key, self._match_cache, self._match_last_fetch = key, None, _NEVER
             if now - self._match_last_fetch > 3600:  # 1 hour
                 try:
                     self._match_cache = match_mod.fetch_next_match(key[0], key[1])

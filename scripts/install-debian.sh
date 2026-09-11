@@ -91,6 +91,7 @@ PKGS=(
   pulseaudio-utils      # pactl (volume, default device)
   wireplumber           # wpctl (PipeWire fallback path)
   gstreamer1.0-plugins-good  # autoaudiosink — WebKit aborts on login without it
+  libgtk-4-media-gstreamer   # Gtk.MediaFile backend — Musikordner-Wiedergabe
 )
 # nvidia-smi und die NVML-Bindings (in-process statt Prozessstart pro Tick)
 # liegen in der non-free-Komponente

@@ -77,8 +77,8 @@ def _palette_from(data: dict, *, id: str, where: str) -> Palette:
 
 def _read_toml(path: Path) -> dict:
     try:
-        return tomllib.loads(path.read_text())
-    except (OSError, tomllib.TOMLDecodeError) as e:
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:  # ValueError deckt TOML- und Unicode-Fehler ab
         raise ThemeError(f"{path}: {e}") from e
 
 
@@ -134,9 +134,9 @@ def load_omarchy() -> Palette:
     # selbst heisst immer nur "theme".
     name = None
     try:
-        raw = (OMARCHY_CURRENT_DIR / "theme.name").read_text().strip()
+        raw = (OMARCHY_CURRENT_DIR / "theme.name").read_text(encoding="utf-8").strip()
         name = raw.replace("-", " ").title() or None
-    except OSError:
+    except (OSError, ValueError):
         pass
 
     data = {

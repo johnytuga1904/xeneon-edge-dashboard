@@ -135,19 +135,30 @@ class AudioWatcher:
         self._proc: subprocess.Popen | None = None
         self._thread: threading.Thread | None = None
         self._alive = False
+        self._stopped = False
 
     @property
     def alive(self) -> bool:
         return self._alive
 
     def start(self) -> None:
-        if self._thread is not None or not _has("pactl"):
+        """Beobachter starten — oder neu starten, wenn der letzte gestorben ist.
+
+        Beim Autostart ist der Sound-Server oft noch nicht da; `pactl
+        subscribe` beendet sich dann sofort. Ein neuer Versuch spaeter (der
+        Aggregator ruft das periodisch) holt den Ereignis-Modus zurueck, statt
+        fuer den Rest der Sitzung zu pollen.
+        """
+        if self._stopped or not _has("pactl"):
+            return
+        if self._thread is not None and self._thread.is_alive():
             return
         self._thread = threading.Thread(target=self._run, name="xeneon-pactl",
                                         daemon=True)
         self._thread.start()
 
     def stop(self) -> None:
+        self._stopped = True
         proc = self._proc
         if proc is not None and proc.poll() is None:
             try:

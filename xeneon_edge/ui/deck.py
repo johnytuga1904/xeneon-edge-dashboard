@@ -136,9 +136,11 @@ class DeckButton(Gtk.Button):
         self.set_child(body)
 
         if self._hold:
-            # require 1 second hold via long-press gesture
+            # Etwa 1 s halten: der Faktor multipliziert gtk-long-press-time
+            # (Standard 500 ms). 0.6 waren nur 300 ms — kaum laenger als ein
+            # Tipper, fuer poweroff/reboot zu wenig.
             gesture = Gtk.GestureLongPress.new()
-            gesture.set_delay_factor(0.6)
+            gesture.set_delay_factor(2.0)
             gesture.connect("pressed", self._on_long_pressed)
             self.add_controller(gesture)
             # eat regular clicks (we still need a clicked-handler so GTK doesn't

@@ -56,6 +56,7 @@ class SensorsModule(Gtk.Box):
 
         self.cpu_panel = CpuPanel() if "cpu" in self.metrics else None
         self.gpu_panels: list[GpuPanel] = []
+        self._gpu_placeholder = False
         self.gpu_container = None
         if "gpu" in self.metrics:
             self.gpu_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -80,6 +81,10 @@ class SensorsModule(Gtk.Box):
     def _update_gpus(self, gpus: list[dict]) -> None:
         # Anzahl der GPU-Panels an die gefundenen GPUs anpassen. Eine GPU kann
         # zur Laufzeit verschwinden (Treiber-Neustart), also jedes Mal pruefen.
+        # Ohne erkannte GPU steht genau ein Platzhalter-Panel — den nicht jede
+        # Sekunde abreissen und neu bauen, nur weil len(gpus) == 0 ist.
+        if not gpus and self._gpu_placeholder:
+            return
         if len(self.gpu_panels) != len(gpus):
             child = self.gpu_container.get_first_child()
             while child is not None:
@@ -87,6 +92,7 @@ class SensorsModule(Gtk.Box):
                 self.gpu_container.remove(child)
                 child = nxt
             self.gpu_panels = []
+            self._gpu_placeholder = False
             for _ in gpus:
                 p = GpuPanel()
                 self.gpu_container.append(p)
@@ -100,6 +106,7 @@ class SensorsModule(Gtk.Box):
             placeholder.update(None)
             self.gpu_container.append(placeholder)
             self.gpu_panels.append(placeholder)
+            self._gpu_placeholder = True
 
 
 class ProcessesModule(ProcessPanel):

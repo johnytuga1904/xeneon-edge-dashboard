@@ -60,11 +60,21 @@ def deck_split(settings: dict) -> tuple[int, int]:
 
 
 def load_settings() -> dict:
+    """settings.json ueber den Defaults; eine kaputte Datei bricht den Start nicht.
+
+    Nur ein JSON-Objekt wird uebernommen — eine Liste oder ein Skalar in der
+    Datei wuerde sonst beim Zusammenfuehren mit TypeError abbrechen, und zwar
+    noch vor dem ersten Fenster.
+    """
     if USER_SETTINGS_FILE.exists():
         try:
-            return {**_DEFAULT_SETTINGS, **json.loads(USER_SETTINGS_FILE.read_text())}
-        except (OSError, json.JSONDecodeError):
-            pass
+            raw = json.loads(USER_SETTINGS_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            print(f"[xeneon-edge] settings.json nicht lesbar ({e}) — Defaults")
+        else:
+            if isinstance(raw, dict):
+                return {**_DEFAULT_SETTINGS, **raw}
+            print("[xeneon-edge] settings.json ist kein Objekt — Defaults")
     return dict(_DEFAULT_SETTINGS)
 
 
@@ -77,11 +87,24 @@ def load_apps() -> dict:
     """Returns {'apps': [...], 'macros': [...]}."""
     candidates = [USER_APPS_FILE, APPS_FILE]
     for f in candidates:
-        if f.exists():
-            try:
-                return json.loads(f.read_text())
-            except (OSError, json.JSONDecodeError):
-                continue
+        if not f.exists():
+            continue
+        try:
+            raw = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            print(f"[xeneon-edge] {f.name} nicht lesbar ({e})")
+            continue
+        if not isinstance(raw, dict):
+            print(f"[xeneon-edge] {f.name} ist kein Objekt — uebersprungen")
+            continue
+        # Nur Listen von Objekten ins Deck lassen; alles andere ist ein
+        # Tippfehler in einer von Hand editierten Datei, kein Grund abzustuerzen.
+        return {
+            "apps": [e for e in (raw.get("apps") or []) if isinstance(e, dict)]
+            if isinstance(raw.get("apps"), list) else [],
+            "macros": [e for e in (raw.get("macros") or []) if isinstance(e, dict)]
+            if isinstance(raw.get("macros"), list) else [],
+        }
     return {"apps": [], "macros": []}
 
 

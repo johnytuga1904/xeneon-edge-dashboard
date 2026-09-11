@@ -219,12 +219,15 @@ class MatchPill(Gtk.Box):
                 f"Last match: {opponent} ({comp}) — {local.strftime('%a %d %b %H:%M')}")
             return
 
-        days = (kickoff - now).days
-        if days < 0:
+        # Kalendertage in Ortszeit vergleichen, nicht timedelta.days: der
+        # zaehlt volle 24-h-Spannen, und now.date() waere ein UTC-Datum —
+        # nach Mitternacht Ortszeit hiess ein Spiel am selben Tag "tomorrow".
+        days = (local.date() - now.astimezone().date()).days
+        if kickoff <= now:
             label = "live"
-        elif days == 0 and now.date() == local.date():
+        elif days == 0:
             label = f"today {local.strftime('%H:%M')}"
-        elif days <= 1:
+        elif days == 1:
             label = f"tomorrow {local.strftime('%H:%M')}"
         elif days < 7:
             label = local.strftime("%a %H:%M")

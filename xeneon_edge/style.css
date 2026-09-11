@@ -14,7 +14,7 @@ label { color: @text; }
 label.muted { color: @muted; font-size: 11px; letter-spacing: 0.06em; }
 label.brand { font-size: 16px; font-weight: 900; letter-spacing: 0.18em; }
 label.brand-accent { color: @accent; font-weight: 900; }
-label.brand-sub { color: @label_color; font-size: 9px; letter-spacing: 0.28em; }
+label.brand-sub { color: @label; font-size: 9px; letter-spacing: 0.28em; }
 
 label.clock-time { font-size: 22px; font-weight: 900; letter-spacing: 0.04em; }
 label.clock-date { color: @muted; font-size: 10px; letter-spacing: 0.18em; }
@@ -123,7 +123,7 @@ label.match-when {
 }
 
 label.panel-label {
-  color: @label_color;
+  color: @label;
   font-size: 11px;
   letter-spacing: 0.24em;
   font-weight: 800;

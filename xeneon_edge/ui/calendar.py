@@ -154,7 +154,10 @@ class CalendarModule(Gtk.Box):
         for r, week in enumerate(weeks):
             top = top0 + r * cell_h
             if self.week_numbers:
-                lay, lw, lh = layout(cr, small, f"{week[0].isocalendar().week:02d}",
+                # ISO-Woche des Montags in dieser Zeile: bei Sonntagsstart
+                # gehoert week[0] noch zur Vorwoche.
+                monday = next((d for d in week if d.weekday() == 0), week[0])
+                lay, lw, lh = layout(cr, small, f"{monday.isocalendar().week:02d}",
                                      num_px * 0.7)
                 set_source(cr, colour, 0.35)
                 cr.move_to(pad + (cell_w - lw) / 2, top + (cell_h - lh) / 2)
