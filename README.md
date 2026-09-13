@@ -178,9 +178,22 @@ Omarchy configuration has moved to Lua) and includes it from
 `~/.config/hypr/autostart.conf` / `.lua`. It only undoes what the Omarchy
 defaults would do to a status strip: the global 0.985 opacity, borders,
 rounding, dimming in the background, and it sets `no_focus` so a SUPER+arrow
-never lands on the strip and a window dispatcher never drags the dashboard
-onto the main monitor. Touch and pointer events go to the surface under the
-finger regardless of focus, so the deck keeps working.
+never makes the dashboard the active window. Touch and pointer events go to
+the surface under the finger regardless of focus, so the deck keeps working.
+
+The Lua variant also carries a guard that keeps the strip out of the window
+dispatchers. `no_focus` is not enough for that: Omarchy's SUPER+SHIFT+arrow is
+`swapwindow`, which swaps the active window with the next one in that
+direction — and the dashboard is a window like any other to it, focus or not.
+A swap towards the strip tiled the dashboard into the work workspace and left
+the swapped window behind the strip. Hyprland has no switch to exempt a
+monitor from window dispatchers, so the snippet subscribes to
+`window.move_to_workspace` / `window.open` (`hl.on`, Hyprland 0.56+) and
+tidies up one tick later: the dashboard goes back to the strip with its
+fullscreen state restored, anything else that landed there returns to the
+workspace it came from. The strip is `target_monitor` from `settings.json`,
+or failing that the 2560×720 output. The classic `.conf` variant cannot do
+this — it has no event API.
 
 The rules match the application id: `io.github.johnytuga1904.XeneonEdge`
 (dashboard), `.Login` (TradingView login) and `.Editor` (layout editor). The

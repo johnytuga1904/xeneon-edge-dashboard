@@ -164,6 +164,20 @@ Rundungen, Abdunkeln im Hintergrund. Auf den Zielmonitor legt sich das
 Dashboard selbst (`target_monitor` + `fullscreen_on_target`) — die
 `monitor`-Regel steht auskommentiert daneben, falls das mal nicht greift.
 
+Die Lua-Fassung enthaelt zusaetzlich einen Waechter, der den Streifen aus den
+Fenster-Dispatchern heraushaelt. `no_focus` reicht dafuer nicht: Omarchys
+SUPER+SHIFT+Pfeil ist `swapwindow` und tauscht das aktive Fenster mit dem
+naechsten in der Richtung — das Dashboard ist dafuer ein Fenster wie jedes
+andere, Fokus oder nicht. Ein Tausch Richtung Streifen kachelte das Dashboard
+in den Arbeits-Workspace und liess das getauschte Fenster hinter dem Streifen
+zurueck. Hyprland kennt keinen Schalter, der einen Monitor davon ausnimmt;
+deshalb hoert das Snippet auf `window.move_to_workspace` / `window.open`
+(`hl.on`, Hyprland 0.56+) und raeumt einen Tick spaeter auf: das Dashboard
+kommt mit seinem Vollbild-Zustand zurueck auf den Streifen, alles andere, das
+dort gelandet ist, zurueck auf den Workspace, von dem es kam. Der Streifen ist
+`target_monitor` aus der `settings.json`, ersatzweise der 2560x720-Ausgang.
+Die klassische `.conf`-Fassung kann das nicht — ihr fehlt die Event-API.
+
 ### Wohin gestartete Fenster gehen
 
 Einstellung *Monitor fuer gestartete Fenster* (`launch_monitor`), im Editor

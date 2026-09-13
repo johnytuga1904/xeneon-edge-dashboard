@@ -290,11 +290,10 @@ if (( DO_HYPR )) && command -v hyprctl >/dev/null 2>&1; then
 -- auf jedem Fenster, Rahmen, Rundungen, Abdunkeln im Hintergrund.
 --
 -- no_focus: der Streifen ist ein Anzeigegeraet, kein Arbeitsplatz. Ohne die
--- Regel wandert der Fokus mit SUPER+Pfeil dorthin, das Dashboard wird das
--- aktive Fenster, und der naechste Fenster-Dispatcher (SUPER+SHIFT+Pfeil
--- tauscht Fenster) zieht es auf den Hauptmonitor. Bedient wird per Touch, und
--- Touch- wie Zeigerereignisse gehen an die Flaeche unter dem Finger statt an
--- das Fokusfenster — die Deck-Buttons reagieren weiter.
+-- Regel wandert der Fokus mit SUPER+Pfeil dorthin und das Dashboard wird das
+-- aktive Fenster. Bedient wird per Touch, und Touch- wie Zeigerereignisse
+-- gehen an die Flaeche unter dem Finger statt an das Fokusfenster — die
+-- Deck-Buttons reagieren weiter.
 o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge)$", {
   tag = "-default-opacity",
   opacity = "1 1",
@@ -305,10 +304,181 @@ o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge)$", {
 })
 
 -- Optional: Connector hart pinnen, falls der Vollbild-Wunsch der App mal nicht
--- auf dem richtigen Monitor landet, oder ein Dispatcher es doch verschiebt.
--- Der Connector heisst auf jedem Rechner anders, deshalb nur als Beispiel —
--- und in eine Datei, die dieses Skript nicht ueberschreibt.
+-- auf dem richtigen Monitor landet. Der Connector heisst auf jedem Rechner
+-- anders, deshalb nur als Beispiel — und in eine Datei, die dieses Skript
+-- nicht ueberschreibt.
 -- o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge)$", { monitor = "DP-2" })
+
+-- Waechter: das Dashboard bleibt auf dem Streifen, und nichts anderes kommt
+-- dorthin.
+--
+-- no_focus und monitor= reichen dafuer nicht. monitor= greift nur beim
+-- Oeffnen, und Omarchys SUPER+SHIFT+Pfeil (swapwindow) braucht keinen Fokus
+-- auf dem Dashboard: es tauscht das aktive Fenster mit dem naechsten in der
+-- Richtung, und dafuer ist das Dashboard ein Fenster wie jedes andere. Der
+-- Streifen liegt meist unter oder neben dem Hauptmonitor — ein Tausch nach
+-- unten kachelt das Dashboard in den Arbeits-Workspace und legt das getauschte
+-- Fenster hinter den Streifen. Hyprland hat keinen Schalter, der einen
+-- Monitor von Fenster-Dispatchern ausnimmt.
+--
+-- Stattdessen wird hinterher aufgeraeumt: jeder Workspace-Wechsel eines
+-- Fensters laeuft durch CWindow::moveToWorkspace und feuert
+-- window.move_to_workspace, auch beim Tausch und beim Ziehen mit der Maus.
+-- Der Streifen ist der Monitor aus target_monitor in
+-- ~/.config/xeneon-edge/settings.json, ersatzweise der mit 2560x720; ohne
+-- beides tut der Waechter nichts.
+--
+-- Das Aufraeumen ist idempotent: es schaut sich alle Fenster an statt das
+-- eine aus dem Event, weil ein Tausch zwei Events in nicht garantierter
+-- Reihenfolge liefert. Und es laeuft einen Tick verzoegert, damit
+-- der ausloesende Dispatcher fertig ist, bevor hier neue gestartet werden.
+local DASHBOARD_CLASS = "io.github.johnytuga1904.XeneonEdge"
+local SETTINGS = (os.getenv("HOME") or "") .. "/.config/xeneon-edge/settings.json"
+
+local function is_dashboard(w)
+  return w.class == DASHBOARD_CLASS
+end
+
+-- Connector des Streifens. Die Settings werden bei jedem Lauf gelesen, damit
+-- ein Wechsel im Editor ohne Reload greift; das passiert nur bei
+-- Fensterbewegungen, nicht im Takt.
+local function strip_monitor()
+  local monitors = hl.get_monitors()
+  local f = io.open(SETTINGS, "r")
+  if f then
+    local text = f:read("a") or ""
+    f:close()
+    local wanted = text:match('"target_monitor"%s*:%s*"([^"]+)"')
+    if wanted then
+      for _, m in ipairs(monitors) do
+        if m.name == wanted then return m end
+      end
+    end
+  end
+  for _, m in ipairs(monitors) do
+    if m.width == 2560 and m.height == 720 then return m end
+  end
+  return nil
+end
+
+local function on_strip(w, strip)
+  return w.monitor ~= nil and w.monitor.name == strip.name
+end
+
+-- Vollbild-Zustand, den das Dashboard auf dem Streifen zuletzt hatte. Ein
+-- Umzug wirft das Vollbild weg; nach dem Zurueckholen wird genau dieser
+-- Zustand wieder gesetzt — nicht blind 2, damit fullscreen_on_target=false
+-- respektiert bleibt. Bis zum ersten Blick gilt der Default der App: Vollbild.
+local edge_fullscreen = 2
+
+-- Letzter Workspace abseits des Streifens, je Fenster. Das Event nennt nur
+-- das Ziel eines Umzugs, nicht die Herkunft — also wird sie mitgeschrieben,
+-- solange das Ziel nicht der Streifen ist.
+local last_home = {}
+
+local function remember_home(w, ws)
+  local strip = strip_monitor()
+  if ws and ws.monitor and not (strip and ws.monitor.name == strip.name) then
+    last_home[w.address] = ws.id
+  end
+end
+
+-- Wohin ein fremdes Fenster gehoert, das auf dem Streifen gelandet ist: dahin,
+-- wo es zuletzt lag. Ohne Aufzeichnung — etwa direkt nach einem Reload — beim
+-- Tausch dorthin, wo das Dashboard jetzt liegt, sonst auf den Workspace des
+-- fokussierten Monitors, sofern das nicht der Streifen ist, und als letzter
+-- Ausweg auf irgendeinen Monitor ausser dem Streifen.
+local function home_workspace(w, strip)
+  local remembered = last_home[w.address] and hl.get_workspace(last_home[w.address])
+  if remembered and remembered.monitor and remembered.monitor.name ~= strip.name then
+    return remembered
+  end
+  for _, w in ipairs(hl.get_windows()) do
+    if is_dashboard(w) and w.workspace and not on_strip(w, strip) then
+      return w.workspace
+    end
+  end
+  local active = hl.get_active_monitor()
+  if active and active.name ~= strip.name and active.active_workspace then
+    return active.active_workspace
+  end
+  for _, m in ipairs(hl.get_monitors()) do
+    if m.name ~= strip.name and m.active_workspace then
+      return m.active_workspace
+    end
+  end
+  return nil
+end
+
+local function settle()
+  local strip = strip_monitor()
+  if not strip then return end
+
+  -- Erst die Fremdlinge vom Streifen holen: home_workspace() liest ab, wo das
+  -- Dashboard gerade liegt, das darf also noch nicht zurueckgezogen sein.
+  for _, w in ipairs(hl.get_windows()) do
+    if not is_dashboard(w) and w.mapped and on_strip(w, strip) then
+      local home = home_workspace(w, strip)
+      if home then
+        -- Das aktive Fenster nimmt den Fokus mit zurueck, sonst bliebe er auf
+        -- dem Streifen haengen; alles andere wandert still.
+        hl.dispatch(hl.dsp.window.move({ window = w, workspace = home.id, follow = w.active }))
+      end
+    end
+  end
+
+  for _, w in ipairs(hl.get_windows()) do
+    if is_dashboard(w) and w.mapped and w.workspace then
+      if on_strip(w, strip) then
+        edge_fullscreen = w.fullscreen
+      else
+        hl.dispatch(hl.dsp.window.move({ window = w, monitor = strip.name, follow = false }))
+        if edge_fullscreen > 0 then
+          hl.dispatch(hl.dsp.window.fullscreen_state({
+            window = w, internal = edge_fullscreen, client = edge_fullscreen,
+          }))
+        end
+      end
+    end
+  end
+end
+
+-- Mehrere Events kurz hintereinander (ein Tausch liefert zwei) ergeben einen
+-- einzigen Aufraeumlauf.
+local pending = false
+local function schedule_settle()
+  if pending then return end
+  pending = true
+  hl.timer(function()
+    pending = false
+    settle()
+  end, { timeout = 1, type = "oneshot" })
+end
+
+-- Aeltere Lua-Hyprlands kennen die Events vielleicht nicht; dann bleibt es
+-- bei den Regeln oben, statt die ganze Config zu reissen.
+local subscribed = pcall(function()
+  hl.on("window.move_to_workspace", function(w, ws)
+    remember_home(w, ws)
+    schedule_settle()
+  end)
+  -- Neue Fenster gehen auf den fokussierten Workspace — und der ist der
+  -- Streifen, wenn SUPER+Pfeil dort gelandet ist oder ein Deck-Button per
+  -- Touch etwas gestartet hat.
+  hl.on("window.open", function(w)
+    remember_home(w, w.workspace)
+    schedule_settle()
+  end)
+  hl.on("window.destroy", function(w)
+    last_home[w.address] = nil
+  end)
+end)
+if not subscribed then
+  hl.notification.create({
+    text = "Xeneon Edge: Hyprland ohne Lua-Events, Dashboard-Waechter aus",
+    timeout = 8000, icon = "warning",
+  })
+end
 
 -- Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf
 -- den richtigen Monitor legt sich das Fenster selbst (find_login_monitor in
@@ -348,11 +518,15 @@ LUA
 # jedem Fenster, Rahmen, Rundungen, Abdunkeln im Hintergrund.
 #
 # no_focus: der Streifen ist ein Anzeigegeraet, kein Arbeitsplatz. Ohne die
-# Regel wandert der Fokus mit SUPER+Pfeil dorthin, das Dashboard wird das
-# aktive Fenster, und der naechste Fenster-Dispatcher (SUPER+SHIFT+Pfeil
-# tauscht Fenster) zieht es auf den Hauptmonitor. Bedient wird per Touch, und
-# Touch- wie Zeigerereignisse gehen an die Flaeche unter dem Finger statt an
-# das Fokusfenster — die Deck-Buttons reagieren weiter.
+# Regel wandert der Fokus mit SUPER+Pfeil dorthin und das Dashboard wird das
+# aktive Fenster. Bedient wird per Touch, und Touch- wie Zeigerereignisse
+# gehen an die Flaeche unter dem Finger statt an das Fokusfenster — die
+# Deck-Buttons reagieren weiter.
+#
+# Was hier fehlt: der Waechter aus der Lua-Fassung, der das Dashboard nach
+# einem swapwindow (SUPER+SHIFT+Pfeil) zurueck auf den Streifen holt. Der
+# braucht die Event-API der Lua-Config (hl.on); in der klassischen Config
+# bleibt nur, den Streifen beim Tauschen zu meiden.
 windowrule = tag -default-opacity, match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 windowrule = opacity 1 1,          match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 windowrule = border_size 0,        match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
