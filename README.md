@@ -1,11 +1,12 @@
-# Xeneon Edge Dashboard — Linux / GTK4
+# Xeneon Edge Dashboard
 
 *Deutsche Fassung: [README.de.md](README.de.md)*
 
-Linux port of the dashboard: a native GTK4 window, sensors read straight from
-`/proc` and `/sys`, no .NET, no WPF. Built for a 2560×720 strip such as the
-Corsair Xeneon Edge, driven by touch, configured from a monitor that has a
-keyboard.
+A native GTK4 dashboard for Linux: sensors read straight from `/proc` and
+`/sys`, no daemon, no Electron. Built for a 2560×720 strip such as the Corsair
+Xeneon Edge, driven by touch, configured from a monitor that has a keyboard.
+It started as the Linux port of a private Windows/WPF dashboard; only the
+Linux version is published.
 
 ## Features
 
@@ -37,7 +38,7 @@ One script — packages, verification, settings, deck template, autostart,
 Hyprland window rules:
 
 ```bash
-cd linux && ./scripts/install-arch.sh
+./scripts/install-arch.sh
 ```
 
 Options: `--monitor DP-2` (pin a connector instead of auto-detecting),
@@ -95,7 +96,7 @@ Arch specifics:
 ### Debian 13 (trixie)
 
 ```bash
-cd linux && ./scripts/install-debian.sh
+./scripts/install-debian.sh
 ```
 
 Same options as the Arch script minus `--deck` and `--no-hypr`. By hand:
@@ -184,7 +185,7 @@ would start twice. Without uwsm (Hyprland straight from a TTY) XDG autostart
 is not honoured; use `~/.config/hypr/autostart.conf` instead:
 
 ```
-exec-once = uwsm-app -- "/path/to/linux/run.sh"
+exec-once = uwsm-app -- "/path/to/xeneon-edge-dashboard/run.sh"
 ```
 
 The journal of the running dashboard:
@@ -797,7 +798,7 @@ view.
 | NVIDIA | NVML (`pynvml`), fallback `nvidia-smi --query-gpu=...` |
 | Audio | `pactl get/set-sink-volume`, `set-default-sink`, `wpctl`; re-read only on an event from `pactl subscribe` |
 
-No administrator rights are needed (unlike the Windows version). The sensor
+No administrator rights are needed. The sensor
 thread polls once a second and only what a visible module declares in
 `needs`; snapshots reach the UI through `GLib.idle_add`.
 
@@ -820,7 +821,7 @@ thread polls once a second and only what a visible module declares in
 ## Directory layout
 
 ```
-linux/
+xeneon-edge-dashboard/
   run.sh                       # GDK_SCALE=1, unbuffered stdout, WebKit renderer switch
   pyproject.toml               # metadata, ruff config
   requirements.txt             # for venv setups only; distros use their packages

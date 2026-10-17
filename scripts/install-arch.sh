@@ -281,7 +281,7 @@ if (( DO_HYPR )) && command -v hyprctl >/dev/null 2>&1; then
     HOST="$HYPR/autostart.lua"
     cat > "$SNIP" <<'LUA'
 -- Xeneon Edge Dashboard — Hyprland-Regeln
--- Erzeugt von linux/scripts/install-arch.sh; ein erneuter Lauf ueberschreibt
+-- Erzeugt von scripts/install-arch.sh; ein erneuter Lauf ueberschreibt
 -- die Datei.
 --
 -- Auf den Zielmonitor legt sich das Dashboard selbst (target_monitor in
@@ -515,7 +515,7 @@ LUA
     HOST="$HYPR/autostart.conf"
     cat > "$SNIP" <<'CONF'
 # Xeneon Edge Dashboard — Hyprland-Regeln
-# Erzeugt von linux/scripts/install-arch.sh; ein erneuter Lauf ueberschreibt
+# Erzeugt von scripts/install-arch.sh; ein erneuter Lauf ueberschreibt
 # die Datei. Syntax: Hyprland 0.53+ (windowrule = <regel>, match:...).
 #
 # Auf den Zielmonitor legt sich das Dashboard selbst (target_monitor in

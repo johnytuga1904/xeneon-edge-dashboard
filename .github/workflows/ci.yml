@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  linux:
+    name: Compile, lint, syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Byte-compile
+        run: python -m compileall -q xeneon_edge scripts
+      - name: Ruff
+        run: pipx run ruff check .
+      - name: Shell syntax
+        run: bash -n run.sh scripts/*.sh
+      - name: Editor JavaScript syntax
+        run: node --check xeneon_edge/editor/assets/editor.js
+      - name: Themes and config are valid TOML / JSON
+        run: |
+          python - <<'PY'
+          import json, pathlib, tomllib
+          for p in pathlib.Path("xeneon_edge/themes").glob("*.toml"):
+              tomllib.loads(p.read_text(encoding="utf-8")); print("ok", p)
+          for p in pathlib.Path("config").glob("*.json"):
+              json.loads(p.read_text(encoding="utf-8")); print("ok", p)
+          PY

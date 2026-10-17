@@ -19,7 +19,7 @@ name = "xeneon-edge-dashboard"
 dynamic = ["version"]
 description = "GTK4 status dashboard for a 2560x720 secondary monitor — sensors from /proc and /sys, launch deck, TradingView, MPRIS playback"
 readme = "README.md"
-license = { file = "../LICENSE" }
+license = { file = "LICENSE" }
 requires-python = ">=3.11"   # tomllib, zoneinfo
 authors = [{ name = "johnytuga" }]
 keywords = ["gtk4", "dashboard", "hyprland", "omarchy", "sensors", "xeneon-edge"]

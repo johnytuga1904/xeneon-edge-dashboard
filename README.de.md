@@ -1,9 +1,9 @@
-# Xeneon Edge Dashboard — Linux/GTK4
+# Xeneon Edge Dashboard
 
 *Diese deutsche Fassung wird nicht mehr gepflegt; massgeblich ist die
 englische [README.md](README.md).*
 
-Linux-Port des Windows-Desktop-Dashboards — native GTK4-Oberfläche, Sensoren direkt aus `/proc` und `/sys`, kein .NET, kein WPF.
+Natives GTK4-Dashboard für Linux — Sensoren direkt aus `/proc` und `/sys`, kein Daemon, kein Electron. Entstanden als Linux-Port eines privaten Windows/WPF-Dashboards; veröffentlicht ist nur die Linux-Version.
 
 ## Features
 
@@ -75,9 +75,6 @@ Debian-spezifisch zu beachten:
 - **`nvidia-smi`** liegt in der `non-free`-Komponente. Falls apt es nicht
   findet, in `/etc/apt/sources.list.d/debian.sources` bei `Components:`
   `contrib non-free non-free-firmware` ergänzen.
-- **Der Repo-Pfad enthält ein Leerzeichen** (`Monitor dashboard`). Beim
-  Kopieren auf den anderen Rechner Anführungszeichen nicht vergessen; der
-  Autostart-Eintrag quotet `Exec=` bereits korrekt.
 - **Kein 2560×720-Monitor?** Dann findet die Auto-Erkennung nichts und die App
   startet im normalen Fenster auf dem Standard-Display. Zielmonitor entweder
   mit `--monitor <Connector>` setzen oder später im Editor (Einstellungen → Zielmonitor) wählen.
@@ -168,7 +165,7 @@ starten. Ohne uwsm (Hyprland direkt von der TTY) stattdessen in
 `~/.config/hypr/autostart.conf`:
 
 ```
-exec-once = uwsm-app -- "/pfad/zu/linux/run.sh"
+exec-once = uwsm-app -- "/pfad/zu/xeneon-edge-dashboard/run.sh"
 ```
 
 ### Fensterregeln
@@ -820,7 +817,7 @@ Popen-Verhalten zurück.
 | NVIDIA    | NVML (`pynvml`), Fallback `nvidia-smi --query-gpu=...`                      |
 | Audio     | `pactl get/set-sink-volume`, `set-default-sink`, `wpctl`; neu gelesen nur bei Ereignis aus `pactl subscribe` |
 
-Keine Admin-Rechte nötig (im Gegensatz zur Windows-Version).
+Keine Admin-Rechte nötig.
 
 ## Bekannte Einschränkungen
 
@@ -831,7 +828,7 @@ Keine Admin-Rechte nötig (im Gegensatz zur Windows-Version).
 ## Verzeichnisstruktur
 
 ```
-linux/
+xeneon-edge-dashboard/
   run.sh
   requirements.txt
   config/apps.json
