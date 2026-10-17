@@ -34,7 +34,7 @@ from gi.repository import Gtk, Gdk, Gio, GLib  # noqa: E402
 from xeneon_edge import config_store, editor, theme  # noqa: E402
 from xeneon_edge.paths import ROOT  # noqa: E402
 from xeneon_edge.ui import monitors  # noqa: E402
-from xeneon_edge.ui.chart import import_webkit  # noqa: E402
+from xeneon_edge.ui.chart import LOGIN_SITES, import_webkit  # noqa: E402
 
 BRIDGE = "bridge"
 
@@ -81,6 +81,7 @@ class EditorWindow(Gtk.ApplicationWindow):
         # Laufendes Login-Fenster und der Stand von chart_url davor, damit
         # Abbrechen nicht wie Erfolg aussieht.
         self._login_proc: Gio.Subprocess | None = None
+        self._login_site: str = "tradingview"
         self._login_before: tuple[str, float] = ("", 0.0)
 
     # ----- Seite -> Python -----
@@ -106,7 +107,7 @@ class EditorWindow(Gtk.ApplicationWindow):
             action = target = None
 
         if action == "login":
-            self._open_login()
+            self._open_login(str(msg.get("site") or "tradingview"))
             return
         if action == "browse":
             self._browse(str(target or "program"))
@@ -127,14 +128,17 @@ class EditorWindow(Gtk.ApplicationWindow):
 
     # ----- Login-Fenster -----
 
-    def _open_login(self) -> None:
+    def _open_login(self, site: str) -> None:
         """scripts/tradingview-login.py starten und auf sein Ende warten.
 
         Das Fenster laeuft als eigener Prozess: anmelden, Chart oeffnen, "Als
-        Chart uebernehmen" — das schreibt chart_url in settings.json. Danach
-        lesen wir die URL und geben sie der Seite, die sie ins ausgewaehlte
-        Web-Modul traegt.
+        Chart uebernehmen" — das schreibt die Adresse in settings.json (den
+        Schluessel bestimmt die Seite, siehe LOGIN_SITES). Danach lesen wir
+        sie und geben sie der Seite, die sie ins ausgewaehlte Modul traegt.
         """
+        if site not in LOGIN_SITES:
+            self._call("__login_done", "", f"Unbekannte Seite: {site}")
+            return
         script = ROOT / "scripts" / "tradingview-login.py"
         if not script.exists():
             self._call("__login_done", "", f"Skript fehlt: {script}")
@@ -142,8 +146,9 @@ class EditorWindow(Gtk.ApplicationWindow):
         if self._login_proc is not None:
             self._call("__login_done", "", "Das Login-Fenster ist schon offen")
             return
-        self._login_before = self._chart_url_state()
-        argv = [sys.executable, str(script)]
+        self._login_site = site
+        self._login_before = self._chart_url_state(site)
+        argv = [sys.executable, str(script), "--site", site]
         if shutil.which("systemd-run"):
             argv = ["systemd-run", "--user", "--scope", "--quiet", "--collect",
                     f"--unit=xeneon-login-{os.getpid()}", "--"] + argv
@@ -156,9 +161,10 @@ class EditorWindow(Gtk.ApplicationWindow):
         proc.wait_async(None, self._on_login_done)
 
     @staticmethod
-    def _chart_url_state() -> tuple[str, float]:
-        """chart_url und Aenderungszeit von settings.json."""
-        url = str(config_store.load_settings().get("chart_url") or "")
+    def _chart_url_state(site: str) -> tuple[str, float]:
+        """Gespeicherte Chart-Adresse der Seite und Aenderungszeit von settings.json."""
+        key = LOGIN_SITES[site]["setting"]
+        url = str(config_store.load_settings().get(key) or "")
         try:
             mtime = config_store.USER_SETTINGS_FILE.stat().st_mtime
         except OSError:
@@ -171,10 +177,10 @@ class EditorWindow(Gtk.ApplicationWindow):
             proc.wait_finish(result)
         except GLib.Error:
             pass
-        # Nur ein *neu geschriebener* chart_url zaehlt. Vorher stand hier
+        # Nur eine *neu geschriebene* Adresse zaehlt. Vorher stand hier
         # einfach der alte Wert aus settings.json — das Fenster schliessen
         # ohne "Als Chart uebernehmen" schaltete das Modul trotzdem um.
-        url, mtime = self._chart_url_state()
+        url, mtime = self._chart_url_state(self._login_site)
         before_url, before_mtime = self._login_before
         if url and (url != before_url or mtime != before_mtime):
             self._call("__login_done", url, "")

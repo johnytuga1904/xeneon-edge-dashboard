@@ -312,6 +312,7 @@ function describeConfig(mod) {
     if ((cfg.mode || "widget") === "account") return cfg.url ? "eigener Chart" : "Login fehlt";
     return cfg.symbol || "BINANCE:BTCUSDT";
   }
+  if (mod.type === "openmarket") return cfg.url ? "eigener Chart" : "Login fehlt";
   if (mod.type === "media" && cfg.music_dir) {
     return cfg.music_dir.split("/").filter(Boolean).pop() || cfg.music_dir;
   }
@@ -877,7 +878,9 @@ function renderModuleInspector(box, title) {
     box.appendChild(el("p", "muted", "Dieses Modul hat keine Einstellungen."));
   }
 
-  if (mod.type === "tradingview") {
+  /* TradingView und OpenMarket holen sich ihren Chart ueber dasselbe
+   * Login-Fenster; die Seite sagt der Bruecke, welche Site. */
+  if (mod.type === "tradingview" || mod.type === "openmarket") {
     const btns = el("div", "row-btns");
     const login = el("button", "ghost", "Anmelden / Chart waehlen…");
     login.title = "Oeffnet ein Browser-Fenster: dort anmelden, Chart oeffnen, „Als Chart uebernehmen“";
@@ -885,20 +888,26 @@ function renderModuleInspector(box, title) {
       pendingLogin = mod;
       login.disabled = true;
       setStatus("Login-Fenster offen …", "");
-      post({ action: "login" });
+      post({ action: "login", site: mod.type });
     });
-    const widget = el("button", "ghost", "Zurueck zum Widget");
-    widget.title = "Wieder das anonyme Widget zeigen; die Chart-Adresse bleibt gespeichert";
-    widget.disabled = (mod.config.mode || "widget") !== "account";
-    widget.addEventListener("click", () => {
-      mod.config.mode = "widget"; markDirty(); renderColumns(); renderInspector();
-    });
-    btns.appendChild(login); btns.appendChild(widget);
+    btns.appendChild(login);
+    if (mod.type === "tradingview") {
+      const widget = el("button", "ghost", "Zurueck zum Widget");
+      widget.title = "Wieder das anonyme Widget zeigen; die Chart-Adresse bleibt gespeichert";
+      widget.disabled = (mod.config.mode || "widget") !== "account";
+      widget.addEventListener("click", () => {
+        mod.config.mode = "widget"; markDirty(); renderColumns(); renderInspector();
+      });
+      btns.appendChild(widget);
+    }
     box.appendChild(btns);
-    box.appendChild(el("p", "muted",
-      "Der Login schreibt die Adresse ins Feld oben und stellt die Quelle auf " +
-      "„Eigener Chart“. Die volle Seite kostet rund 1 GB; siehe Speicherdeckel " +
-      "in den Einstellungen. Das Widget kostet einen Bruchteil davon."));
+    box.appendChild(el("p", "muted", mod.type === "tradingview"
+      ? "Der Login schreibt die Adresse ins Feld oben und stellt die Quelle auf " +
+        "„Eigener Chart“. Die volle Seite kostet rund 1 GB; siehe Speicherdeckel " +
+        "in den Einstellungen. Das Widget kostet einen Bruchteil davon."
+      : "Der Login schreibt die Adresse des geoeffneten Charts ins Feld oben. " +
+        "Die Seite kostet rund 1 GB und dauerhaft etwa ein Drittel eines Kerns; " +
+        "siehe Speicherdeckel in den Einstellungen."));
   }
 }
 
@@ -1301,7 +1310,7 @@ function deleteProfile() {
 
 /* ---------- Bruecke zu Python ---------- */
 
-let pendingLogin = null;    // Web-Modul, das auf die Login-URL wartet
+let pendingLogin = null;    // Chart-Modul (TradingView/OpenMarket), das auf die Login-URL wartet
 let pendingBrowse = null;   // Eingabefeld, das auf den Datei-Picker wartet
 
 function post(msg) {
@@ -1320,8 +1329,8 @@ window.__login_done = function (url, error) {
     mod.config = mod.config || {};
     mod.config.url = url;
     // Ohne das bliebe die Quelle auf "Widget" und der frisch gewaehlte Chart
-    // waere nirgends zu sehen.
-    mod.config.mode = "account";
+    // waere nirgends zu sehen. OpenMarket hat keinen Widget-Modus.
+    if (mod.type === "tradingview") mod.config.mode = "account";
     markDirty();
     setStatus("Chart uebernommen — Speichern nicht vergessen", "ok");
   } else {

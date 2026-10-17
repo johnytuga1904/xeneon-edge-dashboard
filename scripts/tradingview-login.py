@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Einmal-Login fuer das Chart-Panel — in einem normalen Fenster.
+"""Einmal-Login fuer die Chart-Module — in einem normalen Fenster.
 
 Das Dashboard laeuft im Vollbild auf einem 2560x720-Streifen, an dem
 ueblicherweise weder Tastatur noch Maus haengen. Dieses Skript oeffnet
@@ -8,12 +8,16 @@ Hauptmonitor: hier anmelden, den gewuenschten gespeicherten Chart oeffnen,
 "Als Chart uebernehmen" druecken — fertig. Cookies und LocalStorage liegen
 danach in ~/.local/share/xeneon-edge/webkit/ und das Dashboard benutzt sie.
 
-    ./scripts/tradingview-login.py
+    ./scripts/tradingview-login.py                    # TradingView
+    ./scripts/tradingview-login.py --site openmarket  # OpenMarket
 
-Ohne Argument startet es bei der aktuell konfigurierten chart_url, sonst bei
-https://www.tradingview.com/chart/.
+Der Name ist historisch: das Skript kennt alle Seiten aus ``LOGIN_SITES`` in
+ui/chart.py. Ohne Adresse startet es beim zuletzt uebernommenen Chart der
+Seite (``chart_url`` bzw. ``openmarket_url`` in settings.json), sonst auf
+deren Startseite.
 """
 from __future__ import annotations
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -32,16 +36,16 @@ from gi.repository import Gtk  # noqa: E402
 
 from xeneon_edge import config_store  # noqa: E402
 from xeneon_edge.ui import monitors  # noqa: E402
-from xeneon_edge.ui.chart import import_webkit, make_session  # noqa: E402
-
-START_URL = "https://www.tradingview.com/chart/"
+from xeneon_edge.ui.chart import LOGIN_SITES, import_webkit, make_session  # noqa: E402
 
 
 class LoginWindow(Gtk.ApplicationWindow):
-    def __init__(self, app, WebKit, session, url: str):
-        super().__init__(application=app, title="TradingView — Login fuer das Chart-Panel")
+    def __init__(self, app, WebKit, session, url: str, site: dict):
+        super().__init__(application=app,
+                         title=f"{site['label']} — Login fuer das Chart-Panel")
         self.set_default_size(1400, 900)
         self._WebKit = WebKit
+        self._site = site
         self._popups: list[Gtk.Window] = []
 
         # Bewusst *ohne* den Speicherdeckel des Chart-Panels: der Google-Login
@@ -91,7 +95,8 @@ class LoginWindow(Gtk.ApplicationWindow):
         eigenes network_session= waere ohnehin falsch gewesen.
         """
         popup_view = self._WebKit.WebView(related_view=view)
-        win = Gtk.Window(title="TradingView — Login", transient_for=self, modal=False)
+        win = Gtk.Window(title=f"{self._site['label']} — Login",
+                         transient_for=self, modal=False)
         win.set_default_size(560, 720)
         win.set_child(popup_view)
         popup_view.connect("ready-to-show", lambda _v: win.present())
@@ -105,11 +110,21 @@ class LoginWindow(Gtk.ApplicationWindow):
             self.url_label.set_label("Das ist keine /chart/-URL — erst den Chart oeffnen.")
             return
         settings = config_store.load_settings()
-        settings["chart_url"] = url
+        settings[self._site["setting"]] = url
         config_store.save_settings(settings)
-        print(f"chart_url = {url}")
-        print("Gespeichert. Das Dashboard uebernimmt es beim naechsten Start.")
+        print(f"{self._site['setting']} = {url}")
+        print("Gespeichert. Der Editor traegt die Adresse ins Modul ein.")
         self.close()
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Login-Fenster fuer die Chart-Module des Dashboards.")
+    parser.add_argument("--site", choices=sorted(LOGIN_SITES), default="tradingview",
+                        help="welche Seite (Standard: tradingview)")
+    parser.add_argument("url", nargs="?", default="",
+                        help="Startadresse; sonst der zuletzt uebernommene Chart")
+    return parser.parse_args(argv)
 
 
 def main() -> int:
@@ -121,8 +136,10 @@ def main() -> int:
         print("  Debian: sudo apt install gir1.2-webkit-6.0")
         return 1
 
-    url = sys.argv[1] if len(sys.argv) > 1 else (
-        config_store.load_settings().get("chart_url") or START_URL)
+    args = parse_args(sys.argv[1:])
+    site = LOGIN_SITES[args.site]
+    url = args.url or (
+        config_store.load_settings().get(site["setting"]) or site["start"])
 
     app = Gtk.Application(application_id="io.github.johnytuga1904.XeneonEdge.Login")
     session = make_session(WebKit)
@@ -136,7 +153,7 @@ def main() -> int:
         if existing is not None:
             existing.present()
             return
-        win = LoginWindow(a, WebKit, session, url)
+        win = LoginWindow(a, WebKit, session, url, site)
         win.present()
         settings = config_store.load_settings()
         monitors.move_off_dashboard(

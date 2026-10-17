@@ -16,6 +16,8 @@ Linux-Port des Windows-Desktop-Dashboards — native GTK4-Oberfläche, Sensoren 
 - TradingView-Modul (WebKitGTK) — wahlweise das anonyme Widget mit
   einstellbarem Symbol, Intervall und Indikatoren oder die echte Chart-Seite
   mit dem eigenen Account und gespeichertem Layout
+- OpenMarket-Modul — der eigene Chart aus einem OpenMarket-Account, gewählt
+  im selben Login-Fenster
 - Wiedergabe: was gerade spielt (MPRIS), oder ein eigener Musikordner, den
   das Dashboard selbst abspielt
 - 3×6 Launch-Deck (18 Buttons) mit frei einstellbarer Aufteilung Apps/Macros,
@@ -374,6 +376,7 @@ Rahmenlinie des Pads auf dem Streifen.
 | Launch-Deck | 3x6-Raster mit Apps und Macros | im Editor unter *Launch-Deck* |
 | Web-Panel | WebKit-View auf eine Adresse | Adresse |
 | TradingView | Chart-Widget oder eigener Chart | Quelle, Symbol, Intervall, Zeitzone, Indikatoren, Werkzeugleisten |
+| OpenMarket | eigener Chart aus einem OpenMarket-Account | Chart-Adresse (traegt *Anmelden / Chart waehlen* ein) |
 | Uhr | Zeit gross | Darstellung, Sekunden, Zeitzonen |
 | Kalender | den laufenden Monat | Wochenstart, Kalenderwochen |
 | Wiedergabe | was gerade spielt, mit Tasten | Player, Cover an/aus, Musikordner, Zufall |
@@ -481,7 +484,8 @@ Die Dateien:
 - `~/.config/xeneon-edge/apps.json` — User-Override (der Editor schreibt hierhin)
 - `~/.config/xeneon-edge/settings.json` — `auto_start`, `hold_to_confirm`,
   `isolate_launches`, `deck_app_slots`, `target_monitor`, `launch_monitor`,
-  `fullscreen_on_target`, `chart_url`, `theme`, `web_memory_limit_mb`
+  `fullscreen_on_target`, `chart_url`, `openmarket_url`, `theme`,
+  `web_memory_limit_mb`
 - `~/.config/xeneon-edge/layout.json` — Version 3: Profile mit `topbar`
   (Slots `left`/`center`/`right`, je eine Liste `{type, config}`) und
   `columns` (Breite + Module). Topbar-Widgets: `brand`, `status`, `net`,
@@ -667,6 +671,37 @@ Zu beachten:
 - Automatisiertes Einloggen waere gegen die TradingView-ToS — deshalb ein
   Fenster zum Selbst-Anmelden und kein Skript, das Zugangsdaten eintippt.
 
+### OpenMarket
+
+OpenMarket ([openmarket.xyz](https://openmarket.xyz)) ist die zweite
+Chart-Quelle, ein **eigenes Modul** neben TradingView. Ein anonymes Widget
+gibt es nicht: das Modul zeigt immer den eigenen Chart aus dem Account, aus
+der Adresse in *Chart-Adresse* (`url`, Form
+`https://openmarket.xyz/chart/<id>`). Wer gar keinen Chart will, entfernt
+das Modul im Editor — in die mittlere Spalte passt jedes andere Modul, oder
+keines.
+
+Angemeldet wird wie bei TradingView: im Editor das OpenMarket-Modul
+anklicken → **Anmelden / Chart waehlen**. Dasselbe Skript, mit der Seite als
+Argument:
+
+```bash
+./scripts/tradingview-login.py --site openmarket
+```
+
+Anmelden, Chart oeffnen, *Als Chart uebernehmen* — das schreibt die Adresse
+nach `openmarket_url` in `settings.json`, der Editor traegt sie ins Modul
+ein. Beide Seiten teilen sich ein WebKit-Profil, eine TradingView- und eine
+OpenMarket-Session leben also nebeneinander.
+
+Gemessen am Streifen ueber sechs Stunden (16.10.2026, Fedora, AMD-GPU): die
+OpenMarket-Seite liegt bei rund 1 GB RSS und haelt dauerhaft **etwa ein
+Drittel eines Kerns** beschaeftigt — um die 30 % —, wo der eigene
+TradingView-Chart etwa 5 % braucht. Der Speicher blieb flach, die Seite hat
+nie neu geladen. Die CPU-Last ist das eine, was man vor der Wahl abwaegen
+sollte; der Speicherdeckel (*Speicherdeckel Web-Panel* in den Einstellungen)
+gilt fuer sie wie fuer jede Web-View.
+
 ### Icons
 
 Das Feld `icon` eines Eintrags akzeptiert drei Formen, in dieser Reihenfolge:
@@ -767,7 +802,7 @@ linux/
   scripts/install-debian.sh    # Debian-13-Setup: Pakete, Verify, Settings, Autostart
   scripts/install-arch.sh      # Arch/Omarchy-Setup: + Deck-Vorlage, Hyprland-Regeln
   scripts/verify-install.py    # Abhaengigkeits-Check, von beiden Installern benutzt
-  scripts/tradingview-login.py # Einmal-Login fuer das Chart-Panel (eigene Session)
+  scripts/tradingview-login.py # Einmal-Login fuer die Chart-Module (TradingView, --site openmarket)
   xeneon_edge/
     app.py             # Adw.Application + CSS + Aggregator-Wiring
     config_store.py    # settings.json + apps.json + autostart .desktop
