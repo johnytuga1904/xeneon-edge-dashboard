@@ -56,7 +56,7 @@ def _render(path: Path) -> tuple[list[str], str]:
     try:
         raw = path.read_text(encoding="utf-8", errors="replace")
     except OSError as e:
-        return [], f"nicht lesbar: {e.strerror or e}"
+        return [], f"not readable: {e.strerror or e}"
 
     if path.suffix.lower() == ".json":
         try:
@@ -67,8 +67,8 @@ def _render(path: Path) -> tuple[list[str], str]:
     lines = raw.splitlines()
     if len(lines) > MAX_LINES:
         rest = len(lines) - MAX_LINES
-        return lines[:MAX_LINES] + [f"… {rest} weitere Zeilen"], f"{len(lines)} Zeilen"
-    return lines, f"{len(lines)} Zeilen"
+        return lines[:MAX_LINES] + [f"… {rest} more lines"], f"{len(lines)} lines"
+    return lines, f"{len(lines)} lines"
 
 
 class NotesModule(Gtk.Box):
@@ -96,7 +96,7 @@ class NotesModule(Gtk.Box):
         # Zeichen nicht in die natuerliche Breite ein. Mit set_ellipsize()
         # schneidet GTK deshalb ab, obwohl die Zeile passt — aus
         # "notizen.md" wurde "notizen.…".
-        title = Gtk.Label(label=_shorten(self._path.name) if self._path else "Notizen",
+        title = Gtk.Label(label=_shorten(self._path.name) if self._path else "Notes",
                           xalign=0)
         title.add_css_class("panel-label")
         self.status = Gtk.Label(label="", xalign=1)
@@ -153,19 +153,19 @@ class NotesModule(Gtk.Box):
             child = nxt
 
         if self._path is None:
-            self._add_row("Keine Datei gewaehlt — im Editor unter \"Datei\" eine "
-                          "Text-, Markdown- oder JSON-Datei auswaehlen.", plain=True)
+            self._add_row("No file chosen — in the editor, pick a text, Markdown "
+                          "or JSON file under \"File\".", plain=True)
             self._set_status("")
             return
         if not self._path.exists():
-            self._add_row(f"Nicht gefunden: {self._path}", plain=True)
-            self._set_status("fehlt")
+            self._add_row(f"Not found: {self._path}", plain=True)
+            self._set_status("missing")
             return
 
         lines, status = _render(self._path)
         self._set_status(status)
         if not lines:
-            self._add_row("(leer)", plain=True)
+            self._add_row("(empty)", plain=True)
             return
         for line in lines:
             self._add_row(line)
@@ -200,7 +200,7 @@ class NotesModule(Gtk.Box):
         if not self._copy(text):
             return
         row.add_css_class("copied")
-        self.status.set_label("kopiert")
+        self.status.set_label("copied")
         if self._hint_source:
             GLib.source_remove(self._hint_source)
         self._hint_source = GLib.timeout_add(COPIED_HINT_MS, self._clear_hint, row)

@@ -566,7 +566,7 @@ levels → window/panel/buttons) is in `theme.py`.
 
 The deck has a fixed 18 pads (3 columns × 6 rows, `DECK_*` in
 `config_store.py` — the pad height is tuned to the 660 px content area of the
-strip). `deck_app_slots` (editor → Launch deck → *Slots for apps*, 0–18) says
+strip). `deck_app_slots` (editor → Launch deck → *Pads for apps*, 0–18) says
 how many go to apps; the rest are macros:
 
 | `deck_app_slots` | Deck |
@@ -721,7 +721,7 @@ Things to know:
 - **No restart needed.** The editor waits for the login window to close,
   enters the URL into *Chart address* and sets *Source* to *Own chart*; after
   *Save* the panel in the running dashboard switches over. Closing the window
-  without *Use as chart* changes nothing. The *Back to widget* button switches
+  without *Use as chart* changes nothing. The *Back to the widget* button switches
   the source back and leaves the address in place. The address can also be
   typed by hand — the editor runs on the monitor with a keyboard.
 - **The first build takes a while.** The panel stays empty for a few seconds

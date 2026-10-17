@@ -62,7 +62,7 @@ def stage_geometry(display: Gdk.Display, preferred: str) -> dict:
 
 class EditorWindow(Gtk.ApplicationWindow):
     def __init__(self, app, WebKit, page: str):
-        super().__init__(application=app, title="Xeneon Edge — Einstellungen")
+        super().__init__(application=app, title="Xeneon Edge — Settings")
         # Auf den Inhalt abgestimmt: Kopfleiste, Buehne im Seitenverhaeltnis
         # des Streifens ueber die volle Breite neben der Seitenleiste, darunter
         # der Hinweis. Die Hyprland-Regel aus install-arch.sh nennt dieselbe
@@ -120,7 +120,7 @@ class EditorWindow(Gtk.ApplicationWindow):
             return
 
         result = editor.handle_message(raw)
-        print(("[xeneon-edge] " if result.ok else "[xeneon-edge] FEHLER: ") + result.message)
+        print(("[xeneon-edge] " if result.ok else "[xeneon-edge] ERROR: ") + result.message)
         self._call("__saved", result.ok, result.message)
 
     # ----- Python -> Seite -----
@@ -130,7 +130,7 @@ class EditorWindow(Gtk.ApplicationWindow):
         try:
             self.view.evaluate_javascript(script, -1, None, None, None, None, None)
         except Exception as e:
-            print(f"[xeneon-edge] Rueckmeldung an die Seite fehlgeschlagen: {e}")
+            print(f"[xeneon-edge] Reply to the page failed: {e}")
 
     # ----- Login-Fenster -----
 
@@ -143,14 +143,14 @@ class EditorWindow(Gtk.ApplicationWindow):
         sie und geben sie der Seite, die sie ins ausgewaehlte Modul traegt.
         """
         if site not in LOGIN_SITES:
-            self._call("__login_done", "", f"Unbekannte Seite: {site}")
+            self._call("__login_done", "", f"Unknown site: {site}")
             return
         script = ROOT / "scripts" / "tradingview-login.py"
         if not script.exists():
-            self._call("__login_done", "", f"Skript fehlt: {script}")
+            self._call("__login_done", "", f"Script missing: {script}")
             return
         if self._login_proc is not None:
-            self._call("__login_done", "", "Das Login-Fenster ist schon offen")
+            self._call("__login_done", "", "The login window is already open")
             return
         self._login_site = site
         self._login_before = self._chart_url_state(site)
@@ -161,7 +161,7 @@ class EditorWindow(Gtk.ApplicationWindow):
         try:
             proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE)
         except GLib.Error as e:
-            self._call("__login_done", "", f"Start fehlgeschlagen: {e.message}")
+            self._call("__login_done", "", f"Launch failed: {e.message}")
             return
         self._login_proc = proc
         proc.wait_async(None, self._on_login_done)
@@ -191,7 +191,7 @@ class EditorWindow(Gtk.ApplicationWindow):
         if url and (url != before_url or mtime != before_mtime):
             self._call("__login_done", url, "")
         else:
-            self._call("__login_done", "", "Kein Chart uebernommen")
+            self._call("__login_done", "", "No chart taken over")
 
     # ----- Datei-Picker fuer Deck-Kommandos -----
 
@@ -202,15 +202,15 @@ class EditorWindow(Gtk.ApplicationWindow):
         dialog = Gtk.FileDialog.new()
         home = Gio.File.new_for_path(GLib.get_home_dir())
         if target == "dir":
-            dialog.set_title("Ordner waehlen")
+            dialog.set_title("Choose folder")
             dialog.set_initial_folder(home)
             dialog.select_folder(self, None, self._on_folder_browsed)
             return
         if target == "file":
-            dialog.set_title("Datei waehlen")
+            dialog.set_title("Choose file")
             dialog.set_initial_folder(home)
         else:
-            dialog.set_title("Programm waehlen")
+            dialog.set_title("Choose program")
             dialog.set_initial_folder(Gio.File.new_for_path("/usr/bin"))
         dialog.open(self, None, self._on_browsed)
 
@@ -237,7 +237,7 @@ class EditorWindow(Gtk.ApplicationWindow):
 def main() -> int:
     WebKit = import_webkit()
     if WebKit is None:
-        print("WebKitGTK 6.0 fehlt — ohne das gibt es keinen Editor.")
+        print("WebKitGTK 6.0 is missing — the editor cannot run without it.")
         print("  Fedora: sudo dnf install webkitgtk6.0")
         print("  Arch:   sudo pacman -S webkitgtk-6.0")
         print("  Debian: sudo apt install gir1.2-webkit-6.0")

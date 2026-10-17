@@ -99,9 +99,9 @@ TV_DEFAULTS = {
 # Was das Intervall-Auswahlfeld anbietet. Die Werte sind die des Widgets:
 # Minuten als Zahl, darueber D/W/M.
 TV_INTERVALS = (
-    ("1", "1 Minute"), ("5", "5 Minuten"), ("15", "15 Minuten"),
-    ("30", "30 Minuten"), ("60", "1 Stunde"), ("240", "4 Stunden"),
-    ("D", "1 Tag"), ("W", "1 Woche"), ("M", "1 Monat"),
+    ("1", "1 minute"), ("5", "5 minutes"), ("15", "15 minutes"),
+    ("30", "30 minutes"), ("60", "1 hour"), ("240", "4 hours"),
+    ("D", "1 day"), ("W", "1 week"), ("M", "1 month"),
 )
 
 # Indikatoren zum Anklicken. Die Kennungen sind die der TradingView-Bibliothek
@@ -117,17 +117,17 @@ TV_INTERVALS = (
 # Auswahl anzubieten, die nichts tut.
 TV_VOLUME = "volume"
 TV_STUDIES = (
-    (TV_VOLUME, "Volumen"),
+    (TV_VOLUME, "Volume"),
     ("STD;RSI", "RSI"),
     ("STD;MACD", "MACD"),
-    ("STD;Bollinger_Bands", "Bollinger-Baender"),
-    ("STD;EMA", "EMA (gleitender Durchschnitt)"),
-    ("STD;SMA", "SMA (gleitender Durchschnitt)"),
+    ("STD;Bollinger_Bands", "Bollinger Bands"),
+    ("STD;EMA", "EMA (moving average)"),
+    ("STD;SMA", "SMA (moving average)"),
     ("STD;VWAP", "VWAP"),
     ("STD;Stochastic_RSI", "Stochastic RSI"),
-    ("STD;Ichimoku%1Cloud", "Ichimoku-Wolke"),
+    ("STD;Ichimoku%1Cloud", "Ichimoku Cloud"),
     ("STD;Supertrend", "Supertrend"),
-    ("STD;Divergence%1Indicator", "RSI-Divergenz"),
+    ("STD;Divergence%1Indicator", "RSI divergence"),
 )
 
 # Seiten, fuer die das Login-Fenster (scripts/tradingview-login.py) einen
@@ -541,7 +541,7 @@ def _placeholder(title: str, message: str) -> Gtk.Widget:
     return box
 
 
-NO_WEBKIT = ("Braucht WebKitGTK 6.0.\nInstalliere mit:\n\n"
+NO_WEBKIT = ("Needs WebKitGTK 6.0.\nInstall with:\n\n"
              "  Fedora: sudo dnf install webkitgtk6.0\n"
              "  Arch:   sudo pacman -S webkitgtk-6.0\n"
              "  Debian: sudo apt install gir1.2-webkit-6.0")
@@ -566,12 +566,12 @@ def make_web_widget(url: str = "", zoom: float = 1.0) -> Gtk.Widget:
     """Freies Web-Panel: eine Adresse, sonst nichts."""
     if not url:
         return _placeholder(
-            "WEB-PANEL",
-            "Keine Adresse eingestellt. Im Editor das Modul anklicken und "
-            "unter \u201eAdresse\u201c eine URL eintragen — oder das "
-            "TradingView- oder OpenMarket-Modul nehmen, wenn es um Charts geht.")
+            "WEB PANEL",
+            "No address set. In the editor, click the module and enter a URL "
+            "under \u201cAddress\u201d — or use the TradingView or OpenMarket "
+            "module if it is about charts.")
     panel = _try_webview(url=url, zoom=zoom)
-    return panel if panel is not None else _placeholder("WEB-PANEL", NO_WEBKIT)
+    return panel if panel is not None else _placeholder("WEB PANEL", NO_WEBKIT)
 
 
 def make_openmarket_widget(url: str = "", zoom: float = OM_DEFAULT_ZOOM / 100.0) -> Gtk.Widget:
@@ -586,9 +586,9 @@ def make_openmarket_widget(url: str = "", zoom: float = OM_DEFAULT_ZOOM / 100.0)
     if not url:
         return _placeholder(
             "OPENMARKET",
-            "Noch kein Chart gewaehlt. Im Editor das Modul anklicken und "
-            "\u201eAnmelden / Chart waehlen\u201c druecken — oder die Adresse "
-            "des Charts (https://openmarket.xyz/chart/\u2026) von Hand unter "
-            "\u201eChart-Adresse\u201c eintragen.")
+            "No chart chosen yet. In the editor, click the module and press "
+            "\u201cSign in / choose chart\u201d — or enter the chart's address "
+            "(https://openmarket.xyz/chart/\u2026) by hand under "
+            "\u201cChart address\u201d.")
     panel = _try_webview(url=url, zoom=zoom)
     return panel if panel is not None else _placeholder("OPENMARKET", NO_WEBKIT)

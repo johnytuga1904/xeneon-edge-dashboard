@@ -32,7 +32,7 @@ TOPBAR_SLOTS = ("left", "center", "right")
 # Topbar hat bewusst weder Wetter noch Spiel: beides braucht einen Standort
 # bzw. ein Team, und die des Autors sind kein sinnvoller Default.
 _DEFAULT_PROFILE: dict[str, Any] = {
-    "label": "Standard",
+    "label": "Default",
     "columns": [
         {"width": 460, "modules": [{"type": "sensors", "config": {}}]},
         {"width": FLEX, "modules": [{"type": "tradingview", "config": {}}]},
@@ -63,31 +63,31 @@ class LayoutError(ValueError):
 
 def _validate_column(col: Any, where: str) -> dict[str, Any]:
     if not isinstance(col, dict):
-        raise LayoutError(f"{where}: Spalte ist kein Objekt")
+        raise LayoutError(f"{where}: column is not an object")
 
     width = col.get("width", FLEX)
     if width != FLEX:
         try:
             width = int(width)
         except (TypeError, ValueError):
-            raise LayoutError(f"{where}: Breite '{width}' ist weder Zahl noch '{FLEX}'")
+            raise LayoutError(f"{where}: width '{width}' is neither a number nor '{FLEX}'")
         if width < 80:
-            raise LayoutError(f"{where}: Breite {width}px ist zu schmal")
+            raise LayoutError(f"{where}: width {width}px is too narrow")
 
     raw_modules = col.get("modules")
     if not isinstance(raw_modules, list) or not raw_modules:
-        raise LayoutError(f"{where}: Spalte ohne Module")
+        raise LayoutError(f"{where}: column without modules")
 
     out_modules = []
     for i, m in enumerate(raw_modules):
         if not isinstance(m, dict):
-            raise LayoutError(f"{where}, Modul {i}: kein Objekt")
+            raise LayoutError(f"{where}, module {i}: not an object")
         type_id = m.get("type")
         if not isinstance(type_id, str) or not type_id:
-            raise LayoutError(f"{where}, Modul {i}: kein Typ angegeben")
+            raise LayoutError(f"{where}, module {i}: no type given")
         config = m.get("config", {})
         if not isinstance(config, dict):
-            raise LayoutError(f"{where}, Modul {i}: config ist kein Objekt")
+            raise LayoutError(f"{where}, module {i}: config is not an object")
         # Unbekannte Typen sind hier *kein* Fehler: die Datei kann aus einer
         # neueren Version stammen. modules.build() ueberspringt sie einzeln,
         # der Rest des Layouts bleibt benutzbar.
@@ -98,9 +98,9 @@ def _validate_column(col: Any, where: str) -> dict[str, Any]:
             try:
                 height = int(m["height"])
             except (TypeError, ValueError):
-                raise LayoutError(f"{where}, Modul {i}: height '{m['height']}' ist keine Zahl")
+                raise LayoutError(f"{where}, module {i}: height '{m['height']}' is not a number")
             if not 5 <= height <= 95:
-                raise LayoutError(f"{where}, Modul {i}: height {height} liegt nicht in 5..95")
+                raise LayoutError(f"{where}, module {i}: height {height} is not within 5..95")
             entry["height"] = height
         out_modules.append(entry)
 
@@ -110,17 +110,17 @@ def _validate_column(col: Any, where: str) -> dict[str, Any]:
 def _validate_entries(raw: Any, where: str) -> list[dict[str, Any]]:
     """[{type, config}]-Liste, wie sie Spalten und Topbar-Slots enthalten."""
     if not isinstance(raw, list):
-        raise LayoutError(f"{where}: keine Liste")
+        raise LayoutError(f"{where}: not a list")
     out = []
     for i, m in enumerate(raw):
         if not isinstance(m, dict):
-            raise LayoutError(f"{where}, Eintrag {i}: kein Objekt")
+            raise LayoutError(f"{where}, entry {i}: not an object")
         type_id = m.get("type")
         if not isinstance(type_id, str) or not type_id:
-            raise LayoutError(f"{where}, Eintrag {i}: kein Typ angegeben")
+            raise LayoutError(f"{where}, entry {i}: no type given")
         config = m.get("config", {})
         if not isinstance(config, dict):
-            raise LayoutError(f"{where}, Eintrag {i}: config ist kein Objekt")
+            raise LayoutError(f"{where}, entry {i}: config is not an object")
         out.append({"type": type_id, "config": config})
     return out
 
@@ -202,22 +202,22 @@ def _validate_topbar(raw: Any, name: str) -> dict[str, Any]:
     if raw is None:
         return json.loads(json.dumps(_DEFAULT_PROFILE["topbar"]))
     if not isinstance(raw, dict):
-        raise LayoutError(f"Profil '{name}': topbar ist kein Objekt")
+        raise LayoutError(f"Profile '{name}': topbar is not an object")
     if not any(slot in raw for slot in TOPBAR_SLOTS):
         return _topbar_from_v1(raw)
-    return {slot: _validate_entries(raw.get(slot, []), f"Profil '{name}', Topbar {slot}")
+    return {slot: _validate_entries(raw.get(slot, []), f"Profile '{name}', topbar {slot}")
             for slot in TOPBAR_SLOTS}
 
 
 def _validate_profile(profile: Any, name: str) -> dict[str, Any]:
     if not isinstance(profile, dict):
-        raise LayoutError(f"Profil '{name}': kein Objekt")
+        raise LayoutError(f"Profile '{name}': not an object")
 
     raw_columns = profile.get("columns")
     if not isinstance(raw_columns, list) or not raw_columns:
-        raise LayoutError(f"Profil '{name}': keine Spalten")
+        raise LayoutError(f"Profile '{name}': no columns")
 
-    columns = [_validate_column(c, f"Profil '{name}', Spalte {i}")
+    columns = [_validate_column(c, f"Profile '{name}', column {i}")
                for i, c in enumerate(raw_columns)]
 
     # Genau eine Flex-Spalte. Keine: das Layout fuellt den Bildschirm nicht.
@@ -225,7 +225,7 @@ def _validate_profile(profile: Any, name: str) -> dict[str, Any]:
     flex = [i for i, c in enumerate(columns) if c["width"] == FLEX]
     if len(flex) != 1:
         raise LayoutError(
-            f"Profil '{name}': genau eine Spalte muss '{FLEX}' sein, gefunden: {len(flex)}"
+            f"Profile '{name}': exactly one column must be '{FLEX}', found: {len(flex)}"
         )
 
     return {
@@ -237,15 +237,15 @@ def _validate_profile(profile: Any, name: str) -> dict[str, Any]:
 
 def validate(data: Any) -> dict[str, Any]:
     if not isinstance(data, dict):
-        raise LayoutError("Datei enthaelt kein Objekt")
+        raise LayoutError("file does not contain an object")
 
     version = data.get("version", VERSION)
     if version not in (1, 2, VERSION):
-        raise LayoutError(f"Version {version} wird nicht unterstuetzt (erwartet {VERSION})")
+        raise LayoutError(f"version {version} is not supported (expected {VERSION})")
 
     raw_profiles = data.get("profiles")
     if not isinstance(raw_profiles, dict) or not raw_profiles:
-        raise LayoutError("keine Profile")
+        raise LayoutError("no profiles")
 
     if version in (1, 2):
         raw_profiles = _profiles_from_v2(raw_profiles)
@@ -254,7 +254,7 @@ def validate(data: Any) -> dict[str, Any]:
 
     active = data.get("active_profile") or next(iter(profiles))
     if active not in profiles:
-        raise LayoutError(f"aktives Profil '{active}' existiert nicht")
+        raise LayoutError(f"active profile '{active}' does not exist")
 
     return {"version": VERSION, "active_profile": active, "profiles": profiles}
 

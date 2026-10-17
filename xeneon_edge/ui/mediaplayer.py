@@ -81,7 +81,7 @@ class MediaPlayerModule(Gtk.Box):
         # Kopf
         self._header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self._header.add_css_class("panel-header")
-        label = Gtk.Label(label="Wiedergabe", xalign=0)
+        label = Gtk.Label(label="Playback", xalign=0)
         label.add_css_class("panel-label")
         self._player_label = Gtk.Label(label="", xalign=1)
         self._player_label.add_css_class("panel-sublabel")
@@ -287,7 +287,7 @@ class MediaPlayerModule(Gtk.Box):
 
         if local is not None and local.count:
             self._player_label.set_label(local.label)
-            self._title.set_label("Ordner abspielen")
+            self._title.set_label("Play folder")
             self._artist.set_label(str(local.folder))
             self._play.set_sensitive(True)
             return
@@ -297,16 +297,16 @@ class MediaPlayerModule(Gtk.Box):
         if local is not None:
             # Ein leerer oder unlesbarer Ordner ist ein Einstellungsfehler und
             # soll auch so aussehen, nicht wie "es laeuft halt nichts".
-            self._title.set_label("Keine Musik im Ordner" if local.available
-                                  else "Kein Media-Backend (GStreamer)")
+            self._title.set_label("No music in folder" if local.available
+                                  else "No media backend (GStreamer)")
             self._artist.set_label(str(local.folder))
             return
         # Ist ein Player fest eingestellt, sagen, dass *der* fehlt — sonst
         # sucht man den Fehler beim Modul statt beim nicht laufenden
         # Programm.
         wanted = self._watcher.preferred
-        self._title.set_label(f"{wanted.capitalize()} laeuft nicht" if wanted
-                              else "Nichts spielt")
+        self._title.set_label(f"{wanted.capitalize()} is not running" if wanted
+                              else "Nothing playing")
         self._artist.set_label("")
 
     def _length_us(self) -> int:

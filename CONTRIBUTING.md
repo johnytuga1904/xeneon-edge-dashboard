@@ -42,8 +42,9 @@ the right place to start one.
 - **Never block the GTK main loop.** Sensors run in the aggregator thread and
   hand snapshots over with `GLib.idle_add`; subprocess calls carry timeouts.
 - **Comments explain why**, including the measurement that led to a decision.
-  Existing comments and user-facing strings are partly German; new code in
-  English is fine — a full switch to English strings is planned.
+  Existing comments are partly German; user-facing strings (editor, module
+  labels and help, tooltips, status texts) are English, keep new ones English
+  too. Journal log lines (`[xeneon-edge] …`) are still German.
 - **Config files:** `layout.json` is versioned (`VERSION` in
   `layout_store.py`); a schema change needs a migration in `_from_vN()` so
   existing files keep loading.

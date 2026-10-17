@@ -213,7 +213,7 @@ class ProcessRow(Gtk.Box):
         self.ram_lbl.set_label(f"{p['ram_mb']:.0f} MB")
         self.kill_btn.set_sensitive(True)
         self.kill_btn.set_tooltip_text(
-            f"× gedrückt halten (~0.8 s) → {self._name} beenden (PID {self._pid})"
+            f"Hold × (~0.8 s) → terminate {self._name} (PID {self._pid})"
         )
 
     def is_arming(self) -> bool:

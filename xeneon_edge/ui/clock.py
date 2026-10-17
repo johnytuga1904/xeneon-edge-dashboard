@@ -131,7 +131,7 @@ class ClockModule(Gtk.Box):
         # sich als ein Block, die Uhrzeit soll aber das Auge zuerst treffen.
         date_desc = desc.copy()
         date_desc.set_weight(Pango.Weight.NORMAL)
-        date_text = now.strftime("%A, %d. %B").upper()
+        date_text = now.strftime("%A, %d %B").upper()
         date_layout, dw, dh = _fit(cr, date_desc, date_text, w, date_h)
 
         block_h = th + gap + dh
@@ -145,7 +145,7 @@ class ClockModule(Gtk.Box):
         PangoCairo.show_layout(cr, date_layout)
 
     def _draw_zones(self, cr, desc, colour, pad, w, h) -> None:
-        zones = self.zones or [("LOKAL", None)]
+        zones = self.zones or [("LOCAL", None)]
         now_utc = datetime.now().astimezone()
         rows = [(label, (now_utc.astimezone(zone) if zone is not None else now_utc))
                 for label, zone in zones]

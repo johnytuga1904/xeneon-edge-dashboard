@@ -220,7 +220,7 @@ class LocalPlayer:
         if self.folder is None:
             return ""
         if not self.files:
-            return f"{self.folder.name} — leer"
+            return f"{self.folder.name} — empty"
         return f"{self.folder.name} · {self._pos + 1}/{len(self.files)}"
 
     # ----- Steuerung -----

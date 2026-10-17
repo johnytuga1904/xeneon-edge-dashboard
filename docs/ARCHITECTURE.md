@@ -282,10 +282,9 @@ Findings from the 2026-09-08 review, in the order they should be done:
   `git filter-repo` to drop build outputs, third-party binaries and private
   tooling. The `accent` field in `apps.json` *is* used on Linux (pad colour,
   see step 6) and stays.
-- **Still open:** user-facing strings and the editor UI are German
-  (`modules/builtin.py` labels and help, tooltips, log lines). A non-German
-  user gets a German settings form. This is the last item before a wider
-  audience; it is not a blocker for making the repository public.
+- **Done (2026-10-18), English UI:** editor, `modules/builtin.py` labels
+  and help, tooltips, status texts and the sign-in window are English. Still
+  German: code comments and the `[xeneon-edge]` journal lines.
 
 ## Known risks
 

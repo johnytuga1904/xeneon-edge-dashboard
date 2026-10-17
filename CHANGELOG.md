@@ -7,6 +7,13 @@ tagged release.
 
 ## [Unreleased]
 
+### Changed (2026-10-18)
+- The user interface is English: the layout editor (labels, menus, help
+  texts, status messages), module names and settings help in
+  `modules/builtin.py`, dashboard tooltips and status texts, and the sign-in
+  window. Journal log lines and code comments remain German for now.
+- The Linux port lives in its own repository; see "Added" below.
+
 ### Fixed (Linux, 2026-10-17)
 - The chart column was black again with WebKit's DMABUF renderer (web
   process alive, page loaded, nothing painted), with and without the Mesa

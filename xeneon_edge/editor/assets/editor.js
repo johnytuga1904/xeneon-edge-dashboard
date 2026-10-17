@@ -112,11 +112,11 @@ function renderStageMeta() {
   const left = flexWidth();
   if (left <= 0) {
     warn.hidden = false;
-    warn.textContent = `Feste Spalten belegen ${fixedTotal()} px von ${STAGE.width} px — ` +
-                       `fuer die Flex-Spalte bleibt nichts uebrig.`;
+    warn.textContent = `Fixed columns take ${fixedTotal()} px of ${STAGE.width} px — ` +
+                       `nothing is left for the flex column.`;
   } else if (left < 120) {
     warn.hidden = false;
-    warn.textContent = `Nur noch ${left} px fuer die Flex-Spalte.`;
+    warn.textContent = `Only ${left} px left for the flex column.`;
   } else {
     warn.hidden = true;
   }
@@ -155,7 +155,7 @@ function makeChip(w, slot, i) {
     node.classList.add("selected");
   }
   const x = el("button", "module-x", "×");
-  x.title = "Widget entfernen";
+  x.title = "Remove widget";
   x.addEventListener("pointerdown", (ev) => ev.stopPropagation());
   x.addEventListener("click", (ev) => { ev.stopPropagation(); removeTopbar(slot, i); });
   node.appendChild(x);
@@ -208,14 +208,14 @@ function makeColumn(col, ci) {
   const width = el("button", "column-width" + (col.width === FLEX ? " is-flex" : ""));
   width.textContent = col.width === FLEX ? `flex · ${flexWidth()} px` : `${col.width} px`;
   width.title = col.width === FLEX
-    ? "Nimmt den Rest. Klicken, um eine feste Breite zu setzen."
-    : "Klicken fuer eine exakte Breite, oder diese Spalte auf flex setzen.";
+    ? "Takes the rest. Click to set a fixed width."
+    : "Click for an exact width, or make this column flex.";
   width.addEventListener("click", () => selectColumn(ci));
   head.appendChild(width);
   node.appendChild(head);
 
   if (!col.modules.length) {
-    node.appendChild(el("div", "column-empty", "leer — wird verworfen"));
+    node.appendChild(el("div", "column-empty", "empty — will be dropped"));
   }
   const hs = heights(col);
   col.modules.forEach((mod, mi) => {
@@ -229,7 +229,7 @@ function makeColumn(col, ci) {
 
 function makeHGrip(ci, upperIndex) {
   const grip = el("div", "hgrip");
-  grip.title = "Ziehen: Hoehenanteil der beiden Module";
+  grip.title = "Drag: height share of the two modules";
   grip.addEventListener("pointerdown", (ev) => startHResize(ev, ci, upperIndex));
   return grip;
 }
@@ -282,7 +282,7 @@ function makeModule(mod, ci, mi) {
   if (sub) node.appendChild(el("div", "module-sub", sub));
 
   const x = el("button", "module-x", "×");
-  x.title = "Modul entfernen";
+  x.title = "Remove module";
   x.addEventListener("pointerdown", (ev) => ev.stopPropagation());
   x.addEventListener("click", (ev) => { ev.stopPropagation(); removeModule(ci, mi); });
   node.appendChild(x);
@@ -305,14 +305,14 @@ function removeModule(ci, mi) {
 function describeConfig(mod) {
   const cfg = mod.config || {};
   if (mod.type === "web") {
-    if (!cfg.url) return "keine Adresse";
+    if (!cfg.url) return "no address";
     try { return new URL(cfg.url).hostname; } catch { return cfg.url.slice(0, 30); }
   }
   if (mod.type === "tradingview") {
-    if ((cfg.mode || "widget") === "account") return cfg.url ? "eigener Chart" : "Login fehlt";
+    if ((cfg.mode || "widget") === "account") return cfg.url ? "own chart" : "not signed in";
     return cfg.symbol || "BINANCE:BTCUSDT";
   }
-  if (mod.type === "openmarket") return cfg.url ? "eigener Chart" : "Login fehlt";
+  if (mod.type === "openmarket") return cfg.url ? "own chart" : "not signed in";
   if (mod.type === "media" && cfg.music_dir) {
     return cfg.music_dir.split("/").filter(Boolean).pop() || cfg.music_dir;
   }
@@ -324,7 +324,7 @@ function describeConfig(mod) {
       ? cfg.metrics : (field && field.default) || [];
     return chosen.map((m) => names[m] || m).join(" · ");
   }
-  if (mod.type === "processes" && cfg.count) return `${cfg.count} Zeilen`;
+  if (mod.type === "processes" && cfg.count) return `${cfg.count} rows`;
   return "";
 }
 
@@ -383,13 +383,13 @@ function setColumnWidth(ci, px) {
   const cols = columns();
   const col = cols[ci];
   if (!Number.isFinite(px) || px < 80) {
-    setStatus("Breite muss mindestens 80 px sein", "bad");
+    setStatus("Width must be at least 80 px", "bad");
     return false;
   }
   if (col.width === FLEX) {
     const next = cols.findIndex((c, i) => i !== ci);
     if (next === -1) {
-      setStatus("Eine Spalte muss flex bleiben", "bad");
+      setStatus("One column has to stay flex", "bad");
       return false;
     }
     cols[next].width = FLEX;
@@ -752,7 +752,7 @@ function renderForm(schema, values, onChange) {
          * im Home statt in /usr/bin. */
         const wrap = el("div", "with-btn");
         const browse = el("button", "ghost", "…");
-        browse.title = f.kind === "dir" ? "Ordner waehlen" : "Datei waehlen";
+        browse.title = f.kind === "dir" ? "Choose folder" : "Choose file";
         browse.addEventListener("click", () => {
           pendingBrowse = input;
           post({ action: "browse", target: f.kind === "dir" ? "dir" : "file" });
@@ -779,10 +779,10 @@ function renderInspector() {
   $("settings-btn").classList.toggle("active", Boolean(selected && selected.kind === "settings"));
 
   if (!selected) {
-    title.textContent = "Auswahl";
+    title.textContent = "Selection";
     box.appendChild(el("p", "muted",
-      "Nichts ausgewaehlt. Modul, Topbar-Widget oder Spaltenbreite anklicken — " +
-      "oder oben Einstellungen."));
+      "Nothing selected. Click a module, a topbar widget or a column width — " +
+      "or Settings at the top."));
     return;
   }
   if (selected.kind === "settings") return renderSettings(box, title);
@@ -792,24 +792,24 @@ function renderInspector() {
 }
 
 function renderSettings(box, title) {
-  title.textContent = "Einstellungen";
+  title.textContent = "Settings";
   box.appendChild(renderForm(SETTINGS_SCHEMA, settings, (key, value) => {
     settings[key] = value;
     markDirty();
   }));
   box.appendChild(el("p", "muted",
-    "Wirkt nach dem Speichern sofort im Dashboard. Der Speicherdeckel gilt fuer " +
-    "neu gebaute Web-Panels."));
+    "Takes effect in the dashboard right after saving. The memory cap applies to " +
+    "newly built web panels."));
 }
 
 function renderColumnInspector(box, title) {
   const ci = selected.col;
   const col = columns()[ci];
   if (!col) { selected = null; return renderInspector(); }
-  title.textContent = `Spalte ${ci + 1} von ${columns().length}`;
+  title.textContent = `Column ${ci + 1} of ${columns().length}`;
 
   const row = el("div", "row");
-  row.appendChild(el("label", null, "Breite"));
+  row.appendChild(el("label", null, "Width"));
   const input = el("input");
   input.type = "number"; input.min = "80"; input.step = "10";
   input.value = String(renderedWidth(col));
@@ -821,17 +821,17 @@ function renderColumnInspector(box, title) {
 
   const flexRow = el("div", "row");
   flexRow.appendChild(el("label", null, "Flex"));
-  const flexBtn = el("button", "ghost", col.width === FLEX ? "nimmt den Rest" : "diese Spalte flex machen");
+  const flexBtn = el("button", "ghost", col.width === FLEX ? "takes the rest" : "make this column flex");
   flexBtn.disabled = col.width === FLEX;
-  flexBtn.title = "Genau eine Spalte fuellt den verbleibenden Platz.";
+  flexBtn.title = "Exactly one column fills the remaining space.";
   flexBtn.addEventListener("click", () => { setFlexColumn(ci); markDirty(); render(); });
   flexRow.appendChild(flexBtn);
   box.appendChild(flexRow);
 
   box.appendChild(el("p", "muted", (col.width === FLEX
-    ? "Diese Spalte bekommt, was die festen uebrig lassen. "
-    : "Feste Breite in Pixeln auf dem Zielmonitor. ")
-    + "Liegen mehrere Module in der Spalte, laesst sich die Kante zwischen ihnen ziehen."));
+    ? "This column gets whatever the fixed ones leave over. "
+    : "Fixed width in pixels on the target monitor. ")
+    + "With several modules in the column, the edge between them can be dragged."));
 }
 
 function renderTopbarInspector(box, title) {
@@ -849,7 +849,7 @@ function renderTopbarInspector(box, title) {
       if (gates.has(key)) renderInspector();
     }));
   } else {
-    box.appendChild(el("p", "muted", "Dieses Widget hat keine Einstellungen."));
+    box.appendChild(el("p", "muted", "This widget has no settings."));
   }
 }
 
@@ -875,25 +875,25 @@ function renderModuleInspector(box, title) {
       if (gates.has(key)) renderInspector();
     }));
   } else {
-    box.appendChild(el("p", "muted", "Dieses Modul hat keine Einstellungen."));
+    box.appendChild(el("p", "muted", "This module has no settings."));
   }
 
   /* TradingView und OpenMarket holen sich ihren Chart ueber dasselbe
    * Login-Fenster; die Seite sagt der Bruecke, welche Site. */
   if (mod.type === "tradingview" || mod.type === "openmarket") {
     const btns = el("div", "row-btns");
-    const login = el("button", "ghost", "Anmelden / Chart waehlen…");
-    login.title = "Oeffnet ein Browser-Fenster: dort anmelden, Chart oeffnen, „Als Chart uebernehmen“";
+    const login = el("button", "ghost", "Sign in / choose chart…");
+    login.title = "Opens a browser window: sign in there, open a chart, “Use as chart”";
     login.addEventListener("click", () => {
       pendingLogin = mod;
       login.disabled = true;
-      setStatus("Login-Fenster offen …", "");
+      setStatus("Login window open …", "");
       post({ action: "login", site: mod.type });
     });
     btns.appendChild(login);
     if (mod.type === "tradingview") {
-      const widget = el("button", "ghost", "Zurueck zum Widget");
-      widget.title = "Wieder das anonyme Widget zeigen; die Chart-Adresse bleibt gespeichert";
+      const widget = el("button", "ghost", "Back to the widget");
+      widget.title = "Show the anonymous widget again; the chart address stays saved";
       widget.disabled = (mod.config.mode || "widget") !== "account";
       widget.addEventListener("click", () => {
         mod.config.mode = "widget"; markDirty(); renderColumns(); renderInspector();
@@ -902,12 +902,12 @@ function renderModuleInspector(box, title) {
     }
     box.appendChild(btns);
     box.appendChild(el("p", "muted", mod.type === "tradingview"
-      ? "Der Login schreibt die Adresse ins Feld oben und stellt die Quelle auf " +
-        "„Eigener Chart“. Die volle Seite kostet rund 1 GB; siehe Speicherdeckel " +
-        "in den Einstellungen. Das Widget kostet einen Bruchteil davon."
-      : "Der Login schreibt die Adresse des geoeffneten Charts ins Feld oben. " +
-        "Die Seite kostet rund 1 GB und dauerhaft etwa ein Drittel eines Kerns; " +
-        "siehe Speicherdeckel in den Einstellungen."));
+      ? "Signing in writes the address into the field above and sets the source to " +
+        "“Own chart”. The full page costs about 1 GB; see the memory cap " +
+        "in the settings. The widget costs a fraction of that."
+      : "Signing in writes the address of the opened chart into the field above. " +
+        "The page costs about 1 GB and permanently about a third of a core; " +
+        "see the memory cap in the settings."));
   }
 }
 
@@ -952,7 +952,7 @@ function renderDeckEditor(box) {
   if (deckSlot >= entries.length) deckSlot = 0;
 
   const split = el("div", "field");
-  split.appendChild(el("label", null, `Plaetze fuer Apps (Rest sind Macros): ${appSlots()} + ${DECK.slots - appSlots()}`));
+  split.appendChild(el("label", null, `Pads for apps (the rest are macros): ${appSlots()} + ${DECK.slots - appSlots()}`));
   const range = el("input");
   range.type = "number"; range.min = "0"; range.max = String(DECK.slots); range.step = "1";
   range.value = String(appSlots());
@@ -983,15 +983,15 @@ function renderDeckEditor(box) {
   });
   box.appendChild(grid);
   const legend = el("div", "deck-legend");
-  legend.appendChild(el("span", null, "durchgezogen = App"));
-  legend.appendChild(el("span", null, "gestrichelt = Macro"));
-  legend.appendChild(el("span", null, "! = mit Bestaetigung"));
-  legend.appendChild(el("span", null, "Punkt = Farbe"));
+  legend.appendChild(el("span", null, "solid = app"));
+  legend.appendChild(el("span", null, "dashed = macro"));
+  legend.appendChild(el("span", null, "! = hold to confirm"));
+  legend.appendChild(el("span", null, "dot = colour"));
   box.appendChild(legend);
 
   const e = entries[deckSlot];
   const kind = deckSlot < appSlots() ? "App" : "Macro";
-  box.appendChild(el("h2", null, `Platz ${deckSlot + 1} · ${kind}`));
+  box.appendChild(el("h2", null, `Pad ${deckSlot + 1} · ${kind}`));
 
   const form = el("div", "form");
   const text = (key, label, help) => {
@@ -1009,7 +1009,7 @@ function renderDeckEditor(box) {
     wrap.appendChild(input);
     if (key === "command") {
       const browse = el("button", "ghost", "…");
-      browse.title = "Programm waehlen";
+      browse.title = "Choose program";
       browse.addEventListener("click", () => { pendingBrowse = input; post({ action: "browse" }); });
       wrap.appendChild(browse);
     }
@@ -1018,14 +1018,14 @@ function renderDeckEditor(box) {
     form.appendChild(field);
     return input;
   };
-  text("label", "Beschriftung", "Leer = Dateiname des Kommandos");
-  text("command", "Kommando");
-  text("args", "Argumente");
-  text("icon", "Icon", "Name aus xeneon_edge/icons/, Pfad zu SVG/PNG oder Theme-Name; leer = Automatik");
+  text("label", "Label", "Empty = file name of the command");
+  text("command", "Command");
+  text("args", "Arguments");
+  text("icon", "Icon", "Name from xeneon_edge/icons/, path to an SVG/PNG or a theme icon name; empty = automatic");
 
   const confirm = el("div", "field");
   const confirmRow = el("div", "check-row");
-  confirmRow.appendChild(el("label", null, "Gedrueckt halten zum Ausloesen"));
+  confirmRow.appendChild(el("label", null, "Hold to trigger"));
   const cb = el("input"); cb.type = "checkbox"; cb.checked = Boolean(e.confirm);
   cb.addEventListener("change", () => { e.confirm = cb.checked; markDirty(); refreshDeckCells(); });
   confirmRow.appendChild(cb);
@@ -1033,7 +1033,7 @@ function renderDeckEditor(box) {
   form.appendChild(confirm);
 
   const btns = el("div", "row-btns");
-  const clear = el("button", "ghost danger", "Platz leeren");
+  const clear = el("button", "ghost danger", "Clear pad");
   clear.addEventListener("click", () => {
     setDeckEntry(deckSlot, emptyEntry(deckSlot < appSlots() ? "app" : "macro", deckSlot + 1));
     markDirty();
@@ -1074,7 +1074,7 @@ function decorateCell(cell, e) {
   cell.style.borderBottomColor = colour;
   const dot = el("span", "pad-dot");
   dot.style.background = colour;
-  dot.title = "Farbe des Pads";
+  dot.title = "Pad colour";
   dot.addEventListener("pointerdown", (ev) => ev.stopPropagation());
   dot.addEventListener("click", (ev) => { ev.stopPropagation(); openPalette(cell, e); });
   cell.appendChild(dot);
@@ -1101,7 +1101,7 @@ function openPalette(cell, e) {
 
   const sw = el("div", "swatches");
   const theme = el("div", "swatch theme");
-  theme.title = "Theme-Akzent";
+  theme.title = "Theme accent";
   theme.addEventListener("click", () => apply(""));
   sw.appendChild(theme);
   for (const c of PAD_COLOURS) {
@@ -1181,7 +1181,7 @@ function renderMenu() {
     const b = el("button", null, spec.label);
     const present = spec.singleton && columns().some((c) => c.modules.some((m) => m.type === spec.type));
     b.disabled = present;
-    b.title = present ? "Kann nur einmal vorkommen" : "In die ausgewaehlte Spalte, sonst in die letzte";
+    b.title = present ? "Can only be added once" : "Into the selected column, otherwise the last one";
     b.addEventListener("click", () => { addModule(spec); closeMenu(); });
     mods.appendChild(b);
   }
@@ -1192,7 +1192,7 @@ function renderMenu() {
     const b = el("button", null, spec.label);
     const present = spec.singleton && SLOTS.some((s) => data[s].some((w) => w.type === spec.type));
     b.disabled = present;
-    b.title = present ? "Kann nur einmal vorkommen" : "In den ausgewaehlten Slot, sonst in die Mitte";
+    b.title = present ? "Can only be added once" : "Into the selected slot, otherwise the centre";
     b.addEventListener("click", () => { addTopbar(spec); closeMenu(); });
     tb.appendChild(b);
   }
@@ -1236,7 +1236,7 @@ function renderProfiles() {
 
 function slugify(name) {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return base || "profil";
+  return base || "profile";
 }
 function uniqueId(base) {
   let id = base, n = 2;
@@ -1266,7 +1266,7 @@ function askName(initial, onCommit) {
 }
 
 function newProfile() {
-  askName("Neu", (name) => {
+  askName("New", (name) => {
     const id = uniqueId(slugify(name));
     layout.profiles[id] = clone(profile());
     layout.profiles[id].label = name;
@@ -1295,7 +1295,7 @@ function deleteProfile() {
   if (!deleteArmed) {
     deleteArmed = true;
     const btn = $("profile-delete");
-    btn.textContent = "wirklich?";
+    btn.textContent = "really?";
     btn.classList.add("primary");
     deleteTimer = setTimeout(resetDelete, 4000);
     return;
@@ -1315,7 +1315,7 @@ let pendingBrowse = null;   // Eingabefeld, das auf den Datei-Picker wartet
 
 function post(msg) {
   if (!window.webkit || !window.webkit.messageHandlers || !window.webkit.messageHandlers.bridge) {
-    setStatus("Keine Verbindung zum Dashboard", "bad");
+    setStatus("No connection to the dashboard", "bad");
     return false;
   }
   window.webkit.messageHandlers.bridge.postMessage(JSON.stringify(msg));
@@ -1332,9 +1332,9 @@ window.__login_done = function (url, error) {
     // waere nirgends zu sehen. OpenMarket hat keinen Widget-Modus.
     if (mod.type === "tradingview") mod.config.mode = "account";
     markDirty();
-    setStatus("Chart uebernommen — Speichern nicht vergessen", "ok");
+    setStatus("Chart taken over — remember to save", "ok");
   } else {
-    setStatus(error || "Kein Chart uebernommen", "bad");
+    setStatus(error || "No chart taken over", "bad");
   }
   renderColumns();
   renderInspector();
@@ -1364,10 +1364,10 @@ function cleaned() {
 function save() {
   const data = cleaned();
   const prof = data.profiles[data.active_profile];
-  if (!prof.columns.length) { setStatus("Layout hat keine Spalten", "bad"); return; }
+  if (!prof.columns.length) { setStatus("Layout has no columns", "bad"); return; }
   const flex = prof.columns.filter((c) => c.width === FLEX).length;
-  if (flex !== 1) { setStatus(`Genau eine Spalte muss flex sein (aktuell ${flex})`, "bad"); return; }
-  if (post({ action: "save", layout: data, settings, apps })) setStatus("Speichere …", "");
+  if (flex !== 1) { setStatus(`Exactly one column has to be flex (currently ${flex})`, "bad"); return; }
+  if (post({ action: "save", layout: data, settings, apps })) setStatus("Saving …", "");
 }
 
 /* Von Python nach dem Schreiben aufgerufen. */
@@ -1387,7 +1387,7 @@ function revert() {
   dirty = false;
   $("save").disabled = true;
   $("revert").disabled = true;
-  setStatus("Verworfen", "");
+  setStatus("Discarded", "");
   render();
 }
 
@@ -1399,7 +1399,7 @@ function init() {
 
   if (!layout || !layout.profiles || !layout.active_profile) {
     document.body.innerHTML =
-      "<p style='padding:20px'>Kein Layout geladen — layout.json fehlt oder ist ungueltig.</p>";
+      "<p style='padding:20px'>No layout loaded — layout.json is missing or invalid.</p>";
     return;
   }
 

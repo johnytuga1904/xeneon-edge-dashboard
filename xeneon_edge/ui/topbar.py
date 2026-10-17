@@ -144,7 +144,7 @@ class WeatherPill(Gtk.Box):
         if not self.feeds:
             # Ohne Standort gibt es nichts zu holen — das sagt die Pille
             # selbst, statt fuer immer "--" zu zeigen.
-            self.set_tooltip_text("Kein Standort gesetzt — im Editor lat/lon eintragen")
+            self.set_tooltip_text("No location set — enter lat/lon in the editor")
             self.symbol.set_label("?")
         elif label:
             self.set_tooltip_text(label)
@@ -187,7 +187,7 @@ class MatchPill(Gtk.Box):
         self.append(badge); self.append(text)
         if not self.feeds:
             self.when.set_label("no team set")
-            self.set_tooltip_text("Liga und Team-ID im Editor eintragen (ESPN)")
+            self.set_tooltip_text("Enter league and team ID in the editor (ESPN)")
 
     def update(self, snap) -> None:
         if not self.feeds:
@@ -249,7 +249,7 @@ class ActionsWidget(Gtk.Box):
     def __init__(self, *, on_open_settings, on_toggle_fullscreen, on_close):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         settings_btn = Gtk.Button(label="⚙"); settings_btn.add_css_class("ico")
-        settings_btn.set_tooltip_text("Editor auf dem Hauptmonitor oeffnen")
+        settings_btn.set_tooltip_text("Open the editor on the main monitor")
         settings_btn.connect("clicked", lambda *_: on_open_settings())
         fs_btn = Gtk.Button(label="FS"); fs_btn.add_css_class("ico")
         fs_btn.connect("clicked", lambda *_: on_toggle_fullscreen())

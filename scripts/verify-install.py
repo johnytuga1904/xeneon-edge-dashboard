@@ -40,7 +40,7 @@ for ns, ver, hard in (("Gtk", "4.0", True), ("Gdk", "4.0", True),
         if hard:
             rc = 1
         else:
-            warn("  → Chart-Panel zeigt den Platzhalter statt TradingView")
+            warn("  → chart panel shows the placeholder instead of TradingView")
 
 for mod, hard in (("psutil", True), ("requests", False)):
     try:
@@ -61,24 +61,24 @@ if shutil.which("gst-inspect-1.0"):
     found = subprocess.run(["gst-inspect-1.0", "autoaudiosink"],
                            capture_output=True).returncode == 0
     if found:
-        ok("autoaudiosink — GStreamer-Audiosenke fuer WebKit")
+        ok("autoaudiosink — GStreamer audio sink for WebKit")
     else:
-        warn("autoaudiosink fehlt — WebKit stirbt beim TradingView-Login")
+        warn("autoaudiosink missing — WebKit dies at the TradingView sign-in")
         warn("  → Arch:   sudo pacman -S gst-plugins-good")
         warn("  → Debian: sudo apt install gstreamer1.0-plugins-good")
         warn("  → Fedora: sudo dnf install gstreamer1-plugins-good")
 else:
-    warn("gst-inspect-1.0 nicht da — autoaudiosink nicht pruefbar")
+    warn("gst-inspect-1.0 not found — cannot check autoaudiosink")
 
 # Der Musikordner spielt ueber eine eigene GStreamer-Pipeline (ui/localplayer.py)
 # und braucht dafuer die Python-Bindings, nicht nur die Plugins.
 try:
     gi.require_version("Gst", "1.0")
     from gi.repository import Gst  # noqa: E402,F401
-    ok("Gst-1.0 — GStreamer-Bindings fuer den Musikordner")
+    ok("Gst-1.0 — GStreamer bindings for the music folder")
 except (ValueError, ImportError):
-    warn("Gst-1.0-Typelib fehlt — der Musikordner im Wiedergabe-Modul bleibt stumm")
-    warn("  → Arch:   in 'gstreamer' enthalten")
+    warn("Gst-1.0 typelib missing — the music folder in the Playback module stays silent")
+    warn("  → Arch:   included in 'gstreamer'")
     warn("  → Debian: sudo apt install gir1.2-gstreamer-1.0")
     warn("  → Fedora: sudo dnf install python3-gstreamer1")
 
@@ -87,23 +87,23 @@ except (ValueError, ImportError):
 if shutil.which("nvidia-smi"):
     try:
         __import__("pynvml")
-        ok("pynvml — NVIDIA-Werte ueber NVML")
+        ok("pynvml — NVIDIA readings via NVML")
     except ImportError:
-        warn("pynvml fehlt — NVIDIA-Werte ueber nvidia-smi (28 ms pro Tick)")
+        warn("pynvml missing — NVIDIA readings via nvidia-smi (28 ms per tick)")
         warn("  → Arch:   sudo pacman -S python-nvidia-ml-py")
         warn("  → Debian: sudo apt install python3-pynvml")
 
-for tool, what in (("pactl", "Audio-Lautstaerke/Default-Device"),
-                   ("wpctl", "PipeWire-Fallback"),
-                   ("sensors", "hwmon-Labels"),
-                   ("systemd-run", "isolierte Deck-Starts (isolate_launches)"),
-                   ("nvidia-smi", "NVIDIA-GPU-Panel")):
+for tool, what in (("pactl", "audio volume/default device"),
+                   ("wpctl", "PipeWire fallback"),
+                   ("sensors", "hwmon labels"),
+                   ("systemd-run", "isolated deck launches (isolate_launches)"),
+                   ("nvidia-smi", "NVIDIA GPU panel")):
     (ok if shutil.which(tool) else warn)(f"{tool} — {what}")
 
 # Sensor-Pfade, die der Aggregator liest
-for p, what in (("/proc/stat", "CPU-Last"), ("/proc/meminfo", "RAM"),
-                ("/proc/net/dev", "Netzwerk"), ("/sys/class/hwmon", "Temp/Luefter"),
-                ("/sys/class/drm", "AMD-GPU")):
+for p, what in (("/proc/stat", "CPU load"), ("/proc/meminfo", "RAM"),
+                ("/proc/net/dev", "Network"), ("/sys/class/hwmon", "Temp/fans"),
+                ("/sys/class/drm", "AMD GPU")):
     (ok if Path(p).exists() else warn)(f"{p} — {what}")
 
 # Session-Umgebung. GDK_SCALE ist der Klassiker auf Hyprland/Omarchy: dort steht
@@ -111,17 +111,17 @@ for p, what in (("/proc/stat", "CPU-Last"), ("/proc/meminfo", "RAM"),
 # Dashboards sind harte Pixel fuer die 2560x720 des Xeneon Edge.
 scale = os.environ.get("GDK_SCALE", "")
 if scale and scale not in ("1", "1.0"):
-    warn(f"GDK_SCALE={scale} in dieser Session — run.sh erzwingt fuer das "
-         "Dashboard 1 (ueberschreibbar mit XENEON_GDK_SCALE)")
+    warn(f"GDK_SCALE={scale} in this session — run.sh forces 1 for the "
+         "dashboard (override with XENEON_GDK_SCALE)")
 else:
-    ok(f"GDK_SCALE={scale or '(nicht gesetzt)'}")
+    ok(f"GDK_SCALE={scale or '(not set)'}")
 
 desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
 session = os.environ.get("XDG_SESSION_TYPE", "")
 if desktop or session:
     ok(f"Session: {desktop or '?'} / {session or '?'}")
 else:
-    warn("Keine Display-Session — die GUI-Teile laufen hier nicht")
+    warn("No display session — the GUI parts will not run here")
 
 # Datei-Picker im Settings-Dialog (Gtk.FileDialog) laeuft unter Wayland ueber
 # den Portal-Dienst.
@@ -129,6 +129,6 @@ if session == "wayland" and not any(
     Path(d, "xdg-desktop-portal").exists() or Path(d, "xdg-desktop-portal-gtk").exists()
     for d in ("/usr/libexec", "/usr/lib", "/usr/lib/xdg-desktop-portal")
 ):
-    warn("xdg-desktop-portal nicht gefunden — 'Browse' im Settings-Dialog bleibt leer")
+    warn("xdg-desktop-portal not found — 'Browse' in the settings dialog stays empty")
 
 sys.exit(rc)

@@ -30,7 +30,7 @@ from ..ui import topbar
 SENSOR_METRICS = ("cpu", "gpu", "ram", "fans")
 
 # Ueberschrift des aufklappbaren Blocks im TradingView-Formular.
-WIDGET_GROUP = "Widget-Einstellungen"
+WIDGET_GROUP = "Widget settings"
 
 
 class SensorsModule(Gtk.Box):
@@ -214,26 +214,26 @@ class TradingViewModule(_WebHolder):
 
 register(ModuleSpec(
     type_id="sensors",
-    label="Sensoren",
+    label="Sensors",
     factory=SensorsModule,
     needs=frozenset({"cpu", "gpu", "ram", "fans"}),
     default_width=460,
     schema=(
-        Field("metrics", "Angezeigte Werte", "list",
+        Field("metrics", "Displayed values", "list",
               default=["cpu", "gpu", "ram", "fans"],
-              options=(("cpu", "CPU"), ("gpu", "GPU"), ("ram", "RAM"), ("fans", "Luefter")),
-              help="Was nicht angezeigt wird, liest der Aggregator auch nicht."),
+              options=(("cpu", "CPU"), ("gpu", "GPU"), ("ram", "RAM"), ("fans", "Fans")),
+              help="What is not displayed, the aggregator does not read either."),
     ),
 ))
 
 register(ModuleSpec(
     type_id="processes",
-    label="Prozesse",
+    label="Processes",
     factory=ProcessesModule,
     needs=frozenset({"processes"}),
     default_width=420,
     schema=(
-        Field("count", "Anzahl Zeilen", "int", default=14, min=4, max=20),
+        Field("count", "Number of rows", "int", default=14, min=4, max=20),
     ),
 ))
 
@@ -247,7 +247,7 @@ register(ModuleSpec(
 
 register(ModuleSpec(
     type_id="deck",
-    label="Launch-Deck",
+    label="Launch Deck",
     factory=DeckModule,
     default_width=430,
     singleton=True,
@@ -255,83 +255,83 @@ register(ModuleSpec(
 
 register(ModuleSpec(
     type_id="clock",
-    label="Uhr",
+    label="Clock",
     factory=ClockModule,
     default_width=420,
     schema=(
-        Field("mode", "Darstellung", "select", default="datetime",
-              options=(("datetime", "Zeit und Datum"), ("time", "Nur Zeit"),
-                       ("zones", "Zeitzonen"))),
-        Field("seconds", "Sekunden anzeigen", "bool", default=False),
-        Field("zones", "Zeitzonen", "text",
+        Field("mode", "Display", "select", default="datetime",
+              options=(("datetime", "Time and date"), ("time", "Time only"),
+                       ("zones", "Time zones"))),
+        Field("seconds", "Show seconds", "bool", default=False),
+        Field("zones", "Time zones", "text",
               default="London=Europe/London, New York=America/New_York, Tokyo=Asia/Tokyo",
               show_if=("mode", ("zones",)),
-              help="Form: Name=Zone, getrennt durch Komma. Zonen wie in "
-                   "/usr/share/zoneinfo, z.B. Europe/Zurich."),
+              help="Format: Name=Zone, separated by commas. Zones as in "
+                   "/usr/share/zoneinfo, e.g. Europe/Zurich."),
     ),
 ))
 
 register(ModuleSpec(
     type_id="calendar",
-    label="Kalender",
+    label="Calendar",
     factory=CalendarModule,
     default_width=440,
     schema=(
-        Field("first_day", "Woche beginnt am", "select", default="monday",
-              options=(("monday", "Montag"), ("sunday", "Sonntag"))),
-        Field("week_numbers", "Kalenderwochen anzeigen", "bool", default=False),
+        Field("first_day", "Week starts on", "select", default="monday",
+              options=(("monday", "Monday"), ("sunday", "Sunday"))),
+        Field("week_numbers", "Show week numbers", "bool", default=False),
     ),
 ))
 
 register(ModuleSpec(
     type_id="media",
-    label="Wiedergabe",
+    label="Playback",
     factory=MediaPlayerModule,
     default_width=460,
     schema=(
         Field("player", "Player", "text", default="",
-              help="Leer = automatisch der, der gerade spielt. Sonst ein Namensteil, "
-                   "z.B. spotify, mpv, firefox."),
-        Field("show_cover", "Cover anzeigen", "bool", default=True,
-              help="Nur wenn das Modul gross genug ist; Titel, Kuenstler und Tasten "
-                   "bleiben immer."),
-        Field("music_dir", "Musikordner", "dir", default="",
-              help="Gesetzt, spielt das Modul diesen Ordner selbst ab — ohne "
-                   "fremdes Programm; eine vierte Taste startet ihn. Wird mit "
-                   "den Unterordnern durchsucht; von Videodateien laeuft die "
-                   "Tonspur. Laeuft anderswo etwas, hat das Vorrang."),
-        Field("shuffle", "Zufaellige Reihenfolge", "bool", default=False,
+              help="Empty = whichever one is currently playing. Otherwise part of "
+                   "a name, e.g. spotify, mpv, firefox."),
+        Field("show_cover", "Show cover", "bool", default=True,
+              help="Only when the module is large enough; title, artist and buttons "
+                   "always stay."),
+        Field("music_dir", "Music folder", "dir", default="",
+              help="When set, the module plays this folder itself — no other "
+                   "program needed; a fourth button starts it. Subfolders are "
+                   "included; of video files only the audio track plays. "
+                   "Anything playing elsewhere takes precedence."),
+        Field("shuffle", "Shuffle", "bool", default=False,
               show_if=("music_dir", ()),
-              help="Mischt den Musikordner einmalig beim Start."),
+              help="Shuffles the music folder once at start."),
     ),
 ))
 
 register(ModuleSpec(
     type_id="notes",
-    label="Notizen",
+    label="Notes",
     factory=NotesModule,
     default_width=460,
     schema=(
-        Field("path", "Datei", "path", default="",
-              help="Text-, Markdown- oder JSON-Datei. Wird nur angezeigt, nie "
-                   "geschrieben; aendert sie sich, laedt das Modul sie neu. "
-                   "Ein Tipp auf eine Zeile kopiert sie."),
+        Field("path", "File", "path", default="",
+              help="Text, Markdown or JSON file. Display only, never written; "
+                   "when it changes, the module reloads it. "
+                   "Tapping a line copies it."),
     ),
 ))
 
 register(ModuleSpec(
     type_id="web",
-    label="Web-Panel",
+    label="Web panel",
     factory=WebModule,
     schema=(
-        Field("url", "Adresse", "text", default="",
-              help="Vollstaendige Adresse mit https://. Die Seite laeuft in einem "
-                   "eigenen WebKit-Prozess (rund 150-300 MB) und behaelt ihren "
-                   "Login ueber Neustarts hinweg."),
+        Field("url", "Address", "text", default="",
+              help="Full address including https://. The page runs in its own "
+                   "WebKit process (roughly 150–300 MB) and keeps its login "
+                   "across restarts."),
         Field("zoom", "Zoom (%)", "int", default=100,
               min=chart_mod.ZOOM_MIN, max=chart_mod.ZOOM_MAX,
-              help="Seitenzoom. Unter 100 sieht die Seite mehr Breite und bringt "
-                   "mehr unter, Schrift wird kleiner."),
+              help="Page zoom. Below 100 the page sees more width and fits "
+                   "more in; text gets smaller."),
     ),
 ))
 
@@ -340,16 +340,16 @@ register(ModuleSpec(
     label="OpenMarket",
     factory=OpenMarketModule,
     schema=(
-        Field("url", "Chart-Adresse", "text", default="",
-              help="Traegt \"Anmelden / Chart waehlen\" ein; eine Adresse wie "
-                   "https://openmarket.xyz/chart/\u2026 laesst sich auch von Hand "
-                   "eintragen. Die Seite kostet rund 1 GB Speicher und dauerhaft "
-                   "etwa ein Drittel eines Kerns — deutlich mehr als TradingView."),
+        Field("url", "Chart address", "text", default="",
+              help="Filled in by \"Sign in / choose chart\"; an address like "
+                   "https://openmarket.xyz/chart/\u2026 can also be entered by "
+                   "hand. The page costs around 1 GB of memory and permanently "
+                   "about a third of a core — considerably more than TradingView."),
         Field("zoom", "Zoom (%)", "int", default=chart_mod.OM_DEFAULT_ZOOM,
               min=chart_mod.ZOOM_MIN, max=chart_mod.ZOOM_MAX,
-              help="Seitenzoom. Die Chart-Seite ist fuer einen breiten Browser "
-                   "gebaut; bei 100 wird in der Mittelspalte das Orderbuch rechts "
-                   "abgeschnitten, bei 80 fehlt noch die Total-Spalte, bei 72 passt alles."),
+              help="Page zoom. The chart page is built for a wide browser; at 100 "
+                   "the order book is cut off on the right in the centre column, "
+                   "at 80 the Total column is still missing, at 72 everything fits."),
     ),
 ))
 
@@ -358,41 +358,41 @@ register(ModuleSpec(
     label="TradingView",
     factory=TradingViewModule,
     schema=(
-        Field("mode", "Quelle", "select", default="widget",
-              options=(("widget", "Eingebettetes Widget"),
-                       ("account", "Eigener Chart (Login)")),
-              help="Das Widget kennt keinen Account und keine gespeicherten "
-                   "Layouts; der eigene Chart kostet rund 1 GB Speicher."),
-        Field("url", "Chart-Adresse", "text", default="",
+        Field("mode", "Source", "select", default="widget",
+              options=(("widget", "Embedded widget"),
+                       ("account", "Own chart")),
+              help="The widget knows no account and no saved layouts; "
+                   "your own chart costs around 1 GB of memory."),
+        Field("url", "Chart address", "text", default="",
               show_if=("mode", ("account",)),
-              help="Traegt \"Anmelden / Chart waehlen\" ein, laesst sich aber "
-                   "auch von Hand eintragen."),
+              help="Filled in by \"Sign in / choose chart\", but can also be "
+                   "entered by hand."),
         # Die folgenden gelten nur fuers Widget: der eigene Chart bringt Symbol,
         # Intervall und Indikatoren aus dem Account mit. Deshalb sind sie bei
         # "Eigener Chart" ganz weg und sonst hinter einem Aufklapper — sieben
         # Felder auf einmal waren mehr, als der erste Blick vertraegt.
         Field("symbol", "Symbol", "text", default=chart_mod.TV_DEFAULTS["symbol"],
               group=WIDGET_GROUP, show_if=("mode", ("widget",)),
-              help="Boerse und Kuerzel, z.B. BINANCE:BTCUSDT, NASDAQ:AAPL, SIX:NESN."),
-        Field("interval", "Intervall", "select",
+              help="Exchange and ticker, e.g. BINANCE:BTCUSDT, NASDAQ:AAPL, SIX:NESN."),
+        Field("interval", "Interval", "select",
               default=chart_mod.TV_DEFAULTS["interval"],
               options=chart_mod.TV_INTERVALS,
               group=WIDGET_GROUP, show_if=("mode", ("widget",))),
-        Field("timezone", "Zeitzone", "text",
+        Field("timezone", "Time zone", "text",
               default=chart_mod.TV_DEFAULTS["timezone"],
               group=WIDGET_GROUP, show_if=("mode", ("widget",)),
-              help="Zone wie in /usr/share/zoneinfo, z.B. Europe/Zurich, "
+              help="Zone as in /usr/share/zoneinfo, e.g. Europe/Zurich, "
                    "America/New_York."),
-        Field("studies", "Indikatoren", "list",
+        Field("studies", "Indicators", "list",
               default=list(chart_mod.TV_DEFAULTS["studies"]),
               options=chart_mod.TV_STUDIES,
               group=WIDGET_GROUP, show_if=("mode", ("widget",)),
-              help=f"Hoechstens {chart_mod.TV_MAX_STUDIES} Stueck (Volumen zaehlt "
-                   "nicht mit) — mehr nimmt das kostenlose Widget nicht an."),
-        Field("toolbars", "Werkzeugleisten anzeigen", "bool", default=True,
+              help=f"At most {chart_mod.TV_MAX_STUDIES} (volume does not count) "
+                   "— the free widget accepts no more."),
+        Field("toolbars", "Show toolbars", "bool", default=True,
               group=WIDGET_GROUP, show_if=("mode", ("widget",)),
-              help="Symbolwahl und Zeichenwerkzeuge. Ohne Tastatur am Streifen "
-                   "oft nur im Weg."),
+              help="Symbol search and drawing tools. Without a keyboard at the "
+                   "strip they are often just in the way."),
     ),
 ))
 
@@ -400,36 +400,36 @@ register(ModuleSpec(
 # ----- Topbar -----
 
 register_topbar(ModuleSpec(
-    type_id="brand", label="Marke", factory=topbar.BrandWidget, singleton=True,
-    schema=(Field("subtitle", "Untertitel", "text", default="COMMAND CENTER"),),
+    type_id="brand", label="Brand", factory=topbar.BrandWidget, singleton=True,
+    schema=(Field("subtitle", "Subtitle", "text", default="COMMAND CENTER"),),
 ))
 register_topbar(ModuleSpec(
-    type_id="status", label="Sensor-Status", factory=topbar.StatusPill, singleton=True,
+    type_id="status", label="Sensor status", factory=topbar.StatusPill, singleton=True,
 ))
 register_topbar(ModuleSpec(
-    type_id="net", label="Netzwerk", factory=topbar.NetPill, singleton=True,
+    type_id="net", label="Network", factory=topbar.NetPill, singleton=True,
 ))
 register_topbar(ModuleSpec(
-    type_id="clock", label="Uhr", factory=topbar.ClockWidget,
-    schema=(Field("seconds", "Sekunden anzeigen", "bool", default=False),),
+    type_id="clock", label="Clock", factory=topbar.ClockWidget,
+    schema=(Field("seconds", "Show seconds", "bool", default=False),),
 ))
 register_topbar(ModuleSpec(
-    type_id="weather", label="Wetter", factory=topbar.WeatherPill,
+    type_id="weather", label="Weather", factory=topbar.WeatherPill,
     schema=(
-        Field("lat", "Breitengrad", "float", default=None, min=-90, max=90,
-              help="Open-Meteo, z.B. 47.3769 fuer Zuerich"),
-        Field("lon", "Laengengrad", "float", default=None, min=-180, max=180,
-              help="z.B. 8.5417"),
-        Field("label", "Ortsname", "text", default="", help="Nur als Tooltip"),
+        Field("lat", "Latitude", "float", default=None, min=-90, max=90,
+              help="Open-Meteo, e.g. 47.3769 for Zurich"),
+        Field("lon", "Longitude", "float", default=None, min=-180, max=180,
+              help="e.g. 8.5417"),
+        Field("label", "Place name", "text", default="", help="Tooltip only"),
     ),
 ))
 register_topbar(ModuleSpec(
-    type_id="match", label="Naechstes Spiel", factory=topbar.MatchPill,
+    type_id="match", label="Next fixture", factory=topbar.MatchPill,
     schema=(
-        Field("league", "Liga (ESPN-Code)", "text", default="",
-              help="eng.1, ger.1, esp.1, ita.1, por.1, uefa.champions ..."),
-        Field("team", "Team-ID (ESPN)", "text", default="",
-              help="Zahl aus der ESPN-URL des Teams, z.B. 359 fuer Arsenal"),
-        Field("short", "Kuerzel", "text", default="", help="Steht gross in der Pille, z.B. ARS"),
+        Field("league", "League (ESPN code)", "text", default="",
+              help="eng.1, ger.1, esp.1, ita.1, por.1, uefa.champions …"),
+        Field("team", "Team ID (ESPN)", "text", default="",
+              help="Number from the team's ESPN URL, e.g. 359 for Arsenal"),
+        Field("short", "Short code", "text", default="", help="Shown large in the pill, e.g. ARS"),
     ),
 ))

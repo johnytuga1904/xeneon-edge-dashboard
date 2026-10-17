@@ -35,24 +35,24 @@ SETTINGS_KEYS = (
 # den Modulen, damit die Seite nur einen Formular-Renderer braucht. Optionen
 # fuer theme und target_monitor haengt payload() zur Laufzeit an.
 SETTINGS_SCHEMA = (
-    modules.Field("theme", "Farbthema", "select", default=theme.DEFAULT),
-    modules.Field("target_monitor", "Zielmonitor", "select", default="",
-                  help="Leer = einen 2560x720-Monitor automatisch suchen"),
-    modules.Field("fullscreen_on_target", "Vollbild auf dem Zielmonitor", "bool", default=True),
-    modules.Field("launch_monitor", "Monitor fuer gestartete Fenster", "select", default="",
-                  help="Wohin alles geht, was das Dashboard oeffnet: Deck-Eintraege, "
-                       "dieser Editor, das TradingView-Login. Leer = der Compositor "
-                       "entscheidet, in der Praxis der zuletzt fokussierte Monitor — "
-                       "auch der Streifen selbst, wo keine Tastatur haengt."),
-    modules.Field("auto_start", "Mit der Sitzung starten", "bool", default=False,
-                  help="Schreibt ~/.config/autostart/xeneon-edge.desktop"),
-    modules.Field("hold_to_confirm", "Gefaehrliche Macros gedrueckt halten", "bool", default=True,
-                  help="Eine Sekunde halten fuer Shutdown, Reboot usw."),
-    modules.Field("isolate_launches", "Deck-Eintraege in eigener systemd-Unit", "bool", default=True,
-                  help="Eigene cgroup: ein LLM-Server bremst das Dashboard nicht aus"),
-    modules.Field("web_memory_limit_mb", "Speicherdeckel Web-Panel (MB)", "int", default=1536,
+    modules.Field("theme", "Colour theme", "select", default=theme.DEFAULT),
+    modules.Field("target_monitor", "Target monitor", "select", default="",
+                  help="Empty = look for a 2560x720 monitor automatically"),
+    modules.Field("fullscreen_on_target", "Fullscreen on the target monitor", "bool", default=True),
+    modules.Field("launch_monitor", "Monitor for launched windows", "select", default="",
+                  help="Where everything the dashboard opens goes: deck entries, "
+                       "this editor, the TradingView login. Empty = the compositor "
+                       "decides, in practice the most recently focused monitor — "
+                       "which may be the strip itself, where no keyboard is attached."),
+    modules.Field("auto_start", "Start with the session", "bool", default=False,
+                  help="Writes ~/.config/autostart/xeneon-edge.desktop"),
+    modules.Field("hold_to_confirm", "Hold to confirm dangerous macros", "bool", default=True,
+                  help="Hold for one second for shutdown, reboot etc."),
+    modules.Field("isolate_launches", "Deck entries in their own systemd unit", "bool", default=True,
+                  help="Own cgroup: an LLM server cannot slow the dashboard down"),
+    modules.Field("web_memory_limit_mb", "Web panel memory cap (MB)", "int", default=1536,
                   min=0, max=8192,
-                  help="RSS des WebKit-Prozesses; am Limit wird die Seite neu geladen. 0 = aus"),
+                  help="RSS of the WebKit process; at the limit the page is reloaded. 0 = off"),
 )
 
 
@@ -76,10 +76,10 @@ def payload(stage: dict | None = None, palette: theme.Palette | None = None,
         if f.key == "theme":
             d["options"] = [list(t) for t in theme.available()]
         elif f.key == "target_monitor":
-            d["options"] = [["", "automatisch (2560x720 suchen)"]] + \
+            d["options"] = [["", "automatic (look for 2560x720)"]] + \
                            [[c, label] for c, label in (monitors or [])]
         elif f.key == "launch_monitor":
-            d["options"] = [["", "Compositor entscheidet"]] + \
+            d["options"] = [["", "compositor decides"]] + \
                            [[c, label] for c, label in (monitors or [])]
         schema.append(d)
     return {
@@ -162,18 +162,18 @@ def handle_message(raw: str) -> SaveResult:
     try:
         msg = json.loads(raw)
     except (TypeError, ValueError) as e:
-        return SaveResult(False, f"Nachricht ist kein JSON: {e}")
+        return SaveResult(False, f"Message is not JSON: {e}")
 
     if not isinstance(msg, dict):
-        return SaveResult(False, "Nachricht ist kein Objekt")
+        return SaveResult(False, "Message is not an object")
 
     action = msg.get("action")
     if action != "save":
-        return SaveResult(False, f"unbekannte Aktion: {action!r}")
+        return SaveResult(False, f"unknown action: {action!r}")
 
     layout = msg.get("layout")
     if not isinstance(layout, dict):
-        return SaveResult(False, "kein Layout in der Nachricht")
+        return SaveResult(False, "no layout in the message")
     try:
         layout_store.validate(layout)
     except layout_store.LayoutError as e:
@@ -186,6 +186,6 @@ def handle_message(raw: str) -> SaveResult:
     except layout_store.LayoutError as e:
         return SaveResult(False, str(e))
     except OSError as e:
-        return SaveResult(False, f"Schreiben fehlgeschlagen: {e}")
+        return SaveResult(False, f"Write failed: {e}")
 
-    return SaveResult(True, "Gespeichert — das Dashboard uebernimmt es sofort")
+    return SaveResult(True, "Saved — the dashboard picks it up immediately")

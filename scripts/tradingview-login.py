@@ -54,7 +54,7 @@ from xeneon_edge.ui.chart import LOGIN_SITES, import_webkit, make_session  # noq
 class LoginWindow(Gtk.ApplicationWindow):
     def __init__(self, app, WebKit, session, url: str, site: dict):
         super().__init__(application=app,
-                         title=f"{site['label']} — Login fuer das Chart-Panel")
+                         title=f"{site['label']} — sign in for the chart panel")
         self.set_default_size(1400, 900)
         self._WebKit = WebKit
         self._site = site
@@ -82,7 +82,7 @@ class LoginWindow(Gtk.ApplicationWindow):
         self.url_label.add_css_class("dim-label")
         header.set_title_widget(self.url_label)
 
-        save = Gtk.Button(label="Als Chart uebernehmen")
+        save = Gtk.Button(label="Use as chart")
         save.add_css_class("suggested-action")
         save.connect("clicked", self._on_save)
         header.pack_end(save)
@@ -98,14 +98,14 @@ class LoginWindow(Gtk.ApplicationWindow):
     def _on_terminated(self, view, reason):
         self._reloads += 1
         nick = reason.value_nick
-        print(f"[xeneon-edge] Login: Web-Prozess beendet ({nick}), "
-              f"Neuladen #{self._reloads}", flush=True)
+        print(f"[xeneon-edge] Login: web process terminated ({nick}), "
+              f"reload #{self._reloads}", flush=True)
         if self._reloads > 5:
             self.url_label.set_label(
-                f"Web-Prozess beendet ({nick}) — fuenfmal neu geladen, aufgegeben. "
-                "Fenster schliessen und erneut oeffnen.")
+                f"Web process terminated ({nick}) — reloaded five times, giving up. "
+                "Close the window and open it again.")
             return
-        self.url_label.set_label(f"Web-Prozess beendet ({nick}) — lade neu …")
+        self.url_label.set_label(f"Web process terminated ({nick}) — reloading …")
         url = view.get_uri() or self._start_url
         GLib.timeout_add_seconds(2, lambda: (view.load_uri(url), False)[1])
 
@@ -127,7 +127,7 @@ class LoginWindow(Gtk.ApplicationWindow):
         eigenes network_session= waere ohnehin falsch gewesen.
         """
         popup_view = self._WebKit.WebView(related_view=view)
-        win = Gtk.Window(title=f"{self._site['label']} — Login",
+        win = Gtk.Window(title=f"{self._site['label']} — Sign in",
                          transient_for=self, modal=False)
         win.set_default_size(560, 720)
         win.set_child(popup_view)
@@ -139,30 +139,30 @@ class LoginWindow(Gtk.ApplicationWindow):
     def _on_save(self, _btn):
         url = self.view.get_uri() or ""
         if "/chart/" not in url:
-            self.url_label.set_label("Das ist keine /chart/-URL — erst den Chart oeffnen.")
+            self.url_label.set_label("This is not a /chart/ URL — open the chart first.")
             return
         settings = config_store.load_settings()
         settings[self._site["setting"]] = url
         config_store.save_settings(settings)
         print(f"{self._site['setting']} = {url}")
-        print("Gespeichert. Der Editor traegt die Adresse ins Modul ein.")
+        print("Saved. The editor enters the address into the module.")
         self.close()
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Login-Fenster fuer die Chart-Module des Dashboards.")
+        description="Sign-in window for the dashboard's chart modules.")
     parser.add_argument("--site", choices=sorted(LOGIN_SITES), default="tradingview",
-                        help="welche Seite (Standard: tradingview)")
+                        help="which site (default: tradingview)")
     parser.add_argument("url", nargs="?", default="",
-                        help="Startadresse; sonst der zuletzt uebernommene Chart")
+                        help="start address; otherwise the chart last taken over")
     return parser.parse_args(argv)
 
 
 def main() -> int:
     WebKit = import_webkit()
     if WebKit is None:
-        print("WebKitGTK 6.0 fehlt — ohne das gibt es kein Chart-Panel.")
+        print("WebKitGTK 6.0 is missing — without it there is no chart panel.")
         print("  Fedora: sudo dnf install webkitgtk6.0")
         print("  Arch:   sudo pacman -S webkitgtk-6.0")
         print("  Debian: sudo apt install gir1.2-webkit-6.0")
