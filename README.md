@@ -8,6 +8,22 @@ Xeneon Edge, driven by touch, configured from a monitor that has a keyboard.
 It started as the Linux port of a private Windows/WPF dashboard; only the
 Linux version is published.
 
+![Dashboard on a 2560×720 Xeneon Edge, Crimson theme](docs/screenshots/dashboard-crimson.png)
+
+Sensors (CPU, AMD and NVIDIA GPU, RAM, fans), an OpenMarket chart from the
+account, top processes, playback and the 3×6 launch deck. The same layout in
+the other themes:
+
+<p>
+<img src="docs/screenshots/theme-ice.png" width="49%" alt="Ice theme"> <img src="docs/screenshots/theme-nord.png" width="49%" alt="Nord theme">
+<img src="docs/screenshots/theme-matrix.png" width="49%" alt="Matrix theme"> <img src="docs/screenshots/theme-ember.png" width="49%" alt="Ember theme">
+</p>
+
+The editor runs on the main monitor and writes `layout.json`; the dashboard
+picks the change up without a restart:
+
+![Layout editor](docs/screenshots/editor.png)
+
 ## Features
 
 - CPU: load, temperature, clock

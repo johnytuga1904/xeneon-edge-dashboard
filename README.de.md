@@ -5,6 +5,22 @@ englische [README.md](README.md).*
 
 Natives GTK4-Dashboard für Linux — Sensoren direkt aus `/proc` und `/sys`, kein Daemon, kein Electron. Entstanden als Linux-Port eines privaten Windows/WPF-Dashboards; veröffentlicht ist nur die Linux-Version.
 
+![Dashboard auf einem 2560×720-Xeneon-Edge, Theme Crimson](docs/screenshots/dashboard-crimson.png)
+
+Sensoren (CPU, AMD- und NVIDIA-GPU, RAM, Lüfter), OpenMarket-Chart aus dem
+Konto, Top-Prozesse, Wiedergabe und das 3×6-Launch-Deck. Dasselbe Layout in
+den anderen Themes:
+
+<p>
+<img src="docs/screenshots/theme-ice.png" width="49%" alt="Theme Ice"> <img src="docs/screenshots/theme-nord.png" width="49%" alt="Theme Nord">
+<img src="docs/screenshots/theme-matrix.png" width="49%" alt="Theme Matrix"> <img src="docs/screenshots/theme-ember.png" width="49%" alt="Theme Ember">
+</p>
+
+Der Editor läuft auf dem Hauptmonitor und schreibt `layout.json`; das
+Dashboard übernimmt die Änderung ohne Neustart:
+
+![Layout-Editor](docs/screenshots/editor.png)
+
 ## Features
 
 - CPU: Last, Temperatur, Takt
