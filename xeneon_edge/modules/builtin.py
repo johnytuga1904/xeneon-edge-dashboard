@@ -22,7 +22,8 @@ from ..ui.deck import LaunchDeck
 from ..ui.mediaplayer import MediaPlayerModule
 from ..ui.notes import NotesModule
 from ..ui import chart as chart_mod
-from ..ui.chart import make_tradingview_widget, make_web_widget
+from ..ui.chart import (make_openmarket_widget, make_tradingview_widget,
+                        make_web_widget)
 from ..ui import topbar
 
 
@@ -184,6 +185,13 @@ class WebModule(_WebHolder):
         self._rebuild()
 
 
+class OpenMarketModule(_WebHolder):
+    """OpenMarket: der eigene Chart aus dem Account, Adresse aus dem Login."""
+
+    def _make(self) -> Gtk.Widget:
+        return make_openmarket_widget(str(self._config.get("url", "") or ""))
+
+
 class TradingViewModule(_WebHolder):
     """TradingView: eingebettetes Widget oder der eigene Chart nach Login."""
 
@@ -317,6 +325,19 @@ register(ModuleSpec(
               help="Vollstaendige Adresse mit https://. Die Seite laeuft in einem "
                    "eigenen WebKit-Prozess (rund 150-300 MB) und behaelt ihren "
                    "Login ueber Neustarts hinweg."),
+    ),
+))
+
+register(ModuleSpec(
+    type_id="openmarket",
+    label="OpenMarket",
+    factory=OpenMarketModule,
+    schema=(
+        Field("url", "Chart-Adresse", "text", default="",
+              help="Traegt \"Anmelden / Chart waehlen\" ein; eine Adresse wie "
+                   "https://openmarket.xyz/chart/\u2026 laesst sich auch von Hand "
+                   "eintragen. Die Seite kostet rund 1 GB Speicher und dauerhaft "
+                   "etwa ein Drittel eines Kerns — deutlich mehr als TradingView."),
     ),
 ))
 

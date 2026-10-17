@@ -1,7 +1,9 @@
-"""WebKitGTK-Views: das TradingView-Modul und das freie Web-Panel.
+"""WebKitGTK-Views: TradingView, OpenMarket und das freie Web-Panel.
 
-Beide zeigen eine Seite in einer ``WebKit.WebView``; getrennt sind sie, weil
+Alle zeigen eine Seite in einer ``WebKit.WebView``; getrennt sind sie, weil
 sie verschiedene Fragen stellen. Das Web-Panel fragt nur nach einer Adresse.
+OpenMarket fragt nach *dem eigenen Chart* aus dem Account (eine Adresse wie
+``https://openmarket.xyz/chart/AbCdEf12``, die das Login-Fenster eintraegt).
 TradingView fragt, *wie*:
 
 * **Widget** — das eingebettete *Advanced Chart*. Kein Login, kein Account;
@@ -12,11 +14,13 @@ TradingView fragt, *wie*:
   Layout aus dem eigenen Account. Das Widget kann das nicht, es ist account-los
   und kennt keine gespeicherten Layouts.
 
-Fuer die zweite Variante braucht es eine *persistente* ``NetworkSession``.
-Ohne eigenes Datenverzeichnis liegt der Cookie-Jar im Speicher und der Login
-ist nach jedem Neustart weg. Angemeldet wird einmalig ueber
-``scripts/tradingview-login.py`` — dasselbe Profil, aber in einem normalen
-Fenster auf dem Hauptmonitor, wo Tastatur und Maus sind.
+Fuer die zweite Variante und fuer OpenMarket braucht es eine *persistente*
+``NetworkSession``. Ohne eigenes Datenverzeichnis liegt der Cookie-Jar im
+Speicher und der Login ist nach jedem Neustart weg. Angemeldet wird einmalig
+ueber ``scripts/tradingview-login.py`` (mit ``--site openmarket`` fuer
+OpenMarket) — dasselbe Profil, aber in einem normalen Fenster auf dem
+Hauptmonitor, wo Tastatur und Maus sind. Welche Seiten das Fenster kennt,
+steht in ``LOGIN_SITES``.
 
 Ohne WebKitGTK faellt beides auf einen Platzhalter mit Installationshinweis
 zurueck.
@@ -125,6 +129,25 @@ TV_STUDIES = (
     ("STD;Supertrend", "Supertrend"),
     ("STD;Divergence%1Indicator", "RSI-Divergenz"),
 )
+
+# Seiten, fuer die das Login-Fenster (scripts/tradingview-login.py) einen
+# Chart waehlen kann. ``start`` ist die Adresse, bei der das Fenster ohne
+# gespeicherten Chart aufgeht; ``setting`` der Schluessel in settings.json,
+# in den "Als Chart uebernehmen" die Adresse schreibt und aus dem der Editor
+# sie danach ins Modul traegt. Beide Seiten fuehren ihre Charts unter
+# ``/chart/<id>`` — darauf prueft das Fenster, bevor es speichert.
+LOGIN_SITES = {
+    "tradingview": {
+        "label": "TradingView",
+        "start": "https://www.tradingview.com/chart/",
+        "setting": "chart_url",
+    },
+    "openmarket": {
+        "label": "OpenMarket",
+        "start": "https://openmarket.xyz/",
+        "setting": "openmarket_url",
+    },
+}
 
 # Das kostenlose Widget nimmt fuenf Indikatoren an; alles darueber laesst es
 # stillschweigend weg — und zwar die *letzten* der Liste. Lieber hier kappen
@@ -521,6 +544,26 @@ def make_web_widget(url: str = "") -> Gtk.Widget:
             "WEB-PANEL",
             "Keine Adresse eingestellt. Im Editor das Modul anklicken und "
             "unter \u201eAdresse\u201c eine URL eintragen — oder das "
-            "TradingView-Modul nehmen, wenn es um Charts geht.")
+            "TradingView- oder OpenMarket-Modul nehmen, wenn es um Charts geht.")
     panel = _try_webview(url=url)
     return panel if panel is not None else _placeholder("WEB-PANEL", NO_WEBKIT)
+
+
+def make_openmarket_widget(url: str = "") -> Gtk.Widget:
+    """OpenMarket: der eigene Chart aus dem Account.
+
+    Technisch ein Web-Panel mit persistenter Session — als eigenes Modul,
+    damit es im Editor neben TradingView zur Wahl steht und seinen Chart ueber
+    dasselbe Login-Fenster bekommt, statt dass jemand die Adresse aus dem
+    Browser abtippen muss. Ein anonymes Widget wie bei TradingView gibt es
+    nicht; ohne Adresse bleibt der Platzhalter.
+    """
+    if not url:
+        return _placeholder(
+            "OPENMARKET",
+            "Noch kein Chart gewaehlt. Im Editor das Modul anklicken und "
+            "\u201eAnmelden / Chart waehlen\u201c druecken — oder die Adresse "
+            "des Charts (https://openmarket.xyz/chart/\u2026) von Hand unter "
+            "\u201eChart-Adresse\u201c eintragen.")
+    panel = _try_webview(url=url)
+    return panel if panel is not None else _placeholder("OPENMARKET", NO_WEBKIT)

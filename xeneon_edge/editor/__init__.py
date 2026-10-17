@@ -23,8 +23,8 @@ from ..paths import EDITOR_ASSETS_DIR, ROOT
 # keine Proportionen zeichnen.
 FALLBACK_STAGE = {"width": 2560, "height": 720, "connector": ""}
 
-# Was die Seite an settings.json aendern darf. Alles andere (chart_url, das
-# der Login schreibt) bleibt, wie es ist.
+# Was die Seite an settings.json aendern darf. Alles andere (chart_url und
+# openmarket_url, die das Login-Fenster schreibt) bleibt, wie es ist.
 SETTINGS_KEYS = (
     "theme", "target_monitor", "launch_monitor", "fullscreen_on_target",
     "auto_start", "hold_to_confirm", "isolate_launches", "deck_app_slots",

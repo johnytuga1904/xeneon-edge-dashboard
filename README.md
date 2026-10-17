@@ -18,6 +18,8 @@ keyboard.
   configured team (ESPN)
 - TradingView module (WebKitGTK) — the anonymous widget with symbol, interval
   and indicators, or the real chart page with your own account and saved layout
+- OpenMarket module — your own chart from an OpenMarket account, picked in
+  the same sign-in window
 - Playback: whatever is playing (MPRIS), or a music folder the dashboard plays
   itself
 - 3×6 launch deck (18 pads), free split between apps and macros,
@@ -147,6 +149,21 @@ because it hands over half-painted frames every few minutes — the chart
 column goes blank for one or two frames, which looks like a black flash on
 the strip (KMS recording, 2026-09-12: twice in twelve minutes, never in 35
 minutes with DMABUF).
+
+**Two GPUs, one of them NVIDIA.** On a machine with an AMD (or Intel) card
+for the display and an NVIDIA card next to it — say, for LLMs — every EGL
+client loads the NVIDIA driver first: GLVND lists `10_nvidia.json` before
+`50_mesa.json`, and WebKit picks the first render node, usually
+`renderD128` = NVIDIA. The chart's web process then renders through a driver
+that has nothing to do with the display, and `libnvidia-eglcore` crashed four
+times at the same address here (driver 610.57, October 2026). WebKitGTK 2.52
+has no variable to choose the render node, so `xeneon_edge/webkit_env.py`
+restricts GLVND to the Mesa vendor file (`__EGL_VENDOR_LIBRARY_FILENAMES`)
+whenever an NVIDIA node and a Mesa node coexist. Dashboard, editor and login
+window all do this before GTK opens the display; the journal says so
+(`EGL nur ueber Mesa`). `XENEON_EGL_VENDOR=off` disables it, `=mesa` forces
+it; a preset `__EGL_VENDOR_LIBRARY_FILENAMES` is left alone. Machines with
+only one kind of GPU are not touched.
 
 ### Autostart
 
@@ -377,6 +394,7 @@ the pad on the strip.
 | Launch deck | 3×6 grid of apps and macros | in the editor under *Launch deck* |
 | Web panel | a WebKit view on an address | address |
 | TradingView | chart widget or your own chart | source, symbol, interval, time zone, indicators, toolbars |
+| OpenMarket | your own chart from an OpenMarket account | chart address (set by *Sign in / choose chart*) |
 | Clock | time, large | display, seconds, time zones |
 | Calendar | the current month | week start, week numbers |
 | Playback | what is playing, with buttons | player, cover on/off, music folder, shuffle |
@@ -486,7 +504,8 @@ on the strip that is the only way to get something out of the file. At most
 - `~/.config/xeneon-edge/apps.json` — user override (the editor writes here)
 - `~/.config/xeneon-edge/settings.json` — `auto_start`, `hold_to_confirm`,
   `isolate_launches`, `deck_app_slots`, `target_monitor`, `launch_monitor`,
-  `fullscreen_on_target`, `chart_url`, `theme`, `web_memory_limit_mb`
+  `fullscreen_on_target`, `chart_url`, `openmarket_url`, `theme`,
+  `web_memory_limit_mb`
 - `~/.config/xeneon-edge/layout.json` — version 3: profiles with `topbar`
   (slots `left`/`center`/`right`, each a list of `{type, config}`) and
   `columns` (width + modules). Topbar widgets: `brand`, `status`, `net`,
@@ -713,6 +732,37 @@ Things to know:
 - Automated sign-in would be against the TradingView terms of service — hence
   a window to sign in yourself and no script that types credentials.
 
+## OpenMarket
+
+OpenMarket ([openmarket.xyz](https://openmarket.xyz)) is the second chart
+source, a **module of its own** next to TradingView. There is no anonymous
+widget: the module always shows your own chart from the account, from the
+address in *Chart address* (`url`, of the form
+`https://openmarket.xyz/chart/<id>`). Whoever wants no chart at all removes
+the module in the editor — the centre column takes any other module, or
+none.
+
+Signing in works exactly as for TradingView: click the OpenMarket module in
+the editor → **Sign in / choose chart**. The same script, with the site as
+argument:
+
+```bash
+./scripts/tradingview-login.py --site openmarket
+```
+
+Sign in, open the chart, *Use as chart* — that writes the address to
+`openmarket_url` in `settings.json`, the editor copies it into the module.
+Both sites share one WebKit profile, so a TradingView session and an
+OpenMarket session live side by side.
+
+Measured on the strip over six hours (2026-10-16, Fedora, AMD GPU): the
+OpenMarket page sits at about 1 GB RSS and keeps **roughly a third of a core
+busy** — around 30 % — the whole time, where the TradingView account chart
+needs about 5 %. Memory stayed flat and the page never reloaded. The CPU
+cost is the one thing to weigh before choosing it; the memory cap
+(*Web panel memory cap* in the settings) applies to it like to every web
+view.
+
 ## Controls
 
 - Gear: opens the editor on the main monitor — layout, module settings, deck
@@ -772,7 +822,7 @@ linux/
   scripts/install-autostart.sh # writes the XDG autostart entry
   scripts/verify-install.py    # dependency check used by both installers
   scripts/layout-editor.py     # the editor window (WebKit page + GTK bridge)
-  scripts/tradingview-login.py # one-off login for the chart panel (own session)
+  scripts/tradingview-login.py # one-off login for the chart modules (TradingView, --site openmarket)
   scripts/install-omarchy-notifications.py
   xeneon_edge/
     app.py             # Adw.Application, CSS, file watchers, aggregator wiring
