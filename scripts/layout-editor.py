@@ -26,6 +26,11 @@ if os.environ.get("XENEON_WEBKIT_DMABUF") != "1":
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Auf AMD+NVIDIA-Rechnern WebKit von der NVIDIA-EGL fernhalten — vor gi,
+# weil GTK4 EGL schon beim Oeffnen des Bildschirms laedt.
+from xeneon_edge import webkit_env  # noqa: E402
+webkit_env.apply()
+
 import gi  # noqa: E402
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")

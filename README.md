@@ -145,6 +145,21 @@ systems (AMD output next to an NVIDIA card) WebKitGTK does not hand its DMABUF
 buffer through and the chart column stays black. The fallback renderer costs
 nothing for one chart; `XENEON_WEBKIT_DMABUF=1` re-enables the default.
 
+**Two GPUs, one of them NVIDIA.** On a machine with an AMD (or Intel) card
+for the display and an NVIDIA card next to it — say, for LLMs — every EGL
+client loads the NVIDIA driver first: GLVND lists `10_nvidia.json` before
+`50_mesa.json`, and WebKit picks the first render node, usually
+`renderD128` = NVIDIA. The chart's web process then renders through a driver
+that has nothing to do with the display, and `libnvidia-eglcore` crashed four
+times at the same address here (driver 610.57, October 2026). WebKitGTK 2.52
+has no variable to choose the render node, so `xeneon_edge/webkit_env.py`
+restricts GLVND to the Mesa vendor file (`__EGL_VENDOR_LIBRARY_FILENAMES`)
+whenever an NVIDIA node and a Mesa node coexist. Dashboard, editor and login
+window all do this before GTK opens the display; the journal says so
+(`EGL nur ueber Mesa`). `XENEON_EGL_VENDOR=off` disables it, `=mesa` forces
+it; a preset `__EGL_VENDOR_LIBRARY_FILENAMES` is left alone. Machines with
+only one kind of GPU are not touched.
+
 ### Autostart
 
 Either through the editor (gear → Settings → *Start with the session*) or:

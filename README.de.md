@@ -133,6 +133,21 @@ Arch-spezifisch zu beachten:
   2560x720 — bei Buffer-Scale 2 ist nur noch ein Viertel des Layouts im Bild.
   `run.sh` exportiert deshalb `GDK_SCALE=1` fuer den eigenen Prozess;
   ueberschreibbar mit `XENEON_GDK_SCALE=2 ./run.sh`.
+- **Zwei Grafikkarten, eine davon NVIDIA.** Haengt die Anzeige an einer AMD-
+  (oder Intel-)Karte und steckt daneben eine NVIDIA (etwa fuer LLMs), laedt
+  jedes EGL-Programm zuerst den NVIDIA-Treiber: GLVND listet `10_nvidia.json`
+  vor `50_mesa.json`, und WebKit nimmt den ersten Render-Knoten, meist
+  `renderD128` = NVIDIA. Der Web-Prozess des Charts rendert dann ueber einen
+  Treiber, der mit der Anzeige nichts zu tun hat — `libnvidia-eglcore` ist
+  hier viermal an derselben Adresse abgestuerzt (Treiber 610.57, Oktober
+  2026). WebKitGTK 2.52 kennt keine Variable fuer den Render-Knoten, deshalb
+  beschraenkt `xeneon_edge/webkit_env.py` GLVND auf die Mesa-Datei
+  (`__EGL_VENDOR_LIBRARY_FILENAMES`), sobald ein NVIDIA- und ein Mesa-Knoten
+  nebeneinander existieren. Dashboard, Editor und Login-Fenster tun das vor
+  dem ersten GTK-Aufruf; im Journal steht dann `EGL nur ueber Mesa`.
+  `XENEON_EGL_VENDOR=off` schaltet es ab, `=mesa` erzwingt es; ein schon
+  gesetztes `__EGL_VENDOR_LIBRARY_FILENAMES` bleibt unangetastet. Rechner mit
+  nur einer Art GPU sind nicht betroffen.
 - **Monitor-Scale.** Der Xeneon Edge selbst will 1x. In
   `~/.config/hypr/monitors.conf`:
   `monitor = DP-2, 2560x720@60, auto, 1` (die anderen Monitore behalten ihre
