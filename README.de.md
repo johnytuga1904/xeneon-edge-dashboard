@@ -389,9 +389,9 @@ Rahmenlinie des Pads auf dem Streifen.
 | Prozesse | Top-Prozesse nach CPU | Anzahl Zeilen |
 | Audio | Ausgabe/Eingabe, Lautstaerke | — |
 | Launch-Deck | 3x6-Raster mit Apps und Macros | im Editor unter *Launch-Deck* |
-| Web-Panel | WebKit-View auf eine Adresse | Adresse |
+| Web-Panel | WebKit-View auf eine Adresse | Adresse, Zoom |
 | TradingView | Chart-Widget oder eigener Chart | Quelle, Symbol, Intervall, Zeitzone, Indikatoren, Werkzeugleisten |
-| OpenMarket | eigener Chart aus einem OpenMarket-Account | Chart-Adresse (traegt *Anmelden / Chart waehlen* ein) |
+| OpenMarket | eigener Chart aus einem OpenMarket-Account | Chart-Adresse (traegt *Anmelden / Chart waehlen* ein), Zoom (Standard 80 %) |
 | Uhr | Zeit gross | Darstellung, Sekunden, Zeitzonen |
 | Kalender | den laufenden Monat | Wochenstart, Kalenderwochen |
 | Wiedergabe | was gerade spielt, mit Tasten | Player, Cover an/aus, Musikordner, Zufall |
@@ -724,6 +724,12 @@ Anmelden, Chart oeffnen, *Als Chart uebernehmen* — das schreibt die Adresse
 nach `openmarket_url` in `settings.json`, der Editor traegt sie ins Modul
 ein. Beide Seiten teilen sich ein WebKit-Profil, eine TradingView- und eine
 OpenMarket-Session leben also nebeneinander.
+
+Die Seite ist fuer einen breiten Desktop-Browser gebaut; in der Mittelspalte
+des Streifens (rund 1270 px) schnitt sie das Orderbuch rechts ab. Das Modul
+setzt deshalb standardmaessig einen Seitenzoom von **80 %** (*Zoom* im
+Editor, 50 bis 150), womit die Seite knapp 1600 CSS-Pixel sieht; das
+Web-Panel hat dasselbe Feld mit Standard 100.
 
 Gemessen am Streifen ueber sechs Stunden (16.10.2026, Fedora, AMD-GPU): die
 OpenMarket-Seite liegt bei rund 1 GB RSS und haelt dauerhaft **etwa ein

@@ -175,7 +175,8 @@ class WebModule(_WebHolder):
     """WebKit-View auf eine frei gewaehlte Adresse."""
 
     def _make(self) -> Gtk.Widget:
-        return make_web_widget(str(self._config.get("url", "") or ""))
+        return make_web_widget(str(self._config.get("url", "") or ""),
+                               zoom=chart_mod.zoom_from_percent(self._config.get("zoom"), 100))
 
     def set_url(self, url: str) -> None:
         url = url or ""
@@ -189,7 +190,9 @@ class OpenMarketModule(_WebHolder):
     """OpenMarket: der eigene Chart aus dem Account, Adresse aus dem Login."""
 
     def _make(self) -> Gtk.Widget:
-        return make_openmarket_widget(str(self._config.get("url", "") or ""))
+        return make_openmarket_widget(
+            str(self._config.get("url", "") or ""),
+            zoom=chart_mod.zoom_from_percent(self._config.get("zoom"), chart_mod.OM_DEFAULT_ZOOM))
 
 
 class TradingViewModule(_WebHolder):
@@ -325,6 +328,10 @@ register(ModuleSpec(
               help="Vollstaendige Adresse mit https://. Die Seite laeuft in einem "
                    "eigenen WebKit-Prozess (rund 150-300 MB) und behaelt ihren "
                    "Login ueber Neustarts hinweg."),
+        Field("zoom", "Zoom (%)", "int", default=100,
+              min=chart_mod.ZOOM_MIN, max=chart_mod.ZOOM_MAX,
+              help="Seitenzoom. Unter 100 sieht die Seite mehr Breite und bringt "
+                   "mehr unter, Schrift wird kleiner."),
     ),
 ))
 
@@ -338,6 +345,11 @@ register(ModuleSpec(
                    "https://openmarket.xyz/chart/\u2026 laesst sich auch von Hand "
                    "eintragen. Die Seite kostet rund 1 GB Speicher und dauerhaft "
                    "etwa ein Drittel eines Kerns — deutlich mehr als TradingView."),
+        Field("zoom", "Zoom (%)", "int", default=chart_mod.OM_DEFAULT_ZOOM,
+              min=chart_mod.ZOOM_MIN, max=chart_mod.ZOOM_MAX,
+              help="Seitenzoom. Die Chart-Seite ist fuer einen breiten Browser "
+                   "gebaut; bei 100 wird in der Mittelspalte das Orderbuch rechts "
+                   "abgeschnitten, bei 80 passt alles."),
     ),
 ))
 

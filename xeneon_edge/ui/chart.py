@@ -464,12 +464,34 @@ class _WebPanel(Gtk.Box):
         Gtk.Box.do_dispose(self)
 
 
-def _try_webview(url: str = "", html: str = "", base: str = "") -> Gtk.Widget | None:
+# Zoom des OpenMarket-Moduls, wenn das Layout nichts anderes sagt. Die
+# Chart-Seite rechnet mit einem Desktop-Browser; in der rund 1270 px breiten
+# Mittelspalte des 2560er-Streifens schnitt sie das Orderbuch rechts ab. Bei
+# 80 % sieht sie knapp 1600 CSS-Pixel und bringt alles unter.
+OM_DEFAULT_ZOOM = 80
+ZOOM_MIN, ZOOM_MAX = 50, 150
+
+
+def zoom_from_percent(value, default: int) -> float:
+    """Modul-Einstellung ``zoom`` (Prozent, int) als WebKit-Zoomfaktor."""
+    try:
+        pct = int(value) if value not in (None, "") else int(default)
+    except (TypeError, ValueError):
+        pct = int(default)
+    return max(ZOOM_MIN, min(ZOOM_MAX, pct)) / 100.0
+
+
+def _try_webview(url: str = "", html: str = "", base: str = "",
+                 zoom: float = 1.0) -> Gtk.Widget | None:
     """Panel mit einer View auf ``url``, oder auf ``html`` mit ``base`` als Herkunft.
 
     Eine Adresse bekommt die persistente Session: sonst waere jeder Login —
     TradingView wie Webmail — nach einem Neustart des Dashboards weg. Das
     eingebettete Widget braucht sie nicht, es meldet sich nirgends an.
+
+    ``zoom`` ist WebKits Seitenzoom (1.0 = 100 %): unter 1 sieht die Seite
+    einen breiteren Viewport und bringt mehr unter, Schrift und Chart werden
+    kleiner. Wirkt auf das Layout, nicht nur auf den Text.
     """
     WebKit = import_webkit()
     if WebKit is None:
@@ -494,6 +516,8 @@ def _try_webview(url: str = "", html: str = "", base: str = "") -> Gtk.Widget | 
         stop_watchdog = _watch_page_loads(view, reload, what, home)
         _watch_web_process(view, reload, what)
         detach_monitor = _reload_on_network_change(view, reload, what)
+        if abs(zoom - 1.0) > 0.001:
+            view.set_zoom_level(zoom)
         reload(view)
         view.set_hexpand(True); view.set_vexpand(True)
         return _WebPanel(view, (stop_watchdog, detach_monitor))
@@ -537,7 +561,7 @@ def make_tradingview_widget(config: dict | None = None,
     return _placeholder("TRADINGVIEW", NO_WEBKIT)
 
 
-def make_web_widget(url: str = "") -> Gtk.Widget:
+def make_web_widget(url: str = "", zoom: float = 1.0) -> Gtk.Widget:
     """Freies Web-Panel: eine Adresse, sonst nichts."""
     if not url:
         return _placeholder(
@@ -545,11 +569,11 @@ def make_web_widget(url: str = "") -> Gtk.Widget:
             "Keine Adresse eingestellt. Im Editor das Modul anklicken und "
             "unter \u201eAdresse\u201c eine URL eintragen — oder das "
             "TradingView- oder OpenMarket-Modul nehmen, wenn es um Charts geht.")
-    panel = _try_webview(url=url)
+    panel = _try_webview(url=url, zoom=zoom)
     return panel if panel is not None else _placeholder("WEB-PANEL", NO_WEBKIT)
 
 
-def make_openmarket_widget(url: str = "") -> Gtk.Widget:
+def make_openmarket_widget(url: str = "", zoom: float = OM_DEFAULT_ZOOM / 100.0) -> Gtk.Widget:
     """OpenMarket: der eigene Chart aus dem Account.
 
     Technisch ein Web-Panel mit persistenter Session — als eigenes Modul,
@@ -565,5 +589,5 @@ def make_openmarket_widget(url: str = "") -> Gtk.Widget:
             "\u201eAnmelden / Chart waehlen\u201c druecken — oder die Adresse "
             "des Charts (https://openmarket.xyz/chart/\u2026) von Hand unter "
             "\u201eChart-Adresse\u201c eintragen.")
-    panel = _try_webview(url=url)
+    panel = _try_webview(url=url, zoom=zoom)
     return panel if panel is not None else _placeholder("OPENMARKET", NO_WEBKIT)
