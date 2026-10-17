@@ -9,16 +9,16 @@ cd "$(dirname "$0")"
 # Prozess also 1x, ueberschreibbar mit XENEON_GDK_SCALE.
 export GDK_SCALE="${XENEON_GDK_SCALE:-1}"
 
-# WebKits DMABUF-Renderer bleibt an. Er war hier lange aus, weil WebKitGTK
-# auf manchen Multi-GPU-Systemen (AMD-Ausgabe + NVIDIA daneben, damals unter
-# Fedora) seinen Buffer nicht durchreichte und die Chart-Spalte schwarz blieb.
-# Der Shared-Memory-Fallback hat aber einen eigenen Fehler: alle paar Minuten
-# uebergibt er einen halbfertigen Frame — die Chart-Spalte ist fuer ein bis
-# zwei Frames leer, was auf dem Streifen wie ein Schwarzblitz aussieht
-# (KMS-Mitschnitt 12.09.2026: zweimal in zwoelf Minuten, mit DMABUF in 35
-# Minuten nie). Wer die schwarze Spalte bekommt, schaltet mit
-# XENEON_WEBKIT_DMABUF=0 auf den Fallback zurueck.
-if [[ "${XENEON_WEBKIT_DMABUF:-1}" == "0" ]]; then
+# WebKitGTK reicht seinen DMABUF-Buffer auf manchen Multi-GPU-Systemen
+# (AMD-Ausgabe + NVIDIA daneben) nicht durch: der WebProcess laeuft, die Seite
+# laedt, sichtbar bleibt eine schwarze Chart-Spalte. Nachgemessen am
+# 17.10.2026 (Omarchy, WebKitGTK 2.52.6): mit DMABUF-Renderer schwarz, mit
+# und ohne Mesa-Zwang (webkit_env.py); mit dem Fallback-Renderer sichtbar.
+# Deshalb ist der Fallback wieder Standard. Im September war DMABUF kurz der
+# Standard, weil der Fallback alle paar Minuten ein schwarzes Einzelbild
+# zeigte — ob das mit WebKit auf Mesa statt NVIDIA-EGL noch auftritt, ist
+# offen. XENEON_WEBKIT_DMABUF=1 schaltet den DMABUF-Renderer wieder ein.
+if [[ "${XENEON_WEBKIT_DMABUF:-0}" != "1" ]]; then
   export WEBKIT_DISABLE_DMABUF_RENDERER=1
 fi
 

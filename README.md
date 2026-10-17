@@ -141,14 +141,16 @@ sudo dnf install nvidia-smi python3-nvidia-ml-py    # NVIDIA only
 python3 -m xeneon_edge
 ```
 
-WebKit's DMABUF renderer stays on. On some multi-GPU systems (AMD output next
-to an NVIDIA card, seen under Fedora) WebKitGTK does not hand its buffer
-through and the chart column stays black; `XENEON_WEBKIT_DMABUF=0 ./run.sh`
-switches to the shared-memory fallback then. The fallback is not the default
-because it hands over half-painted frames every few minutes — the chart
-column goes blank for one or two frames, which looks like a black flash on
-the strip (KMS recording, 2026-09-12: twice in twelve minutes, never in 35
-minutes with DMABUF).
+`run.sh` exports `WEBKIT_DISABLE_DMABUF_RENDERER=1`: on some multi-GPU
+systems (AMD output next to an NVIDIA card) WebKitGTK does not hand its DMABUF
+buffer through — the web process runs, the page loads, the chart column stays
+black. Measured again on 2026-10-17 (Omarchy, WebKitGTK 2.52.6): black with
+the DMABUF renderer, with and without the Mesa pinning below; visible with the
+fallback renderer. So the fallback is the default. It was briefly the other
+way round in September because the fallback hands over a half-finished frame
+every few minutes (a black flash of one or two frames on the strip); whether
+that still happens with WebKit on Mesa instead of the NVIDIA EGL is open.
+`XENEON_WEBKIT_DMABUF=1 ./run.sh` switches the DMABUF renderer back on.
 
 **Two GPUs, one of them NVIDIA.** On a machine with an AMD (or Intel) card
 for the display and an NVIDIA card next to it — say, for LLMs — every EGL
