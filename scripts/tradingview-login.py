@@ -28,6 +28,13 @@ from pathlib import Path
 if os.environ.get("XENEON_WEBKIT_DMABUF") == "0":
     os.environ.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
 
+# Kein Speicherwaechter fuer dieses Fenster: es lebt Minuten, und der
+# WebKit-eigene Monitor hat den Web-Prozess beim Google-Login (Seite plus
+# Popup, 1,6 GB) schon einmal abgeschossen — Fenster leer, keine Eingabe mehr
+# (siehe README, "Das Login-Fenster hat keinen Speicherdeckel"). Dasselbe Bild
+# gab es am 17.10.2026 beim OpenMarket-Login.
+os.environ.setdefault("WEBKIT_DISABLE_MEMORY_PRESSURE_MONITOR", "1")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Auf AMD+NVIDIA-Rechnern WebKit von der NVIDIA-EGL fernhalten — vor gi,
@@ -37,7 +44,7 @@ webkit_env.apply()
 
 import gi  # noqa: E402
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import Gtk, GLib  # noqa: E402
 
 from xeneon_edge import config_store  # noqa: E402
 from xeneon_edge.ui import monitors  # noqa: E402
@@ -63,6 +70,11 @@ class LoginWindow(Gtk.ApplicationWindow):
         self.view.set_vexpand(True)
         self.view.connect("notify::uri", self._on_uri)
         self.view.connect("create", self._on_create)
+        # Stirbt der Web-Prozess, bleibt eine WebView sonst leer stehen — am
+        # Hauptmonitor sieht das aus wie ein Fenster, das nicht reagiert. Also
+        # neu laden, begrenzt, und es in der Kopfzeile sagen.
+        self._reloads = 0
+        self.view.connect("web-process-terminated", self._on_terminated)
 
         header = Gtk.HeaderBar()
         self.url_label = Gtk.Label(label=url)
@@ -77,10 +89,25 @@ class LoginWindow(Gtk.ApplicationWindow):
         self.set_titlebar(header)
 
         self.set_child(self.view)
+        self._start_url = url
         self.view.load_uri(url)
 
     def _on_uri(self, view, _param):
         self.url_label.set_label(view.get_uri() or "")
+
+    def _on_terminated(self, view, reason):
+        self._reloads += 1
+        nick = reason.value_nick
+        print(f"[xeneon-edge] Login: Web-Prozess beendet ({nick}), "
+              f"Neuladen #{self._reloads}", flush=True)
+        if self._reloads > 5:
+            self.url_label.set_label(
+                f"Web-Prozess beendet ({nick}) — fuenfmal neu geladen, aufgegeben. "
+                "Fenster schliessen und erneut oeffnen.")
+            return
+        self.url_label.set_label(f"Web-Prozess beendet ({nick}) — lade neu …")
+        url = view.get_uri() or self._start_url
+        GLib.timeout_add_seconds(2, lambda: (view.load_uri(url), False)[1])
 
     def _on_create(self, view, navigation_action):
         """Login ueber Google/Apple oeffnet ein Popup — ohne diesen Handler
