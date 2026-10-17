@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Installer fuer Arch Linux und Arch-Derivate — getestet gegen Omarchy
+# Installer for Arch Linux and Arch derivatives — tested against Omarchy
 # (Arch + Hyprland + uwsm).
 #
 #   ./scripts/install-arch.sh [options]
 #
-#   --no-autostart      keinen ~/.config/autostart-Eintrag schreiben
-#   --monitor NAME      Dashboard auf einen DRM-Connector pinnen (z.B. DP-2)
-#   --no-fullscreen     nicht auf dem Zielmonitor in den Vollbildmodus gehen
-#   --deck omarchy      Deck mit Omarchy-Kommandos vorbelegen (nur wenn es
-#                       noch keine ~/.config/xeneon-edge/apps.json gibt)
-#   --no-hypr           kein Hyprland-Snippet (Fensterregeln) schreiben
-#   --yes               nichts nachfragen (Monitor per Auto-Erkennung)
-#   --no-packages       pacman ueberspringen (nur Settings/Autostart schreiben)
-#   --check             nur pruefen, nichts installieren
+#   --no-autostart      skip the ~/.config/autostart entry
+#   --monitor NAME      pin the dashboard to a DRM connector (e.g. DP-2)
+#   --no-fullscreen     don't fullscreen on the target monitor
+#   --deck omarchy      prefill the Launch Deck with Omarchy commands (only
+#                       when ~/.config/xeneon-edge/apps.json does not exist yet)
+#   --no-hypr           skip the Hyprland snippet (window rules)
+#   --yes               never ask anything (uses auto-detect for the monitor)
+#   --no-packages       skip pacman entirely (only write settings/autostart)
+#   --check             only verify, install nothing
 #
-# Paketnamen sind die aus [core]/[extra]; alles liegt in den offiziellen Repos,
-# ein AUR-Helper wird nicht gebraucht. Python-Abhaengigkeiten kommen aus pacman,
-# nicht aus requirements.txt: Arch markiert sein Python als externally managed
-# (PEP 668), "pip install --user" bricht mit externally-managed-environment ab.
+# Package names are the ones from [core]/[extra]; everything is in the official
+# repos, no AUR helper needed. Python deps come from pacman, not from
+# requirements.txt: Arch marks its Python as externally managed (PEP 668), so
+# "pip install --user" aborts with an externally-managed-environment error.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -54,16 +54,16 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 
 # ---------------------------------------------------------------- 1. platform
 
-say "System pruefen"
+say "Checking the system"
 if [[ ! -r /etc/os-release ]]; then
-  bad "/etc/os-release fehlt — kein Arch?"; exit 1
+  bad "/etc/os-release is missing — not Arch?"; exit 1
 fi
 # shellcheck disable=SC1091
 . /etc/os-release
 echo "  ${PRETTY_NAME:-?}  (ID=${ID:-?})"
 case "${ID:-}:${ID_LIKE:-}" in
   arch:*|*:*arch*) ;;
-  *) warn "Kein Arch/Arch-Derivat — Paketnamen koennen abweichen." ;;
+  *) warn "Not Arch or an Arch derivative — package names may differ." ;;
 esac
 
 IS_OMARCHY=0
@@ -71,12 +71,12 @@ OMARCHY_DIR="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
 if [[ -d "$OMARCHY_DIR" ]] || command -v omarchy-menu >/dev/null 2>&1; then
   IS_OMARCHY=1
   OMV="$(command -v omarchy-version >/dev/null 2>&1 && omarchy-version 2>/dev/null || true)"
-  ok "Omarchy erkannt${OMV:+ ($OMV)}"
+  ok "Omarchy detected${OMV:+ ($OMV)}"
 fi
 if command -v hyprctl >/dev/null 2>&1; then
   ok "Hyprland: $(hyprctl version -j 2>/dev/null | sed -n 's/.*"tag": *"\([^"]*\)".*/\1/p' | head -1 || echo "?")"
 fi
-[[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]] || warn "Keine Display-Session — GUI-Teile laufen hier nicht."
+[[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]] || warn "No display session — the GUI parts will not run here."
 
 # NVIDIA nur melden, nicht installieren: nvidia-smi kommt aus nvidia-utils, und
 # das haengt am Treiber-Paket (nvidia / nvidia-open / -dkms). Blind
@@ -89,8 +89,8 @@ if command -v lspci >/dev/null 2>&1; then
 fi
 [[ -e /proc/driver/nvidia || -e /sys/module/nvidia ]] && HAS_NVIDIA=1
 if (( HAS_NVIDIA )) && ! command -v nvidia-smi >/dev/null 2>&1; then
-  warn "NVIDIA-Karte, aber kein nvidia-smi — kommt aus 'nvidia-utils'"
-  warn "  (auf Omarchy: Treiber ueber 'omarchy-install-nvidia' einrichten)"
+  warn "NVIDIA card, but no nvidia-smi — it comes with 'nvidia-utils'"
+  warn "  (on Omarchy: set up the driver with 'omarchy-install-nvidia')"
 fi
 
 # ---------------------------------------------------------------- 2. packages
@@ -117,10 +117,10 @@ PKGS=(
 if (( HAS_NVIDIA )); then PKGS+=(python-nvidia-ml-py); fi
 
 if (( ! CHECK_ONLY && DO_PACKAGES )); then
-  say "Pakete installieren"
+  say "Installing packages"
   if ! command -v pacman >/dev/null 2>&1; then
-    bad "pacman nicht gefunden — dieses Skript braucht Arch."
-    bad "Nur Settings + Autostart schreiben: $0 --no-packages"
+    bad "pacman not found — this script needs Arch."
+    bad "To only write settings + autostart: $0 --no-packages"
     exit 1
   fi
   MISSING=()
@@ -131,7 +131,7 @@ if (( ! CHECK_ONLY && DO_PACKAGES )); then
     if pacman -Si -- "$p" >/dev/null 2>&1; then
       MISSING+=("$p")
     else
-      warn "$p ist in den Sync-Datenbanken nicht zu finden — uebersprungen"
+      warn "$p is not in the sync databases — skipped"
     fi
   done
   if (( ${#MISSING[@]} )); then
@@ -142,31 +142,31 @@ if (( ! CHECK_ONLY && DO_PACKAGES )); then
     PAC_FLAGS=(-S --needed)
     (( ASSUME_YES )) && PAC_FLAGS+=(--noconfirm)
     if ! sudo pacman "${PAC_FLAGS[@]}" "${MISSING[@]}"; then
-      bad "pacman ist gescheitert — meist eine veraltete Datenbank."
-      bad "  sudo pacman -Syu    (voller Upgrade, kein '-Sy' allein!)"
+      bad "pacman failed — usually an outdated database."
+      bad "  sudo pacman -Syu    (full upgrade, never '-Sy' alone!)"
       exit 1
     fi
   else
-    ok "Alle Pakete sind bereits installiert"
+    ok "All packages are already installed"
   fi
 fi
 
 # ---------------------------------------------------------------- 3. verify
 
-say "Installation verifizieren"
+say "Verifying the installation"
 cd "$ROOT"
 VERIFY_RC=0
 python3 scripts/verify-install.py || VERIFY_RC=$?
 if (( VERIFY_RC )); then
-  bad "Pflicht-Abhaengigkeiten fehlen — Autostart/Settings werden nicht geschrieben."
+  bad "Required dependencies are missing — autostart/settings will not be written."
   exit 1
 fi
 
-if (( CHECK_ONLY )); then say "Nur Check gewuenscht — fertig."; exit 0; fi
+if (( CHECK_ONLY )); then say "Check only — done."; exit 0; fi
 
 # ---------------------------------------------------------------- 4. monitor
 
-say "Monitor waehlen"
+say "Choosing the monitor"
 MONITORS="$(python3 - <<'PY' 2>/dev/null
 import gi
 gi.require_version("Gtk", "4.0"); gi.require_version("Gdk", "4.0")
@@ -184,11 +184,11 @@ if [[ -n "$MONITORS" ]]; then
   printf '%s\n' "$MONITORS" | sed 's/^/  /' | expand -t 4
   if [[ -z "$MONITOR" ]] && (( ! ASSUME_YES )); then
     echo
-    echo "  Leer lassen = Auto-Erkennung (sucht einen 2560x720-Monitor)."
-    read -r -p "  Connector fuer das Dashboard [auto]: " MONITOR || MONITOR=""
+    echo "  Leave empty = auto-detect (looks for a 2560x720 monitor)."
+    read -r -p "  Connector for the dashboard [auto]: " MONITOR || MONITOR=""
   fi
 else
-  warn "Konnte die Monitore nicht abfragen — Auto-Erkennung wird verwendet."
+  warn "Could not query the monitors — auto-detect will be used."
 fi
 
 if [[ -n "$MONITOR" ]]; then
@@ -196,10 +196,10 @@ if [[ -n "$MONITOR" ]]; then
   while IFS=$'\t' read -r conn _; do
     [[ "$conn" == "$MONITOR" ]] && KNOWN=1
   done <<<"$MONITORS"
-  (( KNOWN )) || warn "Connector '$MONITOR' ist gerade nicht angeschlossen — wird trotzdem gespeichert."
+  (( KNOWN )) || warn "Connector '$MONITOR' is not connected right now — saving it anyway."
 fi
 
-say "settings.json schreiben"
+say "Writing settings.json"
 MONITOR="$MONITOR" FULLSCREEN="$FULLSCREEN" AUTOSTART="$AUTOSTART" python3 - <<'PY'
 import os
 from xeneon_edge import config_store
@@ -218,24 +218,24 @@ PY
 
 USER_APPS="$HOME/.config/xeneon-edge/apps.json"
 if [[ -z "$DECK" ]] && (( IS_OMARCHY )) && [[ ! -e "$USER_APPS" ]] && (( ! ASSUME_YES )); then
-  say "Deck vorbelegen"
-  echo "  Die mitgelieferten Defaults sind KDE-Kommandos (konsole, dolphin, …)."
-  echo "  Fuer Omarchy gibt es eine Variante mit xdg-terminal-exec,"
+  say "Prefilling the Launch Deck"
+  echo "  The bundled defaults are KDE commands (konsole, dolphin, …)."
+  echo "  For Omarchy there is a variant with xdg-terminal-exec,"
   echo "  omarchy-launch-browser, nautilus, omarchy-menu, hyprctl reload …"
-  read -r -p "  Omarchy-Deck nach $USER_APPS schreiben? [J/n] " ans || ans=""
-  [[ "$ans" =~ ^([nN]|nein|no)$ ]] || DECK="omarchy"
+  read -r -p "  Write the Omarchy deck to $USER_APPS? [Y/n] " ans || ans=""
+  [[ "$ans" =~ ^([nN]|no)$ ]] || DECK="omarchy"
 elif [[ -z "$DECK" ]] && (( IS_OMARCHY && ASSUME_YES )) && [[ ! -e "$USER_APPS" ]]; then
   DECK="omarchy"
 fi
 
 if [[ "$DECK" == "omarchy" ]]; then
-  say "Deck vorbelegen"
+  say "Prefilling the Launch Deck"
   if [[ -e "$USER_APPS" ]]; then
-    warn "$USER_APPS existiert schon — bleibt unangetastet"
+    warn "$USER_APPS already exists — left untouched"
   else
     mkdir -p "$(dirname "$USER_APPS")"
     cp "$ROOT/config/apps.omarchy.json" "$USER_APPS"
-    ok "$USER_APPS (aus config/apps.omarchy.json)"
+    ok "$USER_APPS (from config/apps.omarchy.json)"
   fi
 fi
 
@@ -249,21 +249,21 @@ fi
 # hyprland.conf wuerde das Dashboard doppelt starten.
 
 if (( AUTOSTART )); then
-  say "Autostart einrichten"
+  say "Setting up autostart"
   "$ROOT/scripts/install-autostart.sh"
   DESK="$HOME/.config/autostart/xeneon-edge.desktop"
   # Der Repo-Pfad enthaelt ein Leerzeichen — Exec= muss gequotet sein.
   if grep -q '^Exec="' "$DESK" && [[ -x "$ROOT/run.sh" ]]; then
-    ok "Exec= korrekt gequotet"
+    ok "Exec= is quoted correctly"
   else
-    bad "Exec= in $DESK pruefen (Pfad enthaelt Leerzeichen!)"
+    bad "Check Exec= in $DESK (the path contains a space!)"
   fi
   if command -v hyprctl >/dev/null 2>&1; then
     if systemctl --user list-units --all 'xdg-desktop-autostart.target' 2>/dev/null | grep -q xdg-desktop-autostart; then
-      ok "xdg-desktop-autostart.target vorhanden (uwsm startet den Eintrag mit)"
+      ok "xdg-desktop-autostart.target present (uwsm starts the entry)"
     else
-      warn "xdg-desktop-autostart.target nicht gefunden — laeuft Hyprland ohne uwsm?"
-      warn "  Dann stattdessen in ~/.config/hypr/autostart.conf:"
+      warn "xdg-desktop-autostart.target not found — is Hyprland running without uwsm?"
+      warn "  Then put this in ~/.config/hypr/autostart.conf instead:"
       warn "  exec-once = uwsm-app -- \"$ROOT/run.sh\""
     fi
   fi
@@ -272,7 +272,7 @@ fi
 # ---------------------------------------------------------------- 7. hyprland
 
 if (( DO_HYPR )) && command -v hyprctl >/dev/null 2>&1; then
-  say "Hyprland-Fensterregeln"
+  say "Hyprland window rules"
   HYPR="$HOME/.config/hypr"
   if [[ -f "$HYPR/hyprland.lua" ]]; then
     SNIP="$HYPR/xeneon-edge.lua"
@@ -280,20 +280,19 @@ if (( DO_HYPR )) && command -v hyprctl >/dev/null 2>&1; then
     COMMENT="--"
     HOST="$HYPR/autostart.lua"
     cat > "$SNIP" <<'LUA'
--- Xeneon Edge Dashboard — Hyprland-Regeln
--- Erzeugt von scripts/install-arch.sh; ein erneuter Lauf ueberschreibt
--- die Datei.
+-- Xeneon Edge Dashboard — Hyprland rules
+-- Written by scripts/install-arch.sh; running it again overwrites this file.
 --
--- Auf den Zielmonitor legt sich das Dashboard selbst (target_monitor in
--- ~/.config/xeneon-edge/settings.json, fullscreen_on_target). Hier stehen nur
--- die Omarchy-Defaults, die ein 2560x720-Streifen nicht will: 0.985 Opacity
--- auf jedem Fenster, Rahmen, Rundungen, Abdunkeln im Hintergrund.
+-- The dashboard places itself on the target monitor (target_monitor in
+-- ~/.config/xeneon-edge/settings.json, fullscreen_on_target). This file only
+-- undoes the Omarchy defaults a 2560x720 strip does not want: 0.985 opacity
+-- on every window, borders, rounded corners, dimming in the background.
 --
--- no_focus: der Streifen ist ein Anzeigegeraet, kein Arbeitsplatz. Ohne die
--- Regel wandert der Fokus mit SUPER+Pfeil dorthin und das Dashboard wird das
--- aktive Fenster. Bedient wird per Touch, und Touch- wie Zeigerereignisse
--- gehen an die Flaeche unter dem Finger statt an das Fokusfenster — die
--- Deck-Buttons reagieren weiter.
+-- no_focus: the strip is a display, not a workplace. Without the rule,
+-- SUPER+arrow moves the focus there and the dashboard becomes the active
+-- window. It is operated by touch, and touch and pointer events go to the
+-- surface under the finger, not to the focused window — the deck buttons
+-- keep working.
 o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge)$", {
   tag = "-default-opacity",
   opacity = "1 1",
@@ -303,35 +302,33 @@ o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge)$", {
   no_focus = true,
 })
 
--- Optional: Connector hart pinnen, falls der Vollbild-Wunsch der App mal nicht
--- auf dem richtigen Monitor landet. Der Connector heisst auf jedem Rechner
--- anders, deshalb nur als Beispiel — und in eine Datei, die dieses Skript
--- nicht ueberschreibt.
+-- Optional: pin the connector hard, in case the app's fullscreen request ever
+-- lands on the wrong monitor. The connector name differs from machine to
+-- machine, so this is only an example — and it belongs in a file this script
+-- does not overwrite.
 -- o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge)$", { monitor = "DP-2" })
 
--- Waechter: das Dashboard bleibt auf dem Streifen, und nichts anderes kommt
--- dorthin.
+-- Guard: the dashboard stays on the strip, and nothing else ends up there.
 --
--- no_focus und monitor= reichen dafuer nicht. monitor= greift nur beim
--- Oeffnen, und Omarchys SUPER+SHIFT+Pfeil (swapwindow) braucht keinen Fokus
--- auf dem Dashboard: es tauscht das aktive Fenster mit dem naechsten in der
--- Richtung, und dafuer ist das Dashboard ein Fenster wie jedes andere. Der
--- Streifen liegt meist unter oder neben dem Hauptmonitor — ein Tausch nach
--- unten kachelt das Dashboard in den Arbeits-Workspace und legt das getauschte
--- Fenster hinter den Streifen. Hyprland hat keinen Schalter, der einen
--- Monitor von Fenster-Dispatchern ausnimmt.
+-- no_focus and monitor= are not enough for that. monitor= only applies when
+-- a window opens, and Omarchy's SUPER+SHIFT+arrow (swapwindow) needs no
+-- focus on the dashboard: it swaps the active window with the next one in
+-- that direction, and for that the dashboard is a window like any other.
+-- The strip usually sits below or next to the main monitor — a swap
+-- downwards tiles the dashboard into the work workspace and puts the swapped
+-- window behind the strip. Hyprland has no switch that exempts a monitor
+-- from window dispatchers.
 --
--- Stattdessen wird hinterher aufgeraeumt: jeder Workspace-Wechsel eines
--- Fensters laeuft durch CWindow::moveToWorkspace und feuert
--- window.move_to_workspace, auch beim Tausch und beim Ziehen mit der Maus.
--- Der Streifen ist der Monitor aus target_monitor in
--- ~/.config/xeneon-edge/settings.json, ersatzweise der mit 2560x720; ohne
--- beides tut der Waechter nichts.
+-- So the mess is cleaned up afterwards: every workspace change of a window
+-- goes through CWindow::moveToWorkspace and fires window.move_to_workspace,
+-- for swaps and for drags with the mouse alike. The strip is the monitor
+-- from target_monitor in ~/.config/xeneon-edge/settings.json, otherwise the
+-- one with 2560x720; without either the guard does nothing.
 --
--- Das Aufraeumen ist idempotent: es schaut sich alle Fenster an statt das
--- eine aus dem Event, weil ein Tausch zwei Events in nicht garantierter
--- Reihenfolge liefert. Und es laeuft einen Tick verzoegert, damit
--- der ausloesende Dispatcher fertig ist, bevor hier neue gestartet werden.
+-- The cleanup is idempotent: it looks at all windows instead of the one from
+-- the event, because a swap delivers two events in no guaranteed order. And
+-- it runs one tick later, so the dispatcher that triggered it has finished
+-- before new ones are started here.
 local DASHBOARD_CLASS = "io.github.johnytuga1904.XeneonEdge"
 local SETTINGS = (os.getenv("HOME") or "") .. "/.config/xeneon-edge/settings.json"
 
@@ -339,9 +336,9 @@ local function is_dashboard(w)
   return w.class == DASHBOARD_CLASS
 end
 
--- Connector des Streifens. Die Settings werden bei jedem Lauf gelesen, damit
--- ein Wechsel im Editor ohne Reload greift; das passiert nur bei
--- Fensterbewegungen, nicht im Takt.
+-- The strip's connector. The settings are read on every run so a change in
+-- the editor takes effect without a reload; this only happens on window
+-- moves, not on a timer.
 local function strip_monitor()
   local monitors = hl.get_monitors()
   local f = io.open(SETTINGS, "r")
@@ -365,15 +362,15 @@ local function on_strip(w, strip)
   return w.monitor ~= nil and w.monitor.name == strip.name
 end
 
--- Vollbild-Zustand, den das Dashboard auf dem Streifen zuletzt hatte. Ein
--- Umzug wirft das Vollbild weg; nach dem Zurueckholen wird genau dieser
--- Zustand wieder gesetzt — nicht blind 2, damit fullscreen_on_target=false
--- respektiert bleibt. Bis zum ersten Blick gilt der Default der App: Vollbild.
+-- The fullscreen state the dashboard last had on the strip. A move throws
+-- the fullscreen away; after bringing it back, exactly this state is set
+-- again — not blindly 2, so fullscreen_on_target=false stays respected.
+-- Until the first look, the app's default applies: fullscreen.
 local edge_fullscreen = 2
 
--- Letzter Workspace abseits des Streifens, je Fenster. Das Event nennt nur
--- das Ziel eines Umzugs, nicht die Herkunft — also wird sie mitgeschrieben,
--- solange das Ziel nicht der Streifen ist.
+-- Last workspace away from the strip, per window. The event only names the
+-- destination of a move, not the origin — so it is recorded as long as the
+-- destination is not the strip.
 local last_home = {}
 
 local function remember_home(w, ws)
@@ -383,11 +380,11 @@ local function remember_home(w, ws)
   end
 end
 
--- Wohin ein fremdes Fenster gehoert, das auf dem Streifen gelandet ist: dahin,
--- wo es zuletzt lag. Ohne Aufzeichnung — etwa direkt nach einem Reload — beim
--- Tausch dorthin, wo das Dashboard jetzt liegt, sonst auf den Workspace des
--- fokussierten Monitors, sofern das nicht der Streifen ist, und als letzter
--- Ausweg auf irgendeinen Monitor ausser dem Streifen.
+-- Where a foreign window that landed on the strip belongs: where it was
+-- last. Without a record — e.g. right after a reload — on a swap to where
+-- the dashboard is now, otherwise to the workspace of the focused monitor
+-- unless that is the strip, and as a last resort to any monitor except the
+-- strip.
 local function home_workspace(w, strip)
   local remembered = last_home[w.address] and hl.get_workspace(last_home[w.address])
   if remembered and remembered.monitor and remembered.monitor.name ~= strip.name then
@@ -414,14 +411,14 @@ local function settle()
   local strip = strip_monitor()
   if not strip then return end
 
-  -- Erst die Fremdlinge vom Streifen holen: home_workspace() liest ab, wo das
-  -- Dashboard gerade liegt, das darf also noch nicht zurueckgezogen sein.
+  -- First move the strangers off the strip: home_workspace() reads where the
+  -- dashboard is right now, so it must not have been pulled back yet.
   for _, w in ipairs(hl.get_windows()) do
     if not is_dashboard(w) and w.mapped and on_strip(w, strip) then
       local home = home_workspace(w, strip)
       if home then
-        -- Das aktive Fenster nimmt den Fokus mit zurueck, sonst bliebe er auf
-        -- dem Streifen haengen; alles andere wandert still.
+        -- The active window takes the focus back with it, otherwise the
+        -- focus would be stuck on the strip; everything else moves quietly.
         hl.dispatch(hl.dsp.window.move({ window = w, workspace = home.id, follow = w.active }))
       end
     end
@@ -443,8 +440,8 @@ local function settle()
   end
 end
 
--- Mehrere Events kurz hintereinander (ein Tausch liefert zwei) ergeben einen
--- einzigen Aufraeumlauf.
+-- Several events in quick succession (a swap delivers two) result in a
+-- single cleanup run.
 local pending = false
 local function schedule_settle()
   if pending then return end
@@ -455,25 +452,24 @@ local function schedule_settle()
   end, { timeout = 1, type = "oneshot" })
 end
 
--- Aeltere Lua-Hyprlands kennen die Events vielleicht nicht; dann bleibt es
--- bei den Regeln oben, statt die ganze Config zu reissen.
+-- Older Lua Hyprlands may not know the events; then the rules above still
+-- apply instead of the whole config falling apart.
 local subscribed = pcall(function()
   hl.on("window.move_to_workspace", function(w, ws)
     remember_home(w, ws)
     schedule_settle()
   end)
-  -- Neue Fenster gehen auf den fokussierten Workspace — und der ist der
-  -- Streifen, wenn SUPER+Pfeil dort gelandet ist oder ein Deck-Button per
-  -- Touch etwas gestartet hat.
+  -- New windows go to the focused workspace — and that is the strip when
+  -- SUPER+arrow landed there or a deck button started something by touch.
   hl.on("window.open", function(w)
     remember_home(w, w.workspace)
     schedule_settle()
   end)
-  -- Aufraeumen bei window.close, nicht window.destroy: beim destroy ist das
-  -- Fenster schon abgebaut und w.address nil — last_home[nil] = nil ist in
-  -- Lua ein Laufzeitfehler ("table index is nil"), der bei jedem Schliessen
-  -- eines Fensters im Fehler-Overlay landete. Bei close steht die Adresse
-  -- noch; der Guard faengt den Rest ab.
+  -- Clean up on window.close, not window.destroy: at destroy the window is
+  -- already torn down and w.address is nil — last_home[nil] = nil is a Lua
+  -- runtime error ("table index is nil") that ended up in the error overlay
+  -- every time a window closed. At close the address is still there; the
+  -- guard catches the rest.
   hl.on("window.close", function(w)
     local addr = w and w.address
     if addr then last_home[addr] = nil end
@@ -481,25 +477,25 @@ local subscribed = pcall(function()
 end)
 if not subscribed then
   hl.notification.create({
-    text = "Xeneon Edge: Hyprland ohne Lua-Events, Dashboard-Waechter aus",
+    text = "Xeneon Edge: Hyprland without Lua events, dashboard guard disabled",
     timeout = 8000, icon = "warning",
   })
 end
 
--- Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf
--- den richtigen Monitor legt sich das Fenster selbst (find_login_monitor in
--- ui/monitors.py); hier steht nur, dass es schweben soll statt sich in den
--- Workspace zu kacheln.
+-- The TradingView sign-in needs a keyboard, and the strip has none. The
+-- window places itself on the right monitor (find_login_monitor in
+-- ui/monitors.py); this only says it should float instead of tiling into
+-- the workspace.
 o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge\\.Login)$", {
   float = true,
   size = "1400 900",
   center = true,
 })
 
--- Der Layout-Editor braucht ebenfalls eine Tastatur und liegt aus demselben
--- Grund auf dem Hauptmonitor. Ohne eigene Regel bekaeme er Omarchys
--- Standard-Transparenz — durch einen Editor auf den Desktop zu schauen macht
--- das Beurteilen von Farben unmoeglich.
+-- The layout editor needs a keyboard as well and sits on the main monitor
+-- for the same reason. Without its own rule it would get Omarchy's default
+-- transparency — judging colours through an editor that shows the desktop
+-- underneath is impossible.
 o.window("^(io\\.github\\.johnytuga1904\\.XeneonEdge\\.Editor)$", {
   tag = "-default-opacity",
   opacity = "1 1",
@@ -514,25 +510,25 @@ LUA
     COMMENT="#"
     HOST="$HYPR/autostart.conf"
     cat > "$SNIP" <<'CONF'
-# Xeneon Edge Dashboard — Hyprland-Regeln
-# Erzeugt von scripts/install-arch.sh; ein erneuter Lauf ueberschreibt
-# die Datei. Syntax: Hyprland 0.53+ (windowrule = <regel>, match:...).
+# Xeneon Edge Dashboard — Hyprland rules
+# Written by scripts/install-arch.sh; running it again overwrites this file.
+# Syntax: Hyprland 0.53+ (windowrule = <rule>, match:...).
 #
-# Auf den Zielmonitor legt sich das Dashboard selbst (target_monitor in
-# ~/.config/xeneon-edge/settings.json, fullscreen_on_target). Hier stehen nur
-# die Omarchy-Defaults, die ein 2560x720-Streifen nicht will: 0.985 Opacity auf
-# jedem Fenster, Rahmen, Rundungen, Abdunkeln im Hintergrund.
+# The dashboard places itself on the target monitor (target_monitor in
+# ~/.config/xeneon-edge/settings.json, fullscreen_on_target). This file only
+# undoes the Omarchy defaults a 2560x720 strip does not want: 0.985 opacity on
+# every window, borders, rounded corners, dimming in the background.
 #
-# no_focus: der Streifen ist ein Anzeigegeraet, kein Arbeitsplatz. Ohne die
-# Regel wandert der Fokus mit SUPER+Pfeil dorthin und das Dashboard wird das
-# aktive Fenster. Bedient wird per Touch, und Touch- wie Zeigerereignisse
-# gehen an die Flaeche unter dem Finger statt an das Fokusfenster — die
-# Deck-Buttons reagieren weiter.
+# no_focus: the strip is a display, not a workplace. Without the rule,
+# SUPER+arrow moves the focus there and the dashboard becomes the active
+# window. It is operated by touch, and touch and pointer events go to the
+# surface under the finger, not to the focused window — the deck buttons
+# keep working.
 #
-# Was hier fehlt: der Waechter aus der Lua-Fassung, der das Dashboard nach
-# einem swapwindow (SUPER+SHIFT+Pfeil) zurueck auf den Streifen holt. Der
-# braucht die Event-API der Lua-Config (hl.on); in der klassischen Config
-# bleibt nur, den Streifen beim Tauschen zu meiden.
+# What is missing here: the guard from the Lua version that brings the
+# dashboard back to the strip after a swapwindow (SUPER+SHIFT+arrow). It
+# needs the event API of the Lua config (hl.on); in the classic config all
+# that remains is to avoid the strip when swapping.
 windowrule = tag -default-opacity, match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 windowrule = opacity 1 1,          match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 windowrule = border_size 0,        match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
@@ -540,23 +536,22 @@ windowrule = rounding 0,           match:class ^(io\.github\.johnytuga1904\.Xene
 windowrule = no_dim on,            match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 windowrule = no_focus on,          match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 
-# Optional: Connector hart pinnen, falls der Vollbild-Wunsch der App mal nicht
-# auf dem richtigen Monitor landet, oder ein Dispatcher es doch verschiebt.
-# Der Connector heisst auf jedem Rechner anders, deshalb nur als Beispiel —
-# und in eine Datei, die dieses Skript nicht ueberschreibt.
+# Optional: pin the connector hard, in case the app's fullscreen request ever
+# lands on the wrong monitor, or a dispatcher moves it after all. The
+# connector name differs from machine to machine, so this is only an example
+# — and it belongs in a file this script does not overwrite.
 # windowrule = monitor DP-2, match:class ^(io\.github\.johnytuga1904\.XeneonEdge)$
 
-# Das TradingView-Login braucht eine Tastatur, am Streifen haengt keine. Auf den
-# richtigen Monitor legt sich das Fenster selbst (find_login_monitor in
-# ui/monitors.py); hier steht nur, dass es schweben soll statt sich in den
-# Workspace zu kacheln.
+# The TradingView sign-in needs a keyboard, and the strip has none. The window
+# places itself on the right monitor (find_login_monitor in ui/monitors.py);
+# this only says it should float instead of tiling into the workspace.
 windowrule = float,             match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Login)$
 windowrule = size 1400 900,     match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Login)$
 windowrule = center,            match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Login)$
 
-# Der Layout-Editor braucht ebenfalls eine Tastatur. Ohne eigene Regel bekaeme
-# er die Standard-Transparenz — durch einen Editor auf den Desktop zu schauen
-# macht das Beurteilen von Farben unmoeglich.
+# The layout editor needs a keyboard as well. Without its own rule it would
+# get the default transparency — judging colours through an editor that shows
+# the desktop underneath is impossible.
 windowrule = opacity 1 1,       match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Editor)$
 windowrule = float,             match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Editor)$
 windowrule = size 1800 640,     match:class ^(io\.github\.johnytuga1904\.XeneonEdge\.Editor)$
@@ -567,39 +562,39 @@ CONF
 
   if [[ -f "$HOST" ]]; then
     if grep -qF "xeneon-edge" "$HOST"; then
-      ok "$(basename "$HOST") bindet das Snippet bereits ein"
+      ok "$(basename "$HOST") already includes the snippet"
     else
       printf '\n%s Xeneon Edge Dashboard\n%s\n' "$COMMENT" "$INCLUDE" >> "$HOST"
-      ok "eingebunden in $HOST"
+      ok "included in $HOST"
     fi
   else
-    warn "$HOST nicht gefunden — Zeile selbst eintragen:  $INCLUDE"
+    warn "$HOST not found — add this line yourself:  $INCLUDE"
   fi
 
   if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
-    hyprctl reload >/dev/null 2>&1 && ok "hyprctl reload" || warn "hyprctl reload fehlgeschlagen"
+    hyprctl reload >/dev/null 2>&1 && ok "hyprctl reload" || warn "hyprctl reload failed"
   fi
 fi
 
 # ---------------------------------------------------------------- 8. summary
 
-say "Fertig"
-echo "  Starten:  \"$ROOT/run.sh\""
-echo "  Monitor/Apps spaeter aendern:  Zahnrad-Button oben rechts"
+say "Done"
+echo "  Start:  \"$ROOT/run.sh\""
+echo "  Change monitor/apps later:  gear button at the top right"
 if (( IS_OMARCHY )); then
   echo
-  echo "  Omarchy-Nachlese:"
+  echo "  Omarchy follow-up:"
   # Wenn nicht gepinnt wurde: den 2560x720-Connector aus der Monitorliste
   # nehmen, damit die Beispielzeile den echten Anschluss nennt.
   EDGE="$MONITOR"
   if [[ -z "$EDGE" && -n "$MONITORS" ]]; then
     EDGE="$(printf '%s\n' "$MONITORS" | awk -F'\t' '/2560x720/ {print $1; exit}')"
   fi
-  echo "  · ~/.config/hypr/monitors.conf setzt GDK_SCALE=2 und Monitor-Scale 'auto'."
-  echo "    Fuer den Xeneon Edge gehoert dort eine 1x-Zeile hin, z.B.:"
+  echo "  · ~/.config/hypr/monitors.conf sets GDK_SCALE=2 and monitor scale 'auto'."
+  echo "    The Xeneon Edge needs a 1x line there, e.g.:"
   echo "      monitor = ${EDGE:-DP-2}, 2560x720@60, auto, 1"
-  echo "    run.sh erzwingt fuer das Dashboard ohnehin GDK_SCALE=1."
-  echo "  · Waybar liegt per Default auf jedem Monitor und frisst ~30px des"
-  echo "    720px-Streifens: in ~/.config/waybar/config.jsonc \"output\" auf die"
-  echo "    anderen Connectoren begrenzen (oder SUPER+SHIFT+SPACE)."
+  echo "    run.sh forces GDK_SCALE=1 for the dashboard anyway."
+  echo "  · Waybar sits on every monitor by default and eats ~30px of the"
+  echo "    720px strip: limit \"output\" in ~/.config/waybar/config.jsonc to the"
+  echo "    other connectors (or SUPER+SHIFT+SPACE)."
 fi

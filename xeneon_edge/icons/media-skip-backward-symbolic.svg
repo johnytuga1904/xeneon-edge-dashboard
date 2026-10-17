@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Nur gefuellte Formen, keine Konturen — siehe llm-start-symbolic.svg. -->
+  <rect x="2.5" y="3" width="2" height="10"/>
+  <path d="M13.5 3 5.5 8l8 5Z"/>
+</svg>

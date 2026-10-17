@@ -157,7 +157,7 @@ class MprisWatcher:
         try:
             self._bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         except GLib.Error as e:
-            print(f"[xeneon-edge] MPRIS: keine Sitzungs-Bus ({e.message})")
+            print(f"[xeneon-edge] MPRIS: no session bus ({e.message})")
             return
         self._scan()
         # Ein Abonnement fuer alle Player statt eines pro Player: der Pfad ist

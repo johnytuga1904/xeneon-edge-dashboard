@@ -8,6 +8,9 @@ Lookup order:
 4. Try the command basename directly as an icon-theme name
 5. Fall back to "application-x-executable-symbolic"
 
+``bundled_gicon`` ist der kleine Bruder fuer feste Tasten (Wiedergabe): nur
+mitgeliefertes Icon oder Theme-Name, ohne die Deck-Heuristik.
+
 Namen aus dem Theme werden vor der Rueckgabe geprueft. Ohne diese Pruefung
 liefert Schritt 4 fuer jedes Shell-Script einen Namen wie
 ``g1_lfm2-5-2-6b-f16_96k.sh``, den kein Theme kennt — GTK zeigt dann fuer
@@ -74,6 +77,20 @@ def _icon_from_name_or_path(value: str) -> Gio.Icon | None:
     # Nur zurueckgeben, was das Theme auch hat — sonst faellt resolve_icon
     # weiter durch, statt ein kaputtes Icon zu liefern.
     return Gio.ThemedIcon.new(value) if _theme_has(value) else None
+
+
+def bundled_gicon(name: str) -> Gio.Icon:
+    """Mitgeliefertes Icon zuerst, der gleichnamige Theme-Eintrag als Reserve.
+
+    Fuer feste Tasten (Wiedergabe), nicht fuer Deck-Eintraege: dort sucht
+    ``resolve_icon`` weiter. Hier gibt es keinen dritten Weg, also kommt
+    notfalls der Theme-Name zurueck — kennt das Theme ihn nicht, zeigt GTK
+    das "kein Eintrag"-Symbol, so wie bisher.
+    """
+    bundled = _bundled(name)
+    if bundled is not None:
+        return Gio.FileIcon.new(Gio.File.new_for_path(str(bundled)))
+    return Gio.ThemedIcon.new(name)
 
 
 def _command_basename(entry: dict) -> str:

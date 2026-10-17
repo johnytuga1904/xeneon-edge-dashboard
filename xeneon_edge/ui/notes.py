@@ -133,7 +133,7 @@ class NotesModule(Gtk.Box):
         except GLib.Error as e:
             # Kein Grund, das Modul aufzugeben: der Inhalt steht ja schon da,
             # er aktualisiert sich nur nicht mehr von selbst.
-            print(f"[xeneon-edge] Notizen: kann {self._path} nicht beobachten: {e.message}")
+            print(f"[xeneon-edge] Notes: cannot watch {self._path}: {e.message}")
 
     def _on_changed(self, *_args) -> None:
         if self._reload_source:
@@ -217,7 +217,7 @@ class NotesModule(Gtk.Box):
             try:
                 clipboard.set_content(Gdk.ContentProvider.new_for_value(text))
             except Exception as e:
-                print(f"[xeneon-edge] Notizen: Kopieren fehlgeschlagen: {e}")
+                print(f"[xeneon-edge] Notes: copy failed: {e}")
                 return False
         return True
 

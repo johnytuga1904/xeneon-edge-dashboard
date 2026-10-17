@@ -283,8 +283,10 @@ Findings from the 2026-09-08 review, in the order they should be done:
   tooling. The `accent` field in `apps.json` *is* used on Linux (pad colour,
   see step 6) and stays.
 - **Done (2026-10-18), English UI:** editor, `modules/builtin.py` labels
-  and help, tooltips, status texts and the sign-in window are English. Still
-  German: code comments and the `[xeneon-edge]` journal lines.
+  and help, tooltips, status texts and the sign-in window are English, as
+  are the `[xeneon-edge]` journal lines and the installer output (including
+  the comments in the files the installers write). Still German: code
+  comments and docstrings.
 
 ## Known risks
 

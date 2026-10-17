@@ -70,11 +70,11 @@ def load_settings() -> dict:
         try:
             raw = json.loads(USER_SETTINGS_FILE.read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
-            print(f"[xeneon-edge] settings.json nicht lesbar ({e}) — Defaults")
+            print(f"[xeneon-edge] settings.json unreadable ({e}) — using defaults")
         else:
             if isinstance(raw, dict):
                 return {**_DEFAULT_SETTINGS, **raw}
-            print("[xeneon-edge] settings.json ist kein Objekt — Defaults")
+            print("[xeneon-edge] settings.json is not an object — using defaults")
     return dict(_DEFAULT_SETTINGS)
 
 
@@ -92,10 +92,10 @@ def load_apps() -> dict:
         try:
             raw = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
-            print(f"[xeneon-edge] {f.name} nicht lesbar ({e})")
+            print(f"[xeneon-edge] {f.name} unreadable ({e})")
             continue
         if not isinstance(raw, dict):
-            print(f"[xeneon-edge] {f.name} ist kein Objekt — uebersprungen")
+            print(f"[xeneon-edge] {f.name} is not an object — skipped")
             continue
         # Nur Listen von Objekten ins Deck lassen; alles andere ist ein
         # Tippfehler in einer von Hand editierten Datei, kein Grund abzustuerzen.

@@ -45,7 +45,7 @@ def _nvml_init() -> bool:
         pynvml.nvmlInit()
         _nvml_ok = True
     except Exception as e:  # NVMLError oder fehlende libnvidia-ml.so
-        print(f"[xeneon-edge] NVML nicht nutzbar ({e}) — nvidia-smi")
+        print(f"[xeneon-edge] NVML unusable ({e}) — using nvidia-smi")
         _nvml_ok = False
     return _nvml_ok
 
@@ -64,7 +64,7 @@ def _nvml_metrics() -> list[dict] | None:
     try:
         count = pynvml.nvmlDeviceGetCount()
     except Exception as e:
-        print(f"[xeneon-edge] NVML ausgefallen ({e}) — ab jetzt nvidia-smi")
+        print(f"[xeneon-edge] NVML failed ({e}) — using nvidia-smi from now on")
         _nvml_ok = False
         return None
 

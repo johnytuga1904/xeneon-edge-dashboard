@@ -60,18 +60,18 @@ class ThemeError(ValueError):
 
 def _check_hex(key: str, value: object, where: str) -> str:
     if not isinstance(value, str) or not _HEX.match(value):
-        raise ThemeError(f"{where}: '{key}' ist keine #rrggbb-Farbe: {value!r}")
+        raise ThemeError(f"{where}: '{key}' is not a #rrggbb colour: {value!r}")
     return value.lower()
 
 
 def _palette_from(data: dict, *, id: str, where: str) -> Palette:
     missing = [k for k in COLOR_KEYS if k not in data]
     if missing:
-        raise ThemeError(f"{where}: fehlende Farben: {', '.join(missing)}")
+        raise ThemeError(f"{where}: missing colours: {', '.join(missing)}")
     colors = {k: _check_hex(k, data[k], where) for k in COLOR_KEYS}
     mode = str(data.get("mode", "dark")).lower()
     if mode not in ("dark", "light"):
-        raise ThemeError(f"{where}: mode muss 'dark' oder 'light' sein, nicht {mode!r}")
+        raise ThemeError(f"{where}: mode must be 'dark' or 'light', not {mode!r}")
     return Palette(id=id, name=str(data.get("name") or id), mode=mode, **colors)
 
 
@@ -91,7 +91,7 @@ def builtin_ids() -> list[str]:
 def load_builtin(theme_id: str) -> Palette:
     path = THEMES_DIR / f"{theme_id}.toml"
     if not path.exists():
-        raise ThemeError(f"Theme '{theme_id}' gibt es nicht ({path})")
+        raise ThemeError(f"theme '{theme_id}' does not exist ({path})")
     return _palette_from(_read_toml(path), id=theme_id, where=path.name)
 
 
@@ -116,7 +116,7 @@ def load_omarchy() -> Palette:
             v = d.get(k)
             if isinstance(v, str) and _HEX.match(v):
                 return v
-        raise ThemeError(f"{OMARCHY_COLORS}: keiner der Schluessel {keys} gesetzt")
+        raise ThemeError(f"{OMARCHY_COLORS}: none of the keys {keys} is set")
 
     mode = str(d.get("mode", "dark")).lower()
     if mode == "light":
@@ -168,9 +168,9 @@ def available() -> list[tuple[str, str]]:
         try:
             out.append((theme_id, load_builtin(theme_id).name))
         except ThemeError as e:
-            print(f"[xeneon-edge] Theme uebersprungen: {e}")
+            print(f"[xeneon-edge] theme skipped: {e}")
     if omarchy_available():
-        out.append((OMARCHY, "Omarchy (folgt dem System-Theme)"))
+        out.append((OMARCHY, "Omarchy (follows the system theme)"))
     return out
 
 
@@ -186,7 +186,7 @@ def load(theme_id: str | None) -> Palette:
             return load_omarchy()
         return load_builtin(theme_id)
     except ThemeError as e:
-        print(f"[xeneon-edge] Theme '{theme_id}' unbrauchbar ({e}) — {DEFAULT}")
+        print(f"[xeneon-edge] theme '{theme_id}' unusable ({e}) — falling back to {DEFAULT}")
         return load_builtin(DEFAULT)
 
 

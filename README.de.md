@@ -156,7 +156,7 @@ Arch-spezifisch zu beachten:
   beschraenkt `xeneon_edge/webkit_env.py` GLVND auf die Mesa-Datei
   (`__EGL_VENDOR_LIBRARY_FILENAMES`), sobald ein NVIDIA- und ein Mesa-Knoten
   nebeneinander existieren. Dashboard, Editor und Login-Fenster tun das vor
-  dem ersten GTK-Aufruf; im Journal steht dann `EGL nur ueber Mesa`.
+  dem ersten GTK-Aufruf; im Journal steht dann `EGL via Mesa only`.
   `XENEON_EGL_VENDOR=off` schaltet es ab, `=mesa` erzwingt es; ein schon
   gesetztes `__EGL_VENDOR_LIBRARY_FILENAMES` bleibt unangetastet. Rechner mit
   nur einer Art GPU sind nicht betroffen.

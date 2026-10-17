@@ -7,7 +7,7 @@
 #   --monitor NAME      pin the dashboard to a DRM connector (e.g. DP-2)
 #   --no-fullscreen     don't fullscreen on the target monitor
 #   --yes               never ask anything (uses auto-detect for the monitor)
-#   --no-packages       skip apt entirely (nur Settings/Autostart neu schreiben)
+#   --no-packages       skip apt entirely (only rewrite settings/autostart)
 #   --check             only verify an existing install, install nothing
 #
 # Package names are the trixie ones. Python deps come from apt, not pip:
@@ -45,21 +45,21 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 
 # ---------------------------------------------------------------- 1. platform
 
-say "System prüfen"
+say "Checking the system"
 if [[ ! -r /etc/os-release ]]; then
-  bad "/etc/os-release fehlt — kein Debian?"; exit 1
+  bad "/etc/os-release is missing — not Debian?"; exit 1
 fi
 # shellcheck disable=SC1091
 . /etc/os-release
 echo "  ${PRETTY_NAME:-?}  (ID=${ID:-?} ${VERSION_CODENAME:-?})"
 case "${ID:-}:${ID_LIKE:-}" in
   debian:*|*:*debian*) ;;
-  *) warn "Kein Debian/Debian-Derivat — Paketnamen können abweichen." ;;
+  *) warn "Not Debian or a Debian derivative — package names may differ." ;;
 esac
 if [[ "${VERSION_CODENAME:-}" != "trixie" ]]; then
-  warn "Skript ist für trixie (Debian 13) geschrieben; auf ${VERSION_CODENAME:-?} können Namen abweichen."
+  warn "This script is written for trixie (Debian 13); names may differ on ${VERSION_CODENAME:-?}."
 fi
-[[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]] || warn "Keine Display-Session — GUI-Teile werden hier nicht laufen."
+[[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]] || warn "No display session — the GUI parts will not run here."
 
 # NVIDIA nur anfassen, wenn wirklich eine NVIDIA-Karte steckt.
 # Kein "| grep -q" hier: grep -q beendet sich beim ersten Treffer, das linke
@@ -75,7 +75,7 @@ if [[ -n "$GPUS" ]]; then
 fi
 # lspci fehlt in manchen Minimal-Installationen — Kernelmodul als Fallback.
 if [[ -e /proc/driver/nvidia || -e /sys/module/nvidia ]]; then HAS_NVIDIA=1; fi
-if (( HAS_NVIDIA )); then ok "NVIDIA erkannt — nvidia-smi wird mitinstalliert"; fi
+if (( HAS_NVIDIA )); then ok "NVIDIA detected — nvidia-smi will be installed too"; fi
 
 # ---------------------------------------------------------------- 2. packages
 
@@ -98,10 +98,10 @@ PKGS=(
 if (( HAS_NVIDIA )); then PKGS+=(nvidia-smi python3-pynvml); fi
 
 if (( ! CHECK_ONLY && DO_PACKAGES )); then
-  say "Pakete installieren"
+  say "Installing packages"
   if ! command -v apt-cache >/dev/null 2>&1; then
-    bad "apt-cache nicht gefunden — dieses Skript braucht Debian/apt."
-    bad "Nur Settings + Autostart schreiben: $0 --no-packages"
+    bad "apt-cache not found — this script needs Debian/apt."
+    bad "To only write settings + autostart: $0 --no-packages"
     exit 1
   fi
   MISSING=()
@@ -111,9 +111,9 @@ if (( ! CHECK_ONLY && DO_PACKAGES )); then
     if [[ -n "$CAND" && "$CAND" != "(none)" ]]; then
       MISSING+=("$p")
     else
-      warn "$p ist in den aktiven Repos nicht verfügbar — übersprungen"
+      warn "$p is not available in the active repos — skipped"
       if [[ "$p" == "nvidia-smi" ]]; then
-        warn "  nvidia-smi liegt in 'non-free': deb ... trixie main contrib non-free non-free-firmware"
+        warn "  nvidia-smi is in 'non-free': deb ... trixie main contrib non-free non-free-firmware"
       fi
     fi
   done
@@ -126,20 +126,20 @@ fi
 
 # ---------------------------------------------------------------- 3. verify
 
-say "Installation verifizieren"
+say "Verifying the installation"
 cd "$ROOT"
 VERIFY_RC=0
 python3 scripts/verify-install.py || VERIFY_RC=$?
 if (( VERIFY_RC )); then
-  bad "Pflicht-Abhängigkeiten fehlen — Autostart/Settings werden nicht geschrieben."
+  bad "Required dependencies are missing — autostart/settings will not be written."
   exit 1
 fi
 
-if (( CHECK_ONLY )); then say "Nur Check gewünscht — fertig."; exit 0; fi
+if (( CHECK_ONLY )); then say "Check only — done."; exit 0; fi
 
 # ---------------------------------------------------------------- 4. monitor
 
-say "Monitor wählen"
+say "Choosing the monitor"
 MONITORS="$(python3 - <<'PY' 2>/dev/null
 import gi
 gi.require_version("Gtk", "4.0"); gi.require_version("Gdk", "4.0")
@@ -157,11 +157,11 @@ if [[ -n "$MONITORS" ]]; then
   printf '%s\n' "$MONITORS" | sed 's/^/  /' | expand -t 4
   if [[ -z "$MONITOR" ]] && (( ! ASSUME_YES )); then
     echo
-    echo "  Leer lassen = Auto-Erkennung (sucht einen 2560x720-Monitor)."
-    read -r -p "  Connector für das Dashboard [auto]: " MONITOR || MONITOR=""
+    echo "  Leave empty = auto-detect (looks for a 2560x720 monitor)."
+    read -r -p "  Connector for the dashboard [auto]: " MONITOR || MONITOR=""
   fi
 else
-  warn "Konnte die Monitore nicht abfragen — Auto-Erkennung wird verwendet."
+  warn "Could not query the monitors — auto-detect will be used."
 fi
 
 if [[ -n "$MONITOR" ]]; then
@@ -169,10 +169,10 @@ if [[ -n "$MONITOR" ]]; then
   while IFS=$'\t' read -r conn _; do
     if [[ "$conn" == "$MONITOR" ]]; then KNOWN=1; fi
   done <<<"$MONITORS"
-  if (( ! KNOWN )); then warn "Connector '$MONITOR' ist gerade nicht angeschlossen — wird trotzdem gespeichert."; fi
+  if (( ! KNOWN )); then warn "Connector '$MONITOR' is not connected right now — saving it anyway."; fi
 fi
 
-say "settings.json schreiben"
+say "Writing settings.json"
 MONITOR="$MONITOR" FULLSCREEN="$FULLSCREEN" AUTOSTART="$AUTOSTART" python3 - <<'PY'
 import os
 from xeneon_edge import config_store
@@ -190,17 +190,17 @@ PY
 # ---------------------------------------------------------------- 5. autostart
 
 if (( AUTOSTART )); then
-  say "Autostart einrichten"
+  say "Setting up autostart"
   "$ROOT/scripts/install-autostart.sh"
   # The repo path contains a space — verify the Exec= line survived quoting.
   DESK="$HOME/.config/autostart/xeneon-edge.desktop"
   if grep -q '^Exec="' "$DESK" && [[ -x "$ROOT/run.sh" ]]; then
-    ok "Exec= korrekt gequotet"
+    ok "Exec= is quoted correctly"
   else
-    bad "Exec= in $DESK prüfen (Pfad enthält Leerzeichen!)"
+    bad "Check Exec= in $DESK (the path contains a space!)"
   fi
 fi
 
-say "Fertig"
-echo "  Starten:  \"$ROOT/run.sh\""
-echo "  Monitor/Apps später ändern:  Zahnrad-Button oben rechts"
+say "Done"
+echo "  Start:  \"$ROOT/run.sh\""
+echo "  Change monitor/apps later:  gear button at the top right"

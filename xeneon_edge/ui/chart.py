@@ -282,7 +282,7 @@ def _safe_reload(reload, view, what: str) -> None:
     try:
         reload(view)
     except Exception as e:
-        print(f"[xeneon-edge] {what}: Neuladen fehlgeschlagen: {e}")
+        print(f"[xeneon-edge] {what}: reload failed: {e}")
 
 
 def _watch_web_process(view, reload, what: str) -> None:
@@ -295,8 +295,8 @@ def _watch_web_process(view, reload, what: str) -> None:
     state = {"pending": None}
 
     def on_terminated(_view, reason):
-        print(f"[xeneon-edge] {what}: Web-Prozess beendet ({reason.value_nick}) — "
-              f"Neuladen in {_RELOAD_DELAY_S}s")
+        print(f"[xeneon-edge] {what}: web process ended ({reason.value_nick}) — "
+              f"reloading in {_RELOAD_DELAY_S}s")
 
         def do_reload():
             state["pending"] = None
@@ -337,12 +337,12 @@ def _watch_page_loads(view, reload, what: str, home: str):
 
     def on_timeout(v):
         state["timer"] = None
-        print(f"[xeneon-edge] {what}: nach {_LOAD_TIMEOUT_S}s kein Inhalt "
-              f"({v.get_uri() or '?'}) — Laden abgebrochen, neuer Versuch")
+        print(f"[xeneon-edge] {what}: no content after {_LOAD_TIMEOUT_S}s "
+              f"({v.get_uri() or '?'}) — load cancelled, retrying")
         try:
             v.stop_loading()
         except Exception as e:
-            print(f"[xeneon-edge] {what}: stop_loading fehlgeschlagen: {e}")
+            print(f"[xeneon-edge] {what}: stop_loading failed: {e}")
         _safe_reload(reload, v, what)
         return False
 
@@ -353,7 +353,7 @@ def _watch_page_loads(view, reload, what: str, home: str):
         if event == WebKit.LoadEvent.STARTED:
             state["loads"] += 1
             state["started"] = GLib.get_monotonic_time()
-            kind = "erster Aufbau" if state["loads"] == 1 else f"Neuladen #{state['loads'] - 1}"
+            kind = "first load" if state["loads"] == 1 else f"reload #{state['loads'] - 1}"
             print(f"[xeneon-edge] {what}: {kind}")
             cancel_timer()
             state["timer"] = GLib.timeout_add_seconds(_LOAD_TIMEOUT_S, on_timeout, v)
@@ -368,10 +368,10 @@ def _watch_page_loads(view, reload, what: str, home: str):
                 return
             secs = ""
             if state["started"] is not None:
-                secs = f" nach {(GLib.get_monotonic_time() - state['started']) / 1e6:.1f}s"
+                secs = f" after {(GLib.get_monotonic_time() - state['started']) / 1e6:.1f}s"
             uri = v.get_uri() or ""
-            where = "" if uri.startswith(home_path) else f" — jetzt {uri[:80]}"
-            print(f"[xeneon-edge] {what}: fertig{secs}{where}")
+            where = "" if uri.startswith(home_path) else f" — now at {uri[:80]}"
+            print(f"[xeneon-edge] {what}: done{secs}{where}")
 
     def on_failed(v, _event, failing_uri, error) -> bool:
         # Reihenfolge nach stop_loading(), nachgemessen mit WebKitGTK 2.52:
@@ -383,7 +383,7 @@ def _watch_page_loads(view, reload, what: str, home: str):
                                                 WebKit.NetworkError.CANCELLED):
             state["cancelled"] = True
             return False
-        print(f"[xeneon-edge] {what}: Laden fehlgeschlagen ({failing_uri[:80]}): "
+        print(f"[xeneon-edge] {what}: load failed ({failing_uri[:80]}): "
               f"{error.message}")
         return False  # WebKit zeigt seine Fehlerseite; der naechste Reload raeumt auf
 
@@ -423,7 +423,7 @@ def _reload_on_network_change(view, reload, what: str):
         state["pending"] = None
         if not monitor.get_network_available():
             return False  # der naechste Wechsel bringt das Netz zurueck
-        print(f"[xeneon-edge] {what}: Netz hat gewechselt — Neuladen")
+        print(f"[xeneon-edge] {what}: network changed — reloading")
         _safe_reload(reload, view, what)
         return False
 
@@ -456,7 +456,7 @@ class _WebPanel(Gtk.Box):
             try:
                 fn()
             except Exception as e:
-                print(f"[xeneon-edge] Web-Panel-Abbau fehlgeschlagen: {e}")
+                print(f"[xeneon-edge] web panel teardown failed: {e}")
         self._teardown = ()
 
     def do_dispose(self):  # type: ignore[override]
@@ -504,13 +504,13 @@ def _try_webview(url: str = "", html: str = "", base: str = "",
         if url:
             view = WebKit.WebView(web_context=context,
                                   network_session=make_session(WebKit))
-            what, home = f"Seite {url[:60]}", url
+            what, home = f"page {url[:60]}", url
 
             def reload(v):
                 v.load_uri(url)
         else:
             view = WebKit.WebView(web_context=context)
-            what, home = "TradingView-Widget", base
+            what, home = "TradingView widget", base
 
             def reload(v):
                 v.load_html(html, base)

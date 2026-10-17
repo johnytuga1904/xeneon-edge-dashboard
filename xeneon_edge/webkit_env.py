@@ -59,18 +59,18 @@ def choose() -> tuple[str | None, str]:
     if mode == "off":
         return None, "XENEON_EGL_VENDOR=off"
     if os.environ.get("__EGL_VENDOR_LIBRARY_FILENAMES"):
-        return None, "__EGL_VENDOR_LIBRARY_FILENAMES ist schon gesetzt"
+        return None, "__EGL_VENDOR_LIBRARY_FILENAMES is already set"
     if not MESA_VENDOR_FILE.exists():
-        return None, f"{MESA_VENDOR_FILE} fehlt"
+        return None, f"{MESA_VENDOR_FILE} is missing"
     nodes = render_nodes()
     nvidia = [n for n, d in nodes if d == "nvidia"]
     mesa = [n for n, d in nodes if d in MESA_DRIVERS]
     if mode == "mesa":
         return str(MESA_VENDOR_FILE), "XENEON_EGL_VENDOR=mesa"
     if nvidia and mesa:
-        return str(MESA_VENDOR_FILE), (f"NVIDIA ({', '.join(nvidia)}) neben Mesa "
-                                       f"({', '.join(mesa)}) — WebKit auf Mesa")
-    return None, "keine gemischte NVIDIA/Mesa-Konfiguration"
+        return str(MESA_VENDOR_FILE), (f"NVIDIA ({', '.join(nvidia)}) next to Mesa "
+                                       f"({', '.join(mesa)}) — WebKit on Mesa")
+    return None, "no mixed NVIDIA/Mesa setup"
 
 
 def apply(verbose: bool = True) -> bool:
@@ -80,5 +80,5 @@ def apply(verbose: bool = True) -> bool:
         return False
     os.environ["__EGL_VENDOR_LIBRARY_FILENAMES"] = vendor
     if verbose:
-        print(f"[xeneon-edge] EGL nur ueber Mesa: {why}", flush=True)
+        print(f"[xeneon-edge] EGL via Mesa only: {why}", flush=True)
     return True

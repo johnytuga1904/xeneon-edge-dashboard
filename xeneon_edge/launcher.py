@@ -128,15 +128,15 @@ def focus_monitor(connector: str) -> None:
                                   capture_output=True, text=True,
                                   timeout=1, check=False)
         except (OSError, subprocess.SubprocessError) as e:
-            print(f"[xeneon-edge] focusmonitor {connector} fehlgeschlagen: {e}")
+            print(f"[xeneon-edge] focusmonitor {connector} failed: {e}")
             return
         # hyprctl meldet einen Fehler im Text, nicht immer im Exitcode.
         output = (done.stdout or "") + (done.stderr or "")
         if done.returncode == 0 and "error" not in output.lower():
             _FOCUS_FORM = form
             return
-    print(f"[xeneon-edge] Monitor {connector} liess sich nicht fokussieren "
-          f"— Fenster gehen dort auf, wo der Compositor sie hinlegt")
+    print(f"[xeneon-edge] could not focus monitor {connector} "
+          f"— windows open wherever the compositor puts them")
 
 
 def launch(entry: dict, *, isolate: bool = True, slot: int | None = None,

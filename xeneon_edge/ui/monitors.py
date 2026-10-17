@@ -116,6 +116,6 @@ def move_off_dashboard(win: Gtk.Window, dashboard_connector: str = "",
     try:
         win.fullscreen_on_monitor(monitor)
     except Exception as e:
-        print(f"[xeneon-edge] Fenster konnte nicht umgehaengt werden: {e}")
+        print(f"[xeneon-edge] could not move the window to the target monitor: {e}")
         return
     GLib.timeout_add(150, lambda: (win.unfullscreen(), False)[1])

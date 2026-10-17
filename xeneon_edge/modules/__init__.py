@@ -96,7 +96,7 @@ _TOPBAR: dict[str, ModuleSpec] = {}
 
 def _register(registry: dict[str, ModuleSpec], spec: ModuleSpec) -> ModuleSpec:
     if spec.type_id in registry:
-        raise ValueError(f"Modultyp doppelt registriert: {spec.type_id}")
+        raise ValueError(f"module type registered twice: {spec.type_id}")
     registry[spec.type_id] = spec
     return spec
 
@@ -139,21 +139,21 @@ def _build(registry: dict[str, ModuleSpec], what: str,
     """
     spec = registry.get(type_id)
     if spec is None:
-        print(f"[xeneon-edge] unbekannter {what} '{type_id}' — wird uebersprungen")
+        print(f"[xeneon-edge] unknown {what} '{type_id}' — skipped")
         return None
     try:
         return spec.factory(dict(config or {}))
     except Exception as e:
-        print(f"[xeneon-edge] {what} '{type_id}' liess sich nicht bauen: {e}")
+        print(f"[xeneon-edge] {what} '{type_id}' could not be built: {e}")
         return None
 
 
 def build(type_id: str, config: dict | None = None) -> Gtk.Widget | None:
-    return _build(_REGISTRY, "Modultyp", type_id, config)
+    return _build(_REGISTRY, "module type", type_id, config)
 
 
 def build_topbar(type_id: str, config: dict | None = None) -> Gtk.Widget | None:
-    return _build(_TOPBAR, "Topbar-Widget", type_id, config)
+    return _build(_TOPBAR, "topbar widget", type_id, config)
 
 
 # Registriert die mitgelieferten Module. Ganz unten, weil builtin.py aus

@@ -7,11 +7,26 @@ tagged release.
 
 ## [Unreleased]
 
+### Fixed (Linux, 2026-10-18)
+- The Playback module's previous/next buttons showed GTK's "missing image"
+  placeholder instead of skip icons. Cause: Omarchy configures the icon
+  theme `Yaru-gray`, which is not installed, so GTK4 only had hicolor and
+  its built-in icons — those include play, pause and folder-music, but not
+  `media-skip-backward/-forward`. All five media icons now ship as bundled
+  symbolic SVGs under `xeneon_edge/icons/` (own drawings, MIT, see the
+  README there) and are loaded through `ui/icons.py`; the theme icon of the
+  same name is only the fallback.
+
 ### Changed (2026-10-18)
 - The user interface is English: the layout editor (labels, menus, help
   texts, status messages), module names and settings help in
   `modules/builtin.py`, dashboard tooltips and status texts, and the sign-in
-  window. Journal log lines and code comments remain German for now.
+  window. Code comments remain German.
+- Installer and journal output is English: `install-arch.sh`,
+  `install-debian.sh` and `install-omarchy-notifications.py` (messages,
+  prompts, `--help`, the comments in the Hyprland snippet and the
+  notification-plugin patch they write) and the `[xeneon-edge]` / `[input]`
+  journal lines of the dashboard.
 - The Linux port lives in its own repository; see "Added" below.
 
 ### Fixed (Linux, 2026-10-17)

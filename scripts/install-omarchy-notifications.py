@@ -38,6 +38,17 @@ PLUGINS_DIR = Path.home() / ".config" / "omarchy" / "plugins"
 SETTINGS_FILE = Path.home() / ".config" / "xeneon-edge" / "settings.json"
 SOURCE_ID = "omarchy.notifications"
 
+# Shown by --help; the module docstring above stays the German design note.
+_HELP = """Adapt Omarchy's notifications to the dashboard.
+
+Patches a clone of the Omarchy shell's notification plugin
+(~/.config/omarchy/plugins/<user>.notifications/): toasts no longer appear
+on the Xeneon Edge strip, and every card gets a close x at the top right.
+The original under /usr/share/omarchy stays untouched. The script is
+idempotent; after a larger Omarchy update run --revert and then the script
+again so the clone sits on the current original.
+"""
+
 RED = "\033[1;31m"; GREEN = "\033[32m"; YELLOW = "\033[33m"; OFF = "\033[0m"
 
 
@@ -82,9 +93,9 @@ def screens_expression(dashboard: str, only: str) -> str:
 # schon gepatchten Baum, damit ein zweiter Lauf nichts doppelt einfuegt.
 def edits(dashboard: str, only: str) -> list[tuple[str, str, str, str]]:
     header = (
-        "    // Toasts nicht auf dem Dashboard-Streifen: Omarchy baut ein\n"
-        "    // PanelWindow pro Output, der Toast landet dort sonst direkt ueber\n"
-        "    // den Deck-Buttons.\n"
+        "    // No toasts on the dashboard strip: Omarchy builds one PanelWindow\n"
+        "    // per output, so the toast would otherwise land right above the\n"
+        "    // deck buttons.\n"
     )
     return [
         (
@@ -107,16 +118,16 @@ def edits(dashboard: str, only: str) -> list[tuple[str, str, str, str]]:
             "  readonly property bool hovered: hoverTracker.hovered\n",
             "  readonly property bool hovered: hoverTracker.hovered\n"
             "\n"
-            "  // Schliess-x oben rechts. Opt-in, weil dieselbe Karte auch das\n"
-            "  // History-Panel rendert — dort ist closeRequested nicht verdrahtet,\n"
-            "  // der Knopf waere also tot.\n"
+            "  // Close x at the top right. Opt-in, because the same card also\n"
+            "  // renders the history panel — closeRequested is not wired up there,\n"
+            "  // so the button would be dead.\n"
             "  property bool closable: false\n",
             "  property bool closable: false\n",
         ),
         (
             "components/NotificationCard.qml",
             "      Layout.rightMargin: Style.space(12)\n",
-            "      // Platz fuer das Schliess-x in der oberen rechten Ecke.\n"
+            "      // Room for the close x in the top right corner.\n"
             "      Layout.rightMargin: root.closable ? Style.space(26) : Style.space(12)\n",
             "root.closable ? Style.space(26)",
         ),
@@ -129,9 +140,9 @@ def edits(dashboard: str, only: str) -> list[tuple[str, str, str, str]]:
     ]
 
 
-CLOSE_BUTTON_QML = """  // Nach mainColumn deklariert und damit ueber der kartenweiten MouseArea:
-  // sonst faellt der Klick durch auf onCardClicked und loest die
-  // Default-Aktion der Notification aus, statt sie zu schliessen.
+CLOSE_BUTTON_QML = """  // Declared after mainColumn and therefore above the card-wide MouseArea:
+  // otherwise the click falls through to onCardClicked and triggers the
+  // notification's default action instead of closing it.
   Item {
     id: closeButton
     visible: root.closable
@@ -149,8 +160,8 @@ CLOSE_BUTTON_QML = """  // Nach mainColumn deklariert und damit ueber der karten
       color: Color.notifications.text
       font.family: "Liberation Sans"
       font.pixelSize: Style.font.heading
-      // Gedimmt, bis der Zeiger auf der Karte ist, deckend auf dem Knopf
-      // selbst: auffindbar, ohne der Summary die Schau zu stehlen.
+      // Dimmed until the pointer is on the card, opaque on the button
+      // itself: findable without stealing the show from the summary.
       opacity: closeHover.hovered ? 1.0 : (root.hovered ? 0.75 : 0.35)
       Behavior on opacity { NumberAnimation { duration: 100 } }
     }
@@ -174,76 +185,76 @@ def run(*cmd: str) -> subprocess.CompletedProcess:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
+    ap = argparse.ArgumentParser(description=_HELP,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--monitor", default="",
-                    help="Connector des Dashboards (Default: target_monitor aus settings.json)")
+                    help="the dashboard's connector (default: target_monitor from settings.json)")
     ap.add_argument("--only", default="",
-                    help="Toasts nur auf diesem Connector (Default: alles ausser dem Dashboard)")
-    ap.add_argument("--check", action="store_true", help="nur pruefen, nichts aendern")
-    ap.add_argument("--revert", action="store_true", help="Klon entfernen, Original wieder aktivieren")
+                    help="toasts only on this connector (default: everything except the dashboard)")
+    ap.add_argument("--check", action="store_true", help="only check, change nothing")
+    ap.add_argument("--revert", action="store_true", help="remove the clone, re-enable the original")
     args = ap.parse_args()
 
     if not shutil.which("omarchy"):
-        bad("omarchy nicht gefunden — das Skript ist nur fuer Omarchy.")
+        bad("omarchy not found — this script is for Omarchy only.")
         return 1
 
     target = plugin_dir()
 
     if args.revert:
-        say("Zurueck auf das Original")
+        say("Back to the original")
         if not target.exists():
-            warn(f"{target} existiert nicht — nichts zu tun")
+            warn(f"{target} does not exist — nothing to do")
             return 0
         run("omarchy", "plugin", "remove", target.name, "--yes")
         run("omarchy", "plugin", "enable", SOURCE_ID)
         run("omarchy", "restart", "shell")
-        ok(f"{target.name} entfernt, {SOURCE_ID} wieder aktiv")
+        ok(f"{target.name} removed, {SOURCE_ID} active again")
         return 0
 
     dashboard = dashboard_monitor(args.monitor)
     if not dashboard:
-        bad("Kein Dashboard-Monitor bekannt — --monitor setzen oder erst")
-        bad("  install-arch.sh laufen lassen (schreibt target_monitor).")
+        bad("No dashboard monitor known — pass --monitor or run")
+        bad("  install-arch.sh first (it writes target_monitor).")
         return 1
 
-    say("Plugin-Klon")
+    say("Plugin clone")
     if target.exists():
-        ok(f"{target} existiert bereits")
+        ok(f"{target} already exists")
     elif args.check:
-        warn(f"{target} fehlt — wuerde {SOURCE_ID} klonen")
+        warn(f"{target} is missing — would clone {SOURCE_ID}")
         return 0
     else:
         r = run("omarchy", "plugin", "clone", SOURCE_ID)
         if r.returncode != 0:
-            bad(f"omarchy plugin clone {SOURCE_ID} fehlgeschlagen:")
+            bad(f"omarchy plugin clone {SOURCE_ID} failed:")
             bad(f"  {(r.stderr or r.stdout).strip()}")
             return 1
         ok(f"{SOURCE_ID} -> {target.name}")
 
-    say(f"Anpassungen (Dashboard: {dashboard}"
-        + (f", Toasts nur auf {args.only}" if args.only else ", Toasts auf allen anderen") + ")")
+    say(f"Changes (dashboard: {dashboard}"
+        + (f", toasts only on {args.only}" if args.only else ", toasts on all others") + ")")
 
     pending: list[tuple[Path, str, str]] = []
     for rel, anchor, replacement, applied in edits(dashboard, args.only):
         path = target / rel
         if not path.exists():
-            bad(f"{rel} fehlt im Klon")
+            bad(f"{rel} is missing in the clone")
             return 1
         text = path.read_text()
         if applied in text:
-            ok(f"{rel}: schon angewandt")
+            ok(f"{rel}: already applied")
             continue
         if anchor not in text:
-            bad(f"{rel}: Anker nicht gefunden — Omarchy hat die Stelle umgebaut.")
-            bad(f"  Gesucht: {anchor.strip().splitlines()[0][:70]}")
-            bad("  Erst --revert, dann neu klonen und diese Stelle im Skript nachziehen.")
+            bad(f"{rel}: anchor not found — Omarchy has changed this spot.")
+            bad(f"  Looked for: {anchor.strip().splitlines()[0][:70]}")
+            bad("  Run --revert first, then clone again and update this spot in the script.")
             return 1
         if text.count(anchor) != 1:
-            bad(f"{rel}: Anker {text.count(anchor)}x vorhanden, erwartet genau 1")
+            bad(f"{rel}: anchor found {text.count(anchor)}x, expected exactly 1")
             return 1
         pending.append((path, anchor, replacement))
-        (warn if args.check else ok)(f"{rel}: {'wuerde patchen' if args.check else 'gepatcht'}")
+        (warn if args.check else ok)(f"{rel}: {'would patch' if args.check else 'patched'}")
 
     if args.check:
         return 0
@@ -251,13 +262,13 @@ def main() -> int:
     for path, anchor, replacement in pending:
         path.write_text(path.read_text().replace(anchor, replacement, 1))
 
-    say("Shell neu starten")
+    say("Restarting the shell")
     run("omarchy", "restart", "shell")
     ok("omarchy restart shell")
     print()
-    say("Fertig")
-    print(f"  Klon:      {target}")
-    print(f"  Zurueck:   {Path(__file__).name} --revert")
+    say("Done")
+    print(f"  Clone:     {target}")
+    print(f"  Revert:    {Path(__file__).name} --revert")
     return 0
 
 

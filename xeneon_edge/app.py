@@ -99,7 +99,7 @@ class XeneonEdgeApp(Adw.Application):
             gfile = Gio.File.new_for_path(str(path))
             monitor = gfile.monitor_file(Gio.FileMonitorFlags.NONE, None)
         except Exception as e:
-            print(f"[xeneon-edge] {path.name} wird nicht beobachtet: {e}")
+            print(f"[xeneon-edge] {path.name} is not being watched: {e}")
             return
 
         def on_changed(_monitor, _f, _other, event_type):
@@ -124,7 +124,7 @@ class XeneonEdgeApp(Adw.Application):
     def _reload_layout(self) -> None:
         if self._window is None:
             return
-        print("[xeneon-edge] layout.json geaendert — Gitter wird neu gebaut")
+        print("[xeneon-edge] layout.json changed — rebuilding the grid")
         self._window.apply_layout(layout_store.load())
         if self._aggregator is not None:
             self._aggregator.set_needs(self._window.needs)
@@ -138,7 +138,7 @@ class XeneonEdgeApp(Adw.Application):
         old = self._settings_seen
         new = config_store.load_settings()
         self._settings_seen = new
-        print("[xeneon-edge] settings.json geaendert")
+        print("[xeneon-edge] settings.json changed")
         if new.get("theme") != old.get("theme"):
             self.apply_theme(new.get("theme"))
         if any(new.get(k) != old.get(k)
@@ -151,7 +151,7 @@ class XeneonEdgeApp(Adw.Application):
         # Chart behaelt sein Limit bis zum naechsten Rebuild oder Neustart.
 
     def _reload_apps(self) -> None:
-        print("[xeneon-edge] apps.json geaendert — Deck wird neu befuellt")
+        print("[xeneon-edge] apps.json changed — refilling the Launch Deck")
         self._refresh_deck()
 
     # --------
@@ -220,7 +220,7 @@ class XeneonEdgeApp(Adw.Application):
             gdir = Gio.File.new_for_path(str(theme_mod.OMARCHY_CURRENT_DIR))
             monitor = gdir.monitor_directory(Gio.FileMonitorFlags.NONE, None)
         except Exception as e:
-            print(f"[xeneon-edge] Omarchy-Theme wird nicht beobachtet: {e}")
+            print(f"[xeneon-edge] Omarchy theme is not being watched: {e}")
             return
         monitor.connect("changed", self._on_omarchy_changed)
         self._omarchy_monitor = monitor
@@ -263,7 +263,7 @@ class XeneonEdgeApp(Adw.Application):
         """
         script = ROOT / "scripts" / "layout-editor.py"
         if not script.exists():
-            print(f"[xeneon-edge] Editor fehlt: {script}")
+            print(f"[xeneon-edge] editor missing: {script}")
             return
         # Wie beim Deck: erst den Zielmonitor fokussieren, sonst geht der
         # Editor dort auf, wo zuletzt der Fokus lag — im schlimmsten Fall auf
@@ -277,7 +277,7 @@ class XeneonEdgeApp(Adw.Application):
         try:
             Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE)
         except GLib.Error as e:
-            print(f"[xeneon-edge] Editor liess sich nicht starten: {e.message}")
+            print(f"[xeneon-edge] editor failed to start: {e.message}")
 
     def _target_monitor(self) -> None:
         """Move/fullscreen the window onto the configured (or auto-detected) Xeneon Edge."""

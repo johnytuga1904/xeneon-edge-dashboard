@@ -207,7 +207,7 @@ class MainWindow(Adw.ApplicationWindow):
                 try:
                     teardown()
                 except Exception as e:
-                    print(f"[xeneon-edge] Modul-Abbau fehlgeschlagen: {e}")
+                    print(f"[xeneon-edge] module teardown failed: {e}")
         self._modules = modules_built
         self._widgets = widgets
         self._keys = keys
@@ -304,18 +304,18 @@ class MainWindow(Adw.ApplicationWindow):
                     extra = f" text={target.get_label()!r}"
                 button = target.get_ancestor(Gtk.Button) if target is not None else None
                 source = event.get_device()
-                print(f"[input] {kind.value_nick} bei ({x:.0f},{y:.0f}) "
-                      f"Fenster {self.get_width()}x{self.get_height()} "
+                print(f"[input] {kind.value_nick} at ({x:.0f},{y:.0f}) "
+                      f"window {self.get_width()}x{self.get_height()} "
                       f"-> {name}{extra} "
                       f"button={type(button).__name__ if button else None} "
-                      f"geraet={source.get_name() if source else '?'}", flush=True)
+                      f"device={source.get_name() if source else '?'}", flush=True)
             except Exception as e:                       # pragma: no cover
-                print(f"[input] Mitschnitt-Fehler: {e}", flush=True)
+                print(f"[input] capture error: {e}", flush=True)
             return False
 
         controller.connect("event", on_event)
         self.add_controller(controller)
-        print("[input] Mitschnitt aktiv (XENEON_DEBUG_INPUT)", flush=True)
+        print("[input] capture active (XENEON_DEBUG_INPUT)", flush=True)
 
     def apply_palette(self, palette) -> None:
         """Theme-Wechsel zur Laufzeit: Widgets, die Farben selbst rendern, informieren."""

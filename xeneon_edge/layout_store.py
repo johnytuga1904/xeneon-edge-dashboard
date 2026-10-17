@@ -266,12 +266,12 @@ def load() -> dict[str, Any]:
     try:
         raw = json.loads(LAYOUT_FILE.read_text())
     except (OSError, json.JSONDecodeError) as e:
-        print(f"[xeneon-edge] layout.json nicht lesbar ({e}) — Default-Layout")
+        print(f"[xeneon-edge] layout.json unreadable ({e}) — using the default layout")
         return default_layout()
     try:
         return validate(raw)
     except LayoutError as e:
-        print(f"[xeneon-edge] layout.json ungueltig: {e} — Default-Layout")
+        print(f"[xeneon-edge] layout.json invalid: {e} — using the default layout")
         return default_layout()
 
 
@@ -312,7 +312,7 @@ def migrate_from_settings(settings: dict) -> bool:
     try:
         save(data)
     except (OSError, LayoutError) as e:
-        print(f"[xeneon-edge] layout.json konnte nicht angelegt werden: {e}")
+        print(f"[xeneon-edge] layout.json could not be created: {e}")
         return False
-    print(f"[xeneon-edge] layout.json angelegt: {LAYOUT_FILE}")
+    print(f"[xeneon-edge] layout.json created: {LAYOUT_FILE}")
     return True

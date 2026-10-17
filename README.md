@@ -179,7 +179,7 @@ has no variable to choose the render node, so `xeneon_edge/webkit_env.py`
 restricts GLVND to the Mesa vendor file (`__EGL_VENDOR_LIBRARY_FILENAMES`)
 whenever an NVIDIA node and a Mesa node coexist. Dashboard, editor and login
 window all do this before GTK opens the display; the journal says so
-(`EGL nur ueber Mesa`). `XENEON_EGL_VENDOR=off` disables it, `=mesa` forces
+(`EGL via Mesa only`). `XENEON_EGL_VENDOR=off` disables it, `=mesa` forces
 it; a preset `__EGL_VENDOR_LIBRARY_FILENAMES` is left alone. Machines with
 only one kind of GPU are not touched.
 
@@ -316,7 +316,7 @@ the widget it hit:
 
 ```bash
 XENEON_DEBUG_INPUT=1 ./run.sh
-# [input] touch-begin bei (2215,142) Fenster 2560x720 -> Label 'Terminal' button=DeckButton
+# [input] touch-begin at (2215,142) window 2560x720 -> Label 'Terminal' button=DeckButton
 ```
 
 If nothing shows up there, the touch never reaches the dashboard and the cause
@@ -632,6 +632,14 @@ Three matching chip symbols for local LLM servers are bundled:
 | `llm-start` | chip with ▶ | start the model server |
 | `llm-vision` | chip with an eye | multimodal model |
 | `llm-stop` | chip with ■ | stop the server |
+
+The Playback module's buttons (previous, play/pause, next, folder) use
+bundled SVGs of the same style as well, under their freedesktop names
+(`media-skip-backward-symbolic` and so on), so they render even when the
+configured icon theme is missing — Omarchy sets `Yaru-gray`, which is not
+installed, and GTK's built-in fallback set has no skip icons. The theme
+icon of the same name is the fallback. Origin and licence note:
+`xeneon_edge/icons/README.md`.
 
 Without an `icon` field the automatic lookup runs: macro-id keyword
 (`shutdown`, `lock`, …) → matching `.desktop` file → theme name → category

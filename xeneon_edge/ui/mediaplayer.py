@@ -32,6 +32,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gtk, Gdk, GLib, Gio  # noqa: E402
 
 from ..sensors.mpris import MprisWatcher, Track
+from .icons import bundled_gicon
 from .localplayer import LocalPlayer
 
 # Ein- und Ausblendschwellen (Breite x Hoehe des Moduls, in Pixeln). Zwischen
@@ -167,11 +168,32 @@ class MediaPlayerModule(Gtk.Box):
         "⏮" und "⏭" landen bei der Emoji-Schrift und kommen bunt heraus —
         neben einer monochromen Oberflaeche sieht das aus wie ein Versehen.
         Symbolische Icons nehmen die Textfarbe an und folgen damit dem Theme.
+
+        Die Icons liegen als eigene SVGs unter xeneon_edge/icons/ bei, das
+        Theme ist nur Reserve. Befund vom 18.10.2026 (Omarchy): gsettings
+        nennt als Icon-Theme "Yaru-gray", das unter /usr/share/icons nicht
+        existiert. GTK4 sucht dann nur noch in hicolor und in seinen
+        eingebauten Ressourcen-Icons — und die enthalten media-playback-start,
+        -pause und folder-music, aber nicht media-skip-backward/-forward.
+        has_icon() lieferte fuer genau diese zwei False, lookup_icon() das
+        "image-missing"-PNG; in Adwaita und Yaru selbst waeren alle vier
+        vorhanden. Mit Dateinamen auf "-symbolic.svg" faerbt GTK auch
+        Datei-Icons mit der Textfarbe ein, das Theme spielt dafuer keine
+        Rolle mehr.
         """
-        button = Gtk.Button.new_from_icon_name(icon)
+        image = Gtk.Image.new_from_gicon(bundled_gicon(icon))
+        button = Gtk.Button()
+        button.set_child(image)
         button.add_css_class("media-btn")
         button.connect("clicked", self._on_button, method)
         return button
+
+    def _set_play_icon(self, playing: bool) -> None:
+        image = self._play.get_child()
+        assert isinstance(image, Gtk.Image)
+        image.set_from_gicon(bundled_gicon(
+            "media-playback-pause-symbolic" if playing
+            else "media-playback-start-symbolic"))
 
     # ----- Daten -----
 
@@ -254,8 +276,7 @@ class MediaPlayerModule(Gtk.Box):
         self._title.set_label(local.title or "—")
         self._artist.set_label(local.artist)
         self._load_art(local.art_url)
-        self._play.set_icon_name("media-playback-pause-symbolic" if local.playing
-                                 else "media-playback-start-symbolic")
+        self._set_play_icon(local.playing)
         many = local.count > 1
         self._prev.set_sensitive(many)
         self._next.set_sensitive(many)
@@ -268,8 +289,7 @@ class MediaPlayerModule(Gtk.Box):
         self._title.set_label(track.title or "—")
         self._artist.set_label(track.artist or track.album)
         self._load_art(track.art_url)
-        self._play.set_icon_name("media-playback-pause-symbolic" if track.playing
-                                 else "media-playback-start-symbolic")
+        self._set_play_icon(track.playing)
         self._prev.set_sensitive(track.can_prev)
         self._next.set_sensitive(track.can_next)
         self._play.set_sensitive(track.can_play or track.can_pause)
@@ -281,7 +301,7 @@ class MediaPlayerModule(Gtk.Box):
         self._title.add_css_class("media-idle")
         self._cover.set_paintable(None)
         self._art_url = ""
-        self._play.set_icon_name("media-playback-start-symbolic")
+        self._set_play_icon(False)
         self._prev.set_sensitive(False)
         self._next.set_sensitive(False)
 

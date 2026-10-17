@@ -51,7 +51,7 @@ def parse_zones(raw: str) -> list[tuple[str, ZoneInfo | None]]:
         try:
             zone = ZoneInfo(zone_name.strip())
         except (ZoneInfoNotFoundError, ValueError, OSError) as e:
-            print(f"[xeneon-edge] Uhr: Zeitzone '{zone_name.strip()}' unbekannt ({e})")
+            print(f"[xeneon-edge] Clock: unknown time zone '{zone_name.strip()}' ({e})")
             continue
         out.append((label.strip().upper(), zone))
     return out

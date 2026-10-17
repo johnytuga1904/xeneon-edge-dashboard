@@ -84,12 +84,12 @@ def scan(folder: Path) -> list[Path]:
         found = [p for p in folder.rglob("*")
                  if p.is_file() and p.suffix.lower() in MEDIA_SUFFIXES]
     except OSError as e:
-        print(f"[xeneon-edge] Musikordner nicht lesbar: {e}")
+        print(f"[xeneon-edge] music folder unreadable: {e}")
         return []
     found.sort(key=lambda p: tuple(part.lower() for part in p.parts))
     if len(found) > MAX_TRACKS:
-        print(f"[xeneon-edge] Musikordner hat {len(found)} Titel — "
-              f"es werden die ersten {MAX_TRACKS} genommen")
+        print(f"[xeneon-edge] music folder has {len(found)} tracks — "
+              f"using the first {MAX_TRACKS}")
         del found[MAX_TRACKS:]
     return found
 
@@ -112,18 +112,18 @@ def _backend_error() -> str:
     """Leer, wenn GStreamer samt der noetigen Elemente da ist — sonst der
     Grund, wie er ins Journal gehoert."""
     if Gst is None:
-        return ("GStreamer-Bindings fehlen (Debian: gir1.2-gstreamer-1.0, "
+        return ("GStreamer bindings missing (Debian: gir1.2-gstreamer-1.0, "
                 "Fedora: python3-gstreamer1)")
     if not Gst.is_initialized():
         ok, _argv = Gst.init_check(None)
         if not ok:
-            return "GStreamer laesst sich nicht initialisieren"
+            return "GStreamer failed to initialise"
     missing = [name for name in ("uridecodebin", "audioconvert", "audioresample",
                                  "autoaudiosink")
                if Gst.ElementFactory.find(name) is None]
     if missing:
-        return (f"GStreamer-Elemente fehlen: {', '.join(missing)} — "
-                "gst-plugins-base und gst-plugins-good installieren")
+        return (f"GStreamer elements missing: {', '.join(missing)} — "
+                "install gst-plugins-base and gst-plugins-good")
     return ""
 
 
@@ -280,7 +280,7 @@ class LocalPlayer:
         problem = _backend_error()
         if problem:
             self.available = False
-            print(f"[xeneon-edge] Musikordner: {problem}")
+            print(f"[xeneon-edge] music folder: {problem}")
             self._pos = -1
             self._notify()
             return
@@ -288,7 +288,7 @@ class LocalPlayer:
             pipeline = Gst.parse_launch(_PIPELINE)
         except GLib.Error as e:
             self.available = False
-            print(f"[xeneon-edge] Musikordner: Pipeline baut nicht ({e.message})")
+            print(f"[xeneon-edge] music folder: pipeline failed to build ({e.message})")
             self._pos = -1
             self._notify()
             return
@@ -317,7 +317,7 @@ class LocalPlayer:
     def _on_error(self, _bus, msg) -> None:
         error, _debug = msg.parse_error()
         track = self.current
-        print(f"[xeneon-edge] Titel nicht abspielbar ({track.name if track else '?'}): "
+        print(f"[xeneon-edge] track not playable ({track.name if track else '?'}): "
               f"{error.message}")
         GLib.idle_add(self._advance)
 

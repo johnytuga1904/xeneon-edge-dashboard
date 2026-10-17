@@ -44,7 +44,7 @@ def _apply_pad_colours(colours: set[str]) -> None:
     try:
         _PAD_CSS_PROVIDER.load_from_string(css)
     except Exception as e:  # pragma: no cover
-        print(f"[xeneon-edge] Pad-Farben: {e}")
+        print(f"[xeneon-edge] pad colours: {e}")
 
 
 def display_label(entry: dict) -> str:
