@@ -8,12 +8,11 @@ Natives GTK4-Dashboard für Linux — Sensoren direkt aus `/proc` und `/sys`, ke
 ![Dashboard auf einem 2560×720-Xeneon-Edge, Theme Crimson](docs/screenshots/dashboard-crimson.png)
 
 Sensoren (CPU, AMD- und NVIDIA-GPU, RAM, Lüfter), OpenMarket-Chart aus dem
-Konto, Top-Prozesse, Wiedergabe und das 3×6-Launch-Deck. Dasselbe Layout in
-den anderen Themes:
+Konto, Top-Prozesse, Wiedergabe und das 3×6-Launch-Deck. Die Sensor-Spalte in
+den anderen vier Themes — Ice, Nord, Matrix, Ember:
 
 <p>
-<img src="docs/screenshots/theme-ice.png" width="49%" alt="Theme Ice"> <img src="docs/screenshots/theme-nord.png" width="49%" alt="Theme Nord">
-<img src="docs/screenshots/theme-matrix.png" width="49%" alt="Theme Matrix"> <img src="docs/screenshots/theme-ember.png" width="49%" alt="Theme Ember">
+<img src="docs/screenshots/theme-ice.png" width="24%" alt="Theme Ice"> <img src="docs/screenshots/theme-nord.png" width="24%" alt="Theme Nord"> <img src="docs/screenshots/theme-matrix.png" width="24%" alt="Theme Matrix"> <img src="docs/screenshots/theme-ember.png" width="24%" alt="Theme Ember">
 </p>
 
 Der Editor läuft auf dem Hauptmonitor und schreibt `layout.json`; das
