@@ -469,8 +469,14 @@ local subscribed = pcall(function()
     remember_home(w, w.workspace)
     schedule_settle()
   end)
-  hl.on("window.destroy", function(w)
-    last_home[w.address] = nil
+  -- Aufraeumen bei window.close, nicht window.destroy: beim destroy ist das
+  -- Fenster schon abgebaut und w.address nil — last_home[nil] = nil ist in
+  -- Lua ein Laufzeitfehler ("table index is nil"), der bei jedem Schliessen
+  -- eines Fensters im Fehler-Overlay landete. Bei close steht die Adresse
+  -- noch; der Guard faengt den Rest ab.
+  hl.on("window.close", function(w)
+    local addr = w and w.address
+    if addr then last_home[addr] = nil end
   end)
 end)
 if not subscribed then

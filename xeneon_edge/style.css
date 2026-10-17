@@ -67,6 +67,17 @@ button.media-btn {
 button.media-btn image { -gtk-icon-size: 24px; }
 button.media-btn:hover { border-color: @accent; background-color: alpha(@accent, 0.10); }
 button.media-btn:disabled { color: @muted; border-color: @gauge_edge; }
+/* Die Ordner-Taste: etwas abgesetzt von den drei Player-Tasten, und
+   "eingerastet", solange der Ordner die Anzeige stellt. */
+button.media-btn.media-folder { margin-left: 4px; }
+/* Vier Tasten: 52 statt 60 px, damit die Reihe neben ein Cover passt. Noch
+   immer ueber den 44 px, die ein Finger braucht. */
+box.media-buttons-four button.media-btn { min-width: 52px; }
+button.media-btn.media-folder-on {
+  color: @accent;
+  border-color: @accent;
+  background-color: alpha(@accent, 0.18);
+}
 
 /* Notizen: Datei-Zeilen, mit dem Finger scrollbar. */
 box.notes-module { padding: 6px; }

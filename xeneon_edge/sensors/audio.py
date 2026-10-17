@@ -2,9 +2,12 @@
 from __future__ import annotations
 import os
 import re
+import select
 import shutil
+import struct
 import subprocess
 import threading
+import time
 
 
 def _has(cmd: str) -> bool:
@@ -109,6 +112,114 @@ def audio_state() -> dict | None:
         "input_volume": in_vol or 0,
         "input_muted": bool(in_mute),
     }
+
+
+# Pegelprobe: so kurz und grob wie moeglich, es geht nur um "still oder
+# nicht". 8 kHz mono, 120 ms — 1920 Bytes. Ein stummer Strom (X.com mit
+# Autoplay ohne Ton) liefert exakt 0, ein leiser Titel Hunderte.
+_PROBE_RATE = 8000
+_PROBE_S = 0.12
+_PROBE_DEADLINE_S = 1.0
+_SILENCE_PEAK = 64      # ~ -54 dBFS
+
+
+def _sink_inputs(timeout: float = 0.5) -> list[tuple[int, int, bool]]:
+    """(Index, PID, corked) je Ausgabestrom. Ein Sink-Input ist "corked",
+    solange sein Programm pausiert."""
+    out: list[tuple[int, int, bool]] = []
+    index = pid = 0
+    corked = True
+
+    def flush():
+        if index:
+            out.append((index, pid, corked))
+
+    for line in _run(["pactl", "list", "sink-inputs"], timeout).splitlines():
+        s = line.strip()
+        if s.startswith("Sink Input #"):
+            flush()
+            corked, pid = True, 0
+            try:
+                index = int(s.split("#", 1)[1])
+            except ValueError:
+                index = 0
+        elif s.startswith("Corked:"):
+            corked = s.split(":", 1)[1].strip().lower() != "no"
+        elif s.startswith("application.process.id"):
+            try:
+                pid = int(s.split("=", 1)[1].strip().strip('"'))
+            except ValueError:
+                pid = 0
+    flush()
+    return out
+
+
+def _stream_has_sound(index: int) -> bool | None:
+    """Ob auf dem Strom gerade etwas zu hoeren ist. None = nicht messbar.
+
+    ``parec --monitor-stream`` liest den Strom mit, ein paar Millisekunden
+    lang. Blockiert bis zu einer Sekunde — nur aus einem Hintergrund-Thread
+    rufen.
+    """
+    if not _has("parec"):
+        return None
+    wanted = int(_PROBE_RATE * 2 * _PROBE_S)
+    try:
+        proc = subprocess.Popen(
+            ["parec", f"--monitor-stream={index}", "--format=s16le",
+             f"--rate={_PROBE_RATE}", "--channels=1", "--raw",
+             "--latency-msec=20"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL, env=_PACTL_ENV)
+    except OSError:
+        return None
+    data = b""
+    deadline = time.monotonic() + _PROBE_DEADLINE_S
+    try:
+        fd = proc.stdout.fileno()
+        while len(data) < wanted:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            ready, _w, _x = select.select([fd], [], [], remaining)
+            if not ready:
+                break
+            chunk = os.read(fd, wanted - len(data))
+            if not chunk:
+                break
+            data += chunk
+    finally:
+        proc.kill()
+        proc.wait()
+    if len(data) < wanted // 2:
+        return None
+    count = len(data) // 2
+    samples = struct.unpack(f"<{count}h", data[:count * 2])
+    return max(abs(v) for v in samples) > _SILENCE_PEAK
+
+
+def audible_pids() -> set[int]:
+    """PIDs der Programme, aus denen gerade hoerbar Ton kommt.
+
+    Das ist die Wahrheit ueber "spielt gerade", unabhaengig davon, was ein
+    Player ueber MPRIS behauptet (Brave meldet dort "Paused", waehrend YouTube
+    hoerbar laeuft — siehe sensors/mpris.py). "Corked" allein reicht nicht:
+    ein Browser-Tab mit stummem Autoplay haelt seinen Strom offen und liefert
+    Stille. Deshalb wird jeder offene Strom kurz mitgehoert.
+
+    Die PID ist die des Prozesses, der den Strom haelt: bei Chromium ein
+    Hilfsprozess, nicht der Browser selbst — der Aufrufer muss den Elternpfad
+    hochgehen. Dauert bis zu einer Sekunde je Strom: nicht vom GTK-Thread aus.
+    """
+    pids: set[int] = set()
+    for index, pid, corked in _sink_inputs():
+        if corked or not pid:
+            continue
+        sound = _stream_has_sound(index)
+        # Nicht messbar (kein parec): offen gilt als hoerbar.
+        if sound is None or sound:
+            pids.add(pid)
+    return pids
 
 
 # Welche Ereignisse von `pactl subscribe` eine neue Lesung lohnen. sink-input

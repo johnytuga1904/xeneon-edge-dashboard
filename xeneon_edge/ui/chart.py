@@ -26,7 +26,7 @@ import json
 import os
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, GLib  # noqa: E402
+from gi.repository import Gtk, GLib, Gio  # noqa: E402
 
 from ..paths import WEBKIT_DATA_DIR, WEBKIT_CACHE_DIR
 from .. import theme as theme_mod
@@ -37,6 +37,22 @@ from .. import config_store
 # lang genug, dass ein Prozess, der sofort wieder stirbt, keine Schleife
 # ohne Pause dreht.
 _RELOAD_DELAY_S = 3
+
+# So lange darf ein Laden ohne ersten Inhalt (COMMITTED) dauern, bevor es
+# abgebrochen und neu angestossen wird. Ein gesundes Laden der Chart-Seite
+# committed nach wenigen Sekunden; was nach 45 s noch nichts hat, haengt —
+# gesehen am 13.09.2026: ein Neuladen wollte ueber eine TCP-Verbindung
+# senden, die seit dem VPN-Start stumm tot war (kein RST, nur Retransmits
+# mit 120 s RTO). Der Kernel gibt so ein Socket erst nach ~20 min auf, und
+# so lange stand das alte Bild, WebProcess idle. stop_loading() gibt die
+# Verbindung frei; der neue Versuch oeffnet eine frische.
+_LOAD_TIMEOUT_S = 45
+
+# Nach einem Netzwechsel (VPN hoch oder runter, WLAN gewechselt) so lange
+# Ruhe abwarten, bevor die Seite neu geladen wird. NetworkManager meldet
+# einen Wechsel meist in mehreren Schritten hintereinander; ein Reload
+# pro Schritt waere Flackern ohne Nutzen.
+_NETWORK_SETTLE_S = 5
 
 _HTML = """<!doctype html><html><head><meta charset='utf-8'>
 <style>html,body{margin:0;background:__BG__;color:__FG__;font-family:sans-serif;height:100%;}</style>
@@ -239,7 +255,14 @@ def make_context(WebKit, limit_mb: int | None = None):
     return WebKit.WebContext(memory_pressure_settings=settings)
 
 
-def _watch_web_process(view, reload) -> None:
+def _safe_reload(reload, view, what: str) -> None:
+    try:
+        reload(view)
+    except Exception as e:
+        print(f"[xeneon-edge] {what}: Neuladen fehlgeschlagen: {e}")
+
+
+def _watch_web_process(view, reload, what: str) -> None:
     """Seite neu laden, wenn der Web-Prozess weg ist.
 
     Ohne das bleibt das Panel nach einem Absturz oder dem Speicherlimit
@@ -248,46 +271,178 @@ def _watch_web_process(view, reload) -> None:
     """
     state = {"pending": None}
 
-    def do_reload():
-        state["pending"] = None
-        try:
-            reload()
-        except Exception as e:
-            print(f"[xeneon-edge] Chart-Reload fehlgeschlagen: {e}")
-        return False
-
     def on_terminated(_view, reason):
-        print(f"[xeneon-edge] Web-Prozess des Charts beendet ({reason.value_nick}) — "
+        print(f"[xeneon-edge] {what}: Web-Prozess beendet ({reason.value_nick}) — "
               f"Neuladen in {_RELOAD_DELAY_S}s")
+
+        def do_reload():
+            state["pending"] = None
+            _safe_reload(reload, _view, what)
+            return False
+
         if state["pending"] is None:
             state["pending"] = GLib.timeout_add_seconds(_RELOAD_DELAY_S, do_reload)
 
     view.connect("web-process-terminated", on_terminated)
 
 
-def _log_page_loads(view, what: str) -> None:
-    """Jedes Laden der Seite ins Journal schreiben.
+def _watch_page_loads(view, reload, what: str, home: str):
+    """Jedes Laden ins Journal schreiben — und ein haengendes abbrechen.
 
     Eine Seite, die sich von selbst neu laedt, sieht auf dem Streifen aus wie
-    ein Flackern des Dashboards — und ohne diese Zeile ist von aussen nicht zu
-    unterscheiden, ob das Dashboard neu baut oder die Seite neu laedt. Der
-    erste Aufbau schreibt eine Zeile, jede weitere ist ein Neuladen.
-    """
-    state = {"loads": 0}
+    ein Flackern des Dashboards — und ohne diese Zeilen ist von aussen nicht
+    zu unterscheiden, ob das Dashboard neu baut oder die Seite neu laedt. Der
+    erste Aufbau schreibt eine Zeile, jede weitere ist ein Neuladen; dazu
+    kommt, wann es fertig war, und wohin die Seite dabei navigiert ist, falls
+    nicht an ``home`` — die Adresse, die das Modul eigentlich zeigen soll.
 
-    def on_load(_view, event) -> None:
+    Der Waechter: kommt nach STARTED innerhalb von _LOAD_TIMEOUT_S kein
+    COMMITTED, wird das Laden abgebrochen und neu angestossen. Bis dahin
+    zeigt WebKit das alte Bild — auf dem Streifen sieht das aus, als haenge
+    der Chart, und ohne Tastatur kommt man da nicht mehr raus.
+
+    Gibt eine Funktion zurueck, die den laufenden Waechter abbestellt.
+    """
+    state = {"loads": 0, "timer": None, "started": None, "cancelled": False}
+    # TradingView schreibt seine Query-Parameter um; nur Host und Pfad zaehlen.
+    home_path = home.split("?", 1)[0].split("#", 1)[0]
+
+    def cancel_timer() -> None:
+        if state["timer"] is not None:
+            GLib.source_remove(state["timer"])
+            state["timer"] = None
+
+    def on_timeout(v):
+        state["timer"] = None
+        print(f"[xeneon-edge] {what}: nach {_LOAD_TIMEOUT_S}s kein Inhalt "
+              f"({v.get_uri() or '?'}) — Laden abgebrochen, neuer Versuch")
+        try:
+            v.stop_loading()
+        except Exception as e:
+            print(f"[xeneon-edge] {what}: stop_loading fehlgeschlagen: {e}")
+        _safe_reload(reload, v, what)
+        return False
+
+    def on_load(v, event) -> None:
         WebKit = import_webkit()
-        if WebKit is None or event != WebKit.LoadEvent.STARTED:
+        if WebKit is None:
             return
-        state["loads"] += 1
-        kind = "erster Aufbau" if state["loads"] == 1 else f"Neuladen #{state['loads'] - 1}"
-        print(f"[xeneon-edge] {what}: {kind}")
+        if event == WebKit.LoadEvent.STARTED:
+            state["loads"] += 1
+            state["started"] = GLib.get_monotonic_time()
+            kind = "erster Aufbau" if state["loads"] == 1 else f"Neuladen #{state['loads'] - 1}"
+            print(f"[xeneon-edge] {what}: {kind}")
+            cancel_timer()
+            state["timer"] = GLib.timeout_add_seconds(_LOAD_TIMEOUT_S, on_timeout, v)
+        elif event == WebKit.LoadEvent.COMMITTED:
+            cancel_timer()
+        elif event == WebKit.LoadEvent.FINISHED:
+            cancel_timer()
+            if state["cancelled"]:
+                # Das FINISHED eines abgebrochenen Ladens; die Meldung dazu
+                # stand schon beim Abbruch im Journal.
+                state["cancelled"] = False
+                return
+            secs = ""
+            if state["started"] is not None:
+                secs = f" nach {(GLib.get_monotonic_time() - state['started']) / 1e6:.1f}s"
+            uri = v.get_uri() or ""
+            where = "" if uri.startswith(home_path) else f" — jetzt {uri[:80]}"
+            print(f"[xeneon-edge] {what}: fertig{secs}{where}")
+
+    def on_failed(v, _event, failing_uri, error) -> bool:
+        # Reihenfolge nach stop_loading(), nachgemessen mit WebKitGTK 2.52:
+        # load-failed (cancelled) und FINISHED des alten Ladens kommen erst,
+        # dann STARTED des neuen — der Waechter des neuen bleibt also stehen.
+        cancel_timer()
+        WebKit = import_webkit()
+        if WebKit is not None and error.matches(WebKit.network_error_quark(),
+                                                WebKit.NetworkError.CANCELLED):
+            state["cancelled"] = True
+            return False
+        print(f"[xeneon-edge] {what}: Laden fehlgeschlagen ({failing_uri[:80]}): "
+              f"{error.message}")
+        return False  # WebKit zeigt seine Fehlerseite; der naechste Reload raeumt auf
 
     view.connect("load-changed", on_load)
+    view.connect("load-failed", on_failed)
+    return cancel_timer
+
+
+def _reload_on_network_change(view, reload, what: str):
+    """Nach einem Netzwechsel die Seite einmal neu laden.
+
+    Dashboard und VPN starten beim Login in derselben Sekunde. Verbindungen,
+    die WebKit noch ueber das LAN aufgebaut hat, bevor der Tunnel stand, sind
+    danach stumm tot: kein RST, nur nie wieder ein Byte. Die Seite merkt das
+    erst, wenn sie darauf senden will — Stunden spaeter, und dann haengt sie
+    (siehe _LOAD_TIMEOUT_S). Ein Reload nach dem Wechsel oeffnet alle
+    Verbindungen frisch ueber den neuen Weg.
+
+    Der NetworkMonitor lebt laenger als die View, und sein Handler haelt sie
+    fest — samt Web-Prozess. Gibt deshalb eine Funktion zurueck, die den
+    Handler abhaengt; _WebPanel.teardown ruft sie, wenn das Modul aus dem
+    Layout faellt. (Eine schwache Referenz taugt nicht: PyGObject haelt den
+    Python-Wrapper einer View nicht am Leben, solange nur GTK sie haelt.)
+    """
+    monitor = Gio.NetworkMonitor.get_default()
+    state = {"pending": None, "handler": None}
+
+    def detach() -> None:
+        if state["pending"] is not None:
+            GLib.source_remove(state["pending"])
+            state["pending"] = None
+        if state["handler"] is not None:
+            monitor.disconnect(state["handler"])
+            state["handler"] = None
+
+    def fire():
+        state["pending"] = None
+        if not monitor.get_network_available():
+            return False  # der naechste Wechsel bringt das Netz zurueck
+        print(f"[xeneon-edge] {what}: Netz hat gewechselt — Neuladen")
+        _safe_reload(reload, view, what)
+        return False
+
+    def on_change(_monitor, _available) -> None:
+        if state["pending"] is not None:
+            GLib.source_remove(state["pending"])
+        state["pending"] = GLib.timeout_add_seconds(_NETWORK_SETTLE_S, fire)
+
+    state["handler"] = monitor.connect("network-changed", on_change)
+    return detach
+
+
+class _WebPanel(Gtk.Box):
+    """Der Rahmen um eine WebView, mit dem Abbau, den das Fenster erwartet.
+
+    window.py ruft ``teardown()`` auf Module, die beim Neubau des Layouts
+    nicht wiederverwendet werden — hier haengt das den NetworkMonitor-Handler
+    ab, der die View sonst fuer immer festhielte.
+    """
+
+    def __init__(self, view: Gtk.Widget, teardown) -> None:
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.add_css_class("panel")
+        self.append(view)
+        self._teardown = teardown
+
+    def teardown(self) -> None:
+        """Mehrfach aufrufbar."""
+        for fn in self._teardown:
+            try:
+                fn()
+            except Exception as e:
+                print(f"[xeneon-edge] Web-Panel-Abbau fehlgeschlagen: {e}")
+        self._teardown = ()
+
+    def do_dispose(self):  # type: ignore[override]
+        self.teardown()
+        Gtk.Box.do_dispose(self)
 
 
 def _try_webview(url: str = "", html: str = "", base: str = "") -> Gtk.Widget | None:
-    """View auf ``url``, oder auf ``html`` mit ``base`` als Herkunft.
+    """Panel mit einer View auf ``url``, oder auf ``html`` mit ``base`` als Herkunft.
 
     Eine Adresse bekommt die persistente Session: sonst waere jeder Login —
     TradingView wie Webmail — nach einem Neustart des Dashboards weg. Das
@@ -298,29 +453,30 @@ def _try_webview(url: str = "", html: str = "", base: str = "") -> Gtk.Widget | 
         return None
     try:
         context = make_context(WebKit)
+        # reload() bekommt die View uebergeben statt sie einzufangen: der
+        # NetworkMonitor haelt seinen Handler laenger, als die View lebt.
         if url:
             view = WebKit.WebView(web_context=context,
                                   network_session=make_session(WebKit))
-            _log_page_loads(view, f"Seite {url[:60]}")
-            view.load_uri(url)
-            _watch_web_process(view, lambda: view.load_uri(url))
+            what, home = f"Seite {url[:60]}", url
+
+            def reload(v):
+                v.load_uri(url)
         else:
             view = WebKit.WebView(web_context=context)
-            _log_page_loads(view, "TradingView-Widget")
-            view.load_html(html, base)
-            _watch_web_process(view, lambda: view.load_html(html, base))
+            what, home = "TradingView-Widget", base
+
+            def reload(v):
+                v.load_html(html, base)
+        stop_watchdog = _watch_page_loads(view, reload, what, home)
+        _watch_web_process(view, reload, what)
+        detach_monitor = _reload_on_network_change(view, reload, what)
+        reload(view)
         view.set_hexpand(True); view.set_vexpand(True)
-        return view
+        return _WebPanel(view, (stop_watchdog, detach_monitor))
     except Exception as e:
         print(f"[xeneon-edge] WebKit init failed: {e}")
         return None
-
-
-def _wrap(view: Gtk.Widget) -> Gtk.Widget:
-    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-    box.add_css_class("panel")
-    box.append(view)
-    return box
 
 
 def _placeholder(title: str, message: str) -> Gtk.Widget:
@@ -349,12 +505,12 @@ def make_tradingview_widget(config: dict | None = None,
     cfg = config or {}
     url = str(cfg.get("url") or "") if str(cfg.get("mode") or "widget") == "account" else ""
     if url:
-        view = _try_webview(url=url)
+        panel = _try_webview(url=url)
     else:
         html = widget_html(palette, cfg)
-        view = _try_webview(html=html, base="https://tradingview.com/")
-    if view is not None:
-        return _wrap(view)
+        panel = _try_webview(html=html, base="https://tradingview.com/")
+    if panel is not None:
+        return panel
     return _placeholder("TRADINGVIEW", NO_WEBKIT)
 
 
@@ -366,5 +522,5 @@ def make_web_widget(url: str = "") -> Gtk.Widget:
             "Keine Adresse eingestellt. Im Editor das Modul anklicken und "
             "unter \u201eAdresse\u201c eine URL eintragen — oder das "
             "TradingView-Modul nehmen, wenn es um Charts geht.")
-    view = _try_webview(url=url)
-    return _wrap(view) if view is not None else _placeholder("WEB-PANEL", NO_WEBKIT)
+    panel = _try_webview(url=url)
+    return panel if panel is not None else _placeholder("WEB-PANEL", NO_WEBKIT)

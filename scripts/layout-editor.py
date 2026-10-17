@@ -18,10 +18,10 @@ import shutil
 import sys
 from pathlib import Path
 
-# Wie in run.sh: ohne das rendert WebKitGTK auf manchen Multi-GPU-Systemen nur
-# eine schwarze Flaeche. Der Editor wird direkt aufgerufen, hat also nicht das
-# Environment aus run.sh.
-if os.environ.get("XENEON_WEBKIT_DMABUF") != "1":
+# Wie in run.sh: XENEON_WEBKIT_DMABUF=0 schaltet auf WebKits Shared-Memory-
+# Renderer, fuer Multi-GPU-Systeme mit schwarzer WebKit-Flaeche. Der Editor
+# wird direkt aufgerufen, hat also nicht das Environment aus run.sh.
+if os.environ.get("XENEON_WEBKIT_DMABUF") == "0":
     os.environ.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

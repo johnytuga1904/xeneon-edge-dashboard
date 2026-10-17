@@ -59,7 +59,7 @@ Von Hand entspricht das:
 sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
                  gir1.2-webkit-6.0 python3-psutil python3-requests \
                  lm-sensors pulseaudio-utils wireplumber \
-                 gstreamer1.0-plugins-good
+                 gstreamer1.0-plugins-good gir1.2-gstreamer-1.0
 sudo apt install nvidia-smi          # nur bei NVIDIA; liegt in 'non-free'
 ```
 
@@ -425,13 +425,29 @@ Cover-Popup).
 **Musikordner: das Modul spielt selbst.** Steht im Feld *Musikordner* ein
 Pfad, braucht es gar keinen fremden Player mehr. Der Ordner wird mitsamt
 Unterordnern nach Audiodateien durchsucht (`.mp3 .flac .ogg .opus .m4a .aac
-.wav .wma` und einige mehr, hoechstens 5000 Stueck), und die Play-Taste
-startet ihn. Weiter und Zurueck blaettern, am Ende der Liste hoert es auf.
-*Zufaellige Reihenfolge* mischt einmalig beim Start.
+.wav .wma` und einige mehr, dazu Video-Container wie `.webm .mp4 .mkv`, von
+denen die Tonspur gespielt wird; hoechstens 5000 Stueck), und eine vierte
+Taste mit Ordner-Symbol startet ihn — eine eigene Taste, weil Play dem
+angezeigten Player gehoert, und mit zwei Browsern auf dem Bus ist fast immer
+einer da. Solange der Ordner spielt, leuchtet die Taste; nochmal gedrueckt
+stoppt sie ihn, und der fremde Player kommt zurueck. Weiter und Zurueck
+blaettern, am Ende der Liste hoert es auf. *Zufaellige Reihenfolge* mischt
+einmalig beim Start.
 
-Abgespielt wird ueber `Gtk.MediaFile`, also GStreamer — dieselbe Maschinerie,
-mit der GTK jedes Video abspielt. Fehlen `gst-plugins-base` und
-`gst-plugins-good`, sagt das Modul das im Klartext, statt stumm zu bleiben.
+Abgespielt wird ueber eine GStreamer-Pipeline, die nur den Ton dekodiert —
+nicht ueber `Gtk.MediaFile`, das bei einem heruntergeladenen Konzert auch das
+Bild mitdekodieren wuerde, das nie jemand sieht (gemessen: 70 % eines Kerns
+bei einer 4K-AV1-Datei gegen 1 %). Fehlen die Bindings oder Plugins
+(`gst-plugins-base`, `gst-plugins-good`; Debian: `gir1.2-gstreamer-1.0`),
+sagt das Modul das im Klartext, statt stumm zu bleiben.
+
+Welchen Player das Modul zeigt, entscheidet im Zweifel der Sound-Server:
+Brave (Chromium) meldet ueber MPRIS auch mal "Paused" mit eingefrorener
+Position, waehrend YouTube hoerbar weiterlaeuft. Sagt kein Player "Playing",
+hoert das Modul jeden offenen Ausgabestrom kurz mit (ein stummer Autoplay-Tab
+zaehlt also nicht) und zeigt den Player, aus dem Ton kommt, als spielend an —
+nur sein Fortschrittsbalken bleibt stehen, die Position kennt allein der
+Browser.
 
 Titel und Kuenstler kommen aus dem **Dateinamen** und dem Ordner darueber,
 nicht aus den Tags — bei der ueblichen Ablage `Kuenstler/Album/01 Titel.flac`

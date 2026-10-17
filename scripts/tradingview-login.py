@@ -21,7 +21,7 @@ from pathlib import Path
 # Wie in run.sh: ohne das rendert WebKitGTK auf manchen Multi-GPU-Systemen nur
 # eine schwarze Flaeche. Das Login-Fenster wird auch direkt aufgerufen, also
 # nicht immer mit dem Environment aus run.sh.
-if os.environ.get("XENEON_WEBKIT_DMABUF") != "1":
+if os.environ.get("XENEON_WEBKIT_DMABUF") == "0":
     os.environ.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

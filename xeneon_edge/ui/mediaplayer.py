@@ -10,6 +10,13 @@ Quellen teilen sich dieselben drei Tasten. Wer gewinnt, entscheidet
 zurueck, sobald sonst etwas spielt. So uebernimmt Spotify die Anzeige, ohne
 dass die eigene Wiedergabe verloren geht.
 
+Gestartet wird der Ordner ueber eine eigene vierte Taste, nicht ueber Play:
+Play gehoert dem angezeigten Player. Und angezeigt wird fast immer einer —
+zwei Browser stehen auf dem Bus, sobald je ein Tab Medien hatte, auch
+pausiert. Ueber Play waere der Ordner damit nie zu erreichen gewesen. Die
+Ordner-Taste ist nur da, wenn ein Ordner eingestellt ist; laeuft er, stoppt
+sie ihn wieder, und die Anzeige faellt auf den fremden Player zurueck.
+
 Das Modul richtet sich nach seiner Groesse. Titel, Kuenstler und die Tasten
 sind immer da; Cover und Fortschrittsbalken kommen dazu, wenn Platz ist, und
 verschwinden wieder, wenn das Modul im Layout schmal oder flach gezogen wird.
@@ -35,6 +42,11 @@ PROGRESS_ON_H = 100
 PROGRESS_OFF_H = 90
 HEADER_ON_H = 120
 HEADER_OFF_H = 105
+
+# Was das Panel links und rechts vom Inhalt abzieht (style.css: box.panel
+# padding 8 + border 1, je Seite) und der Abstand zwischen Cover und Text.
+PANEL_INSET = 18
+BODY_SPACING = 8
 
 # Aenderungen sammeln, statt bei jedem PropertiesChanged neu zu lesen: manche
 # Player schicken im Sekundentakt.
@@ -121,10 +133,13 @@ class MediaPlayerModule(Gtk.Box):
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         buttons.add_css_class("media-buttons")
         buttons.set_halign(Gtk.Align.CENTER)
+        self._buttons = buttons
         self._prev = self._button("media-skip-backward-symbolic", "Previous")
         self._play = self._button("media-playback-start-symbolic", "PlayPause")
         self._next = self._button("media-skip-forward-symbolic", "Next")
-        for b in (self._prev, self._play, self._next):
+        self._folder = self._button("folder-music-symbolic", "Folder")
+        self._folder.add_css_class("media-folder")
+        for b in (self._prev, self._play, self._next, self._folder):
             buttons.append(b)
         right.append(buttons)
 
@@ -138,6 +153,11 @@ class MediaPlayerModule(Gtk.Box):
         folder = str(config.get("music_dir") or "").strip()
         self._local = LocalPlayer(folder, bool(config.get("shuffle")),
                                   self._on_change) if folder else None
+        self._folder.set_visible(self._local is not None)
+        if self._local is not None:
+            # Vier Tasten statt drei: etwas schmaler, sonst passen sie in
+            # einer 370er Spalte nicht neben das Cover.
+            buttons.add_css_class("media-buttons-four")
 
         self._refresh()
 
@@ -167,6 +187,16 @@ class MediaPlayerModule(Gtk.Box):
 
     def _on_button(self, _button, method: str) -> None:
         local = self._local
+        if method == "Folder":
+            if local is None:
+                return
+            if self._use_local:
+                local.stop()
+            else:
+                # Pausiert im Hintergrund (Spotify hatte uebernommen): weiter
+                # wo er war. Sonst von vorn.
+                local.play_pause()
+            return
         if self._use_local and local is not None:
             {"PlayPause": local.play_pause,
              "Next": local.next,
@@ -197,6 +227,14 @@ class MediaPlayerModule(Gtk.Box):
     def _refresh(self) -> None:
         self._track = self._watcher.read()
         self._use_local = self._pick_source()
+
+        # Die Ordner-Taste zeigt, ob der Ordner gerade die Anzeige stellt.
+        if self._use_local:
+            self._folder.add_css_class("media-folder-on")
+        else:
+            self._folder.remove_css_class("media-folder-on")
+        if self._local is not None:
+            self._folder.set_sensitive(self._local.count > 0 and self._local.available)
 
         if self._use_local:
             self._show_local()
@@ -376,8 +414,14 @@ class MediaPlayerModule(Gtk.Box):
         self._apply_visibility()
 
         if cover:
-            # Quadratisch, hoechstens ein gutes Drittel der Breite.
-            side = int(max(48, min(height * 0.62, width * 0.38)))
+            # Quadratisch, hoechstens ein gutes Drittel der Breite — und nie
+            # so breit, dass die Tastenreihe daneben nicht mehr Platz hat.
+            # Die Reihe ist fest (CSS), ihre Messung haengt nicht vom Cover
+            # ab; die Schleife aus dem Docstring droht hier nicht.
+            _min_w, buttons_w, _b1, _b2 = self._buttons.measure(
+                Gtk.Orientation.HORIZONTAL, -1)
+            room = width - PANEL_INSET - BODY_SPACING - buttons_w
+            side = int(max(48, min(height * 0.62, width * 0.38, room)))
             if abs(side - self._cover_side) > 4:
                 self._cover_side = side
                 self._cover.set_size_request(side, side)
@@ -398,13 +442,20 @@ class MediaPlayerModule(Gtk.Box):
     def tick(self) -> None:
         self._check_size()
         if self._use_local:
-            # Gtk.MediaStream kennt die Position selbst; nur zeichnen.
+            # GStreamer kennt die Position selbst; nur zeichnen.
             if self._local is not None and self._local.playing:
                 self._update_progress()
             return
+        track = self._track
+        if track.present and track.inferred:
+            # "Playing" kam vom Sound-Server, nicht vom Player — und der
+            # meldet auch nicht, wenn der Ton aufhoert. Selbst nachsehen.
+            if not self._watcher.audible(track.player):
+                self._refresh()
+            return
         # Nur die Position abfragen; alles andere meldet der Player selbst.
-        if self._track.present and self._track.playing and self._track.length_us > 0:
-            self._track.position_us = self._watcher.position(self._track.player)
+        if track.present and track.playing and track.length_us > 0:
+            track.position_us = self._watcher.position(track.player)
             self._update_progress()
 
     def update(self, snap) -> None:

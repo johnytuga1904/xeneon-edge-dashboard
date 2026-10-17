@@ -70,6 +70,18 @@ if shutil.which("gst-inspect-1.0"):
 else:
     warn("gst-inspect-1.0 nicht da — autoaudiosink nicht pruefbar")
 
+# Der Musikordner spielt ueber eine eigene GStreamer-Pipeline (ui/localplayer.py)
+# und braucht dafuer die Python-Bindings, nicht nur die Plugins.
+try:
+    gi.require_version("Gst", "1.0")
+    from gi.repository import Gst  # noqa: E402,F401
+    ok("Gst-1.0 — GStreamer-Bindings fuer den Musikordner")
+except (ValueError, ImportError):
+    warn("Gst-1.0-Typelib fehlt — der Musikordner im Wiedergabe-Modul bleibt stumm")
+    warn("  → Arch:   in 'gstreamer' enthalten")
+    warn("  → Debian: sudo apt install gir1.2-gstreamer-1.0")
+    warn("  → Fedora: sudo dnf install python3-gstreamer1")
+
 # NVML-Bindings sind optional: ohne sie laeuft nvidia-smi als Prozessstart pro
 # Tick (28 ms statt 0,1 ms). Nur erwaehnen, wenn ueberhaupt eine NVIDIA da ist.
 if shutil.which("nvidia-smi"):

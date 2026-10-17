@@ -286,8 +286,9 @@ register(ModuleSpec(
                    "bleiben immer."),
         Field("music_dir", "Musikordner", "dir", default="",
               help="Gesetzt, spielt das Modul diesen Ordner selbst ab — ohne "
-                   "fremdes Programm. Wird mit den Unterordnern durchsucht. "
-                   "Laeuft anderswo etwas, hat das Vorrang."),
+                   "fremdes Programm; eine vierte Taste startet ihn. Wird mit "
+                   "den Unterordnern durchsucht; von Videodateien laeuft die "
+                   "Tonspur. Laeuft anderswo etwas, hat das Vorrang."),
         Field("shuffle", "Zufaellige Reihenfolge", "bool", default=False,
               show_if=("music_dir", ()),
               help="Mischt den Musikordner einmalig beim Start."),

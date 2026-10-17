@@ -102,7 +102,7 @@ Same options as the Arch script minus `--deck` and `--no-hypr`. By hand:
 sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
                  gir1.2-webkit-6.0 python3-psutil python3-requests \
                  lm-sensors pulseaudio-utils wireplumber \
-                 gstreamer1.0-plugins-good libgtk-4-media-gstreamer
+                 gstreamer1.0-plugins-good gir1.2-gstreamer-1.0
 sudo apt install nvidia-smi python3-pynvml   # NVIDIA only; both in 'non-free'
 ```
 
@@ -112,8 +112,9 @@ Debian specifics:
   `requests` come from apt.
 - **`gir1.2-webkit-6.0`** is the GTK4 WebKit (trixie: 2.52). Without it the
   chart column shows a placeholder; everything else keeps running.
-- **`libgtk-4-media-gstreamer`** is the media backend behind `Gtk.MediaFile`.
-  Without it the playback module cannot play a music folder and says so.
+- **`gir1.2-gstreamer-1.0`** are the GStreamer bindings the music-folder
+  player uses. Without them the playback module cannot play a folder and
+  says so.
 - **`nvidia-smi`** lives in `non-free`. If apt cannot find it, add
   `contrib non-free non-free-firmware` to `Components:` in
   `/etc/apt/sources.list.d/debian.sources`.
@@ -134,14 +135,18 @@ sudo dnf install nvidia-smi python3-nvidia-ml-py    # NVIDIA only
 ## Running
 
 ```bash
-./run.sh            # sets GDK_SCALE=1, the WebKit DMABUF fallback and unbuffered stdout
+./run.sh            # sets GDK_SCALE=1 and unbuffered stdout
 python3 -m xeneon_edge
 ```
 
-`run.sh` exports `WEBKIT_DISABLE_DMABUF_RENDERER=1`: on some multi-GPU
-systems (AMD output next to an NVIDIA card) WebKitGTK does not hand its DMABUF
-buffer through and the chart column stays black. The fallback renderer costs
-nothing for one chart; `XENEON_WEBKIT_DMABUF=1` re-enables the default.
+WebKit's DMABUF renderer stays on. On some multi-GPU systems (AMD output next
+to an NVIDIA card, seen under Fedora) WebKitGTK does not hand its buffer
+through and the chart column stays black; `XENEON_WEBKIT_DMABUF=0 ./run.sh`
+switches to the shared-memory fallback then. The fallback is not the default
+because it hands over half-painted frames every few minutes — the chart
+column goes blank for one or two frames, which looks like a black flash on
+the strip (KMS recording, 2026-09-12: twice in twelve minutes, never in 35
+minutes with DMABUF).
 
 ### Autostart
 
@@ -415,14 +420,29 @@ omarchy.media` puts the same thing as a bar widget on the main monitor.
 
 **Music folder: the module plays itself.** With a path in *Music folder* no
 external player is needed. The folder is scanned recursively for audio files
-(`.mp3 .flac .ogg .opus .m4a .aac .wav .wma` and a few more, at most 5000)
-and the play button starts it. Next and previous page through, the list stops
-at its end. *Shuffle* mixes once at start.
+(`.mp3 .flac .ogg .opus .m4a .aac .wav .wma` and a few more, plus video
+containers such as `.webm .mp4 .mkv`, whose audio track is played; at most
+5000) and a fourth button with a folder icon starts it — a separate button,
+because play belongs to whatever player is on screen, and with two browsers
+on the bus there almost always is one. While the folder is playing that
+button is lit; pressing it again stops the folder and the other player comes
+back. Next and previous page through, the list stops at its end. *Shuffle*
+mixes once at start.
 
-Playback goes through `Gtk.MediaFile`, i.e. GStreamer — the same machinery
-GTK uses for any video. Without a media backend (`gst-plugins-base` and
-`gst-plugins-good`; Debian: `libgtk-4-media-gstreamer`) the module says so in
-plain text instead of staying silent.
+Playback goes through a GStreamer pipeline that decodes audio only — not
+`Gtk.MediaFile`, which would also decode the picture of a downloaded concert
+video that nobody sees (measured: 70 % of a core for a 4K AV1 file versus
+1 %). Without the bindings and plugins (`gst-plugins-base`, `gst-plugins-good`;
+Debian: `gir1.2-gstreamer-1.0`) the module says so in plain text instead of
+staying silent.
+
+Which player the module shows is decided by what is actually audible when no
+player reports "Playing": Brave (Chromium) has been seen reporting "Paused"
+with a frozen position while YouTube kept playing. The module then asks the
+sound server which process is emitting sound (a short level probe per open
+stream, so a muted autoplay tab does not count) and shows that player as
+playing; only its progress bar stays put, because the position is known to
+the browser alone.
 
 Title and artist come from the **file name** and the folder above it, not from
 tags — with the usual `Artist/Album/01 Title.flac` layout that is right. The
@@ -742,7 +762,7 @@ thread polls once a second and only what a visible module declares in
 
 ```
 linux/
-  run.sh                       # GDK_SCALE=1, WebKit DMABUF fallback, unbuffered stdout
+  run.sh                       # GDK_SCALE=1, unbuffered stdout, WebKit renderer switch
   pyproject.toml               # metadata, ruff config
   requirements.txt             # for venv setups only; distros use their packages
   config/apps.json             # deck template (KDE-flavoured)
