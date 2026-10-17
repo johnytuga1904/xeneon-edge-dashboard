@@ -391,7 +391,7 @@ Rahmenlinie des Pads auf dem Streifen.
 | Launch-Deck | 3x6-Raster mit Apps und Macros | im Editor unter *Launch-Deck* |
 | Web-Panel | WebKit-View auf eine Adresse | Adresse, Zoom |
 | TradingView | Chart-Widget oder eigener Chart | Quelle, Symbol, Intervall, Zeitzone, Indikatoren, Werkzeugleisten |
-| OpenMarket | eigener Chart aus einem OpenMarket-Account | Chart-Adresse (traegt *Anmelden / Chart waehlen* ein), Zoom (Standard 80 %) |
+| OpenMarket | eigener Chart aus einem OpenMarket-Account | Chart-Adresse (traegt *Anmelden / Chart waehlen* ein), Zoom (Standard 72 %) |
 | Uhr | Zeit gross | Darstellung, Sekunden, Zeitzonen |
 | Kalender | den laufenden Monat | Wochenstart, Kalenderwochen |
 | Wiedergabe | was gerade spielt, mit Tasten | Player, Cover an/aus, Musikordner, Zufall |
@@ -727,9 +727,10 @@ OpenMarket-Session leben also nebeneinander.
 
 Die Seite ist fuer einen breiten Desktop-Browser gebaut; in der Mittelspalte
 des Streifens (rund 1270 px) schnitt sie das Orderbuch rechts ab. Das Modul
-setzt deshalb standardmaessig einen Seitenzoom von **80 %** (*Zoom* im
-Editor, 50 bis 150), womit die Seite knapp 1600 CSS-Pixel sieht; das
-Web-Panel hat dasselbe Feld mit Standard 100.
+setzt deshalb standardmaessig einen Seitenzoom von **72 %** (*Zoom* im
+Editor, 50 bis 150), womit die Seite rund 1760 CSS-Pixel sieht — bei 80 %
+fehlte noch die Total-Spalte des Orderbuchs; das Web-Panel hat dasselbe Feld
+mit Standard 100.
 
 Gemessen am Streifen ueber sechs Stunden (16.10.2026, Fedora, AMD-GPU): die
 OpenMarket-Seite liegt bei rund 1 GB RSS und haelt dauerhaft **etwa ein

@@ -349,7 +349,7 @@ register(ModuleSpec(
               min=chart_mod.ZOOM_MIN, max=chart_mod.ZOOM_MAX,
               help="Seitenzoom. Die Chart-Seite ist fuer einen breiten Browser "
                    "gebaut; bei 100 wird in der Mittelspalte das Orderbuch rechts "
-                   "abgeschnitten, bei 80 passt alles."),
+                   "abgeschnitten, bei 80 fehlt noch die Total-Spalte, bei 72 passt alles."),
     ),
 ))
 

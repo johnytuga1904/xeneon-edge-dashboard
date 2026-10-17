@@ -467,8 +467,9 @@ class _WebPanel(Gtk.Box):
 # Zoom des OpenMarket-Moduls, wenn das Layout nichts anderes sagt. Die
 # Chart-Seite rechnet mit einem Desktop-Browser; in der rund 1270 px breiten
 # Mittelspalte des 2560er-Streifens schnitt sie das Orderbuch rechts ab. Bei
-# 80 % sieht sie knapp 1600 CSS-Pixel und bringt alles unter.
-OM_DEFAULT_ZOOM = 80
+# 72 % sieht sie rund 1760 CSS-Pixel; nachgemessen am 17.10.2026: 80 % zeigt
+# Preis und Menge, erst 72 % auch die Total-Spalte des Orderbuchs.
+OM_DEFAULT_ZOOM = 72
 ZOOM_MIN, ZOOM_MAX = 50, 150
 
 

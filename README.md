@@ -396,7 +396,7 @@ the pad on the strip.
 | Launch deck | 3×6 grid of apps and macros | in the editor under *Launch deck* |
 | Web panel | a WebKit view on an address | address, zoom |
 | TradingView | chart widget or your own chart | source, symbol, interval, time zone, indicators, toolbars |
-| OpenMarket | your own chart from an OpenMarket account | chart address (set by *Sign in / choose chart*), zoom (default 80 %) |
+| OpenMarket | your own chart from an OpenMarket account | chart address (set by *Sign in / choose chart*), zoom (default 72 %) |
 | Clock | time, large | display, seconds, time zones |
 | Calendar | the current month | week start, week numbers |
 | Playback | what is playing, with buttons | player, cover on/off, music folder, shuffle |
@@ -759,9 +759,10 @@ OpenMarket session live side by side.
 
 The page is laid out for a wide desktop browser; in the strip's centre
 column (about 1270 px) it clipped the order book on the right. The module
-therefore applies a page zoom of **80 %** by default (*Zoom* in the editor,
-50 to 150), which gives the page close to 1600 CSS pixels; the web panel has
-the same field with a default of 100.
+therefore applies a page zoom of **72 %** by default (*Zoom* in the editor,
+50 to 150), which gives the page about 1760 CSS pixels — 80 % still cut the
+order book's total column; the web panel has the same field with a default
+of 100.
 
 Measured on the strip over six hours (2026-10-16, Fedora, AMD GPU): the
 OpenMarket page sits at about 1 GB RSS and keeps **roughly a third of a core
